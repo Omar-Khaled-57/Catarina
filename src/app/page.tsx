@@ -205,6 +205,7 @@ export default function LoginPage() {
                   exit={{ opacity: 0, y: -8, scale: 0.98, height: 0, marginBottom: 0 }}
                   transition={FIELD_TRANSITION}
                   style={{ overflow: "hidden" }}
+                  className="mt-4"
                 >
                   <div>
                     <label htmlFor="login-pfp" className="block text-sm font-medium text-text-muted mb-1.5">

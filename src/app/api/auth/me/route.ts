@@ -42,6 +42,29 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  /* Ensure every user has the hardcoded welcome notification */
+  const hasWelcome = await prisma.notification.findFirst({
+    where: {
+      userId: user.id,
+      title: "Why Catarina? 🌸",
+    },
+  });
+
+  if (!hasWelcome) {
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: "SYSTEM",
+        title: "Why Catarina? 🌸",
+        message:
+          "Catarina — named after Omar's grandmother. She was the one who taught him that quiet dedication, care for others, and showing up every day is what truly builds something great. This system is built in her spirit: to help the Devora team grow, track their work, and celebrate every small win together.",
+        pinned: true,
+        refType: "audio",
+        refId: "/fun.mp3",
+      },
+    });
+  }
+
   return NextResponse.json({
     user: {
       ...user,

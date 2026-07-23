@@ -73,19 +73,6 @@ export async function PUT(req: Request) {
         data: { status: "APPROVED" },
       });
 
-      await tx.notification.create({
-        data: {
-          userId: newUser.id,
-          type: "SYSTEM",
-          title: "Why Catarina? 🌸",
-          message:
-            "Catarina — named after Omar's grandmother. She was the one who taught him that quiet dedication, care for others, and showing up every day is what truly builds something great. This system is built in her spirit: to help the Devora team grow, track their work, and celebrate every small win together.",
-          pinned: true,
-          refType: "audio",
-          refId: "/fun.mp3",
-        },
-      });
-
       return newUser;
     });
 

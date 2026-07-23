@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, use, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import GoalForm, { type GoalAssignmentData } from "@/components/GoalForm";
 import GoalCard from "@/components/GoalCard";
@@ -122,8 +123,16 @@ export default function SectionPage({
 }) {
   const { section: sectionParam } = use(params);
   const section = sectionParam.toUpperCase();
+  const router = useRouter();
   const { user, isAdmin } = useAuth();
   const permissions = user?.permissions || { canEditGoals: false, canDeleteGoals: false, canCreateGoals: true, canManageMembers: false, canCreateMonths: false };
+
+  /* Redirect invalid sections to dashboard */
+  useEffect(() => {
+    if (!["MARKETING", "ART", "TECHNICAL", "MANAGEMENT"].includes(section)) {
+      router.replace("/dashboard");
+    }
+  }, [section, router]);
 
   const [monthId, setMonthId] = useState<string | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);

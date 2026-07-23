@@ -255,7 +255,7 @@ export default function NotificationPanel({
               >
                 <div className={`mt-0.5 shrink-0 ${isWelcome ? "" : iconColor}`}>
                   {isWelcome ? (
-                    <Image src="/rina/logo.png" alt="Catarina" width={24} height={24} className="rounded-lg" />
+                    <Image src="/rina/happy.png" alt="Catarina" width={24} height={24} className="rounded-lg" />
                   ) : (
                     <Icon size={15} />
                   )}
