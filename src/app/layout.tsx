@@ -43,8 +43,8 @@ export const metadata: Metadata = {
     siteName: "Catarina",
     images: [
       {
-        url: "https://catarina-devora.vercel.app/meta.png",
-        secureUrl: "https://catarina-devora.vercel.app/meta.png",
+        url: "https://catarina-devora.vercel.app/og-image.png",
+        secureUrl: "https://catarina-devora.vercel.app/og-image.png",
         type: "image/png",
         width: 1200,
         height: 630,
@@ -58,14 +58,14 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Catarina — Devora Team Planner",
     description: "Monthly planning and progress tracking for the Devora team.",
-    images: ["https://catarina-devora.vercel.app/meta.png"],
+    images: ["https://catarina-devora.vercel.app/og-image.png"],
     creator: "@omar_khaled",
   },
   other: {
     "og:image:width": "1200",
     "og:image:height": "630",
     "og:image:type": "image/png",
-    "og:image:secure_url": "https://catarina-devora.vercel.app/meta.png",
+    "og:image:secure_url": "https://catarina-devora.vercel.app/og-image.png",
   },
   robots: {
     index: true,

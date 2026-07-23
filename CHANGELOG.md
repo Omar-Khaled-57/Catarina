@@ -101,7 +101,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Full Progressive Web App support: Web App Manifest, Service Worker, installable on Android/iOS/desktop
 - `logo.png` used as favicon, apple touch icon, and PWA icon
-- `meta.png` OpenGraph image for all social platforms
+- `og-image.png` OpenGraph image for all social platforms
 - Full SEO metadata: title tags, meta descriptions, Open Graph, Twitter Card
 - Next.js `<Image />` optimization on all logo/avatar images
 

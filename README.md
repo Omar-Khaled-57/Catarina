@@ -101,7 +101,7 @@ prisma/
 
 public/
 ├── logo.png                 # App logo
-├── meta.png                 # OpenGraph image
+├── og-image.png             # OpenGraph image
 ├── fun.mp3                  # Welcome audio
 └── manifest.json            # PWA manifest
 ```
