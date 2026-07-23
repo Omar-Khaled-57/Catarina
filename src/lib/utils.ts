@@ -110,6 +110,7 @@ const SECTION_PFP: Record<string, string> = {
   ART: "/pfps/art.png",
   MANAGEMENT: "/pfps/mng.gif",
   TECHNICAL: "/pfps/tec.gif",
+  MARKETING: "/pfps/mrk.gif",
 };
 
 export function getDefaultPfp(section: string): string | null {

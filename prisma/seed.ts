@@ -6,8 +6,12 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 async function main() {
-  const url = process.env.DATABASE_URL ?? "libsql://catarina-db-omar-khaled-57.aws-ap-northeast-1.turso.io";
-  const authToken = process.env.TURSO_AUTH_TOKEN ?? "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODQ4MDM3OTksImlkIjoiMDE5ZjhlOTctZjIwMS03OGRiLTgzODEtNjQ0MTFhMDE0YzA3Iiwia2lkIjoiZTBFTzgxRWlYdFVHenJwTU9jX2hmVVUyT1Bldk1feVUxRDh4dnRqdm1ESSIsInJpZCI6Ijk0Zjc1NTA4LWE1MTMtNDY1Ny1hNDM4LWZhMWMxZTIxN2I5MCJ9.czPFTqBHymNfHNr9fjOCh5iggSKEEBEkQ0C6f0Vr7J16a2-caMTy64SovneTYcV7V1uyqnO3A4Dy0MK2pGCdCA";
+  const url = process.env.DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  if (!url || !authToken) {
+    console.error("DATABASE_URL and TURSO_AUTH_TOKEN must be set in .env");
+    process.exit(1);
+  }
   const adapter = new PrismaLibSql({ url, authToken });
   const prisma = new PrismaClient({ adapter });
 

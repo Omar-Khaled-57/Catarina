@@ -38,7 +38,8 @@ interface AuthContextValue {
     name: string,
     email: string,
     password: string,
-    section: string
+    section: string,
+    pfp: File | null
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -91,12 +92,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: string,
       email: string,
       password: string,
-      section: string
+      section: string,
+      pfp: File | null
     ): Promise<{ success: boolean; error?: string }> => {
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("section", section);
+      if (pfp) formData.append("pfp", pfp);
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, section }),
+        body: formData,
       });
       const data = await res.json();
       if (res.ok) {

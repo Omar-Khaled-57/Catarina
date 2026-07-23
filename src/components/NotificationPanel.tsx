@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Modal from "@/components/ui/Modal";
+import Image from "next/image";
 import {
   Bell,
   Check,
@@ -244,15 +245,20 @@ export default function NotificationPanel({
           {notifications.map((n) => {
             const Icon = TYPE_ICON[n.type] || Bell;
             const iconColor = TYPE_COLOR[n.type] || "text-text-muted";
+            const isWelcome = n.title === "Why Catarina? 🌸";
             return (
               <div
                 key={n.id}
                 className={`flex items-start gap-3 p-2.5 rounded-lg transition-colors group/n ${
                   n.read ? "opacity-60" : "bg-surface-2/40"
-                }`}
+                } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""}`}
               >
-                <div className={`mt-0.5 shrink-0 ${iconColor}`}>
-                  <Icon size={15} />
+                <div className={`mt-0.5 shrink-0 ${isWelcome ? "" : iconColor}`}>
+                  {isWelcome ? (
+                    <Image src="/rina/logo.png" alt="Catarina" width={24} height={24} className="rounded-lg" />
+                  ) : (
+                    <Icon size={15} />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

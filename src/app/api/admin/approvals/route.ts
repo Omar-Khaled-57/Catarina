@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notify";
+import { getDefaultPfp } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
@@ -33,7 +34,17 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const approval = await prisma.approval.findUnique({ where: { id } });
+  const approval = await prisma.approval.findUnique({ where: { id } }) as {
+    id: string;
+    name: string;
+    email: string;
+    password: string;
+    section: string;
+    pfp: string | null;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
   if (!approval || approval.status !== "PENDING") {
     return NextResponse.json({ error: "Approval not found" }, { status: 404 });
   }
@@ -42,12 +53,14 @@ export async function PUT(req: Request) {
     /* Create the user account */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = await prisma.$transaction(async (tx: any) => {
+      const pfp = approval.pfp || getDefaultPfp(approval.section);
       const newUser = await tx.user.create({
         data: {
           name: approval.name,
           email: approval.email,
           password: approval.password,
           role: "MEMBER",
+          pfp,
         },
       });
 
@@ -58,6 +71,19 @@ export async function PUT(req: Request) {
       await tx.approval.update({
         where: { id },
         data: { status: "APPROVED" },
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: newUser.id,
+          type: "SYSTEM",
+          title: "Why Catarina? 🌸",
+          message:
+            "Catarina — named after Omar's grandmother. She was the one who taught him that quiet dedication, care for others, and showing up every day is what truly builds something great. This system is built in her spirit: to help the Devora team grow, track their work, and celebrate every small win together.",
+          pinned: true,
+          refType: "audio",
+          refId: "/fun.mp3",
+        },
       });
 
       return newUser;

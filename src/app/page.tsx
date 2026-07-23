@@ -46,6 +46,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [section, setSection] = useState<Section>(SECTIONS[0]);
+  const [pfp, setPfp] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +54,7 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
-        const result = await register(name, email, password, section);
+        const result = await register(name, email, password, section, pfp);
         if (result.success) {
           toast.success("Account request submitted! An admin will review it shortly.");
           setIsRegister(false);
@@ -93,7 +94,7 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Image src="/logo.png" alt="Catarina Logo" width={64} height={64} className="h-16 w-16 mx-auto rounded-2xl object-contain shadow-2xl mb-4" />
+          <Image src="/logo.png" alt="Catarina Logo" width={100} height={100} className="h-25 w-25 mx-auto rounded-2xl object-contain shadow-2xl mb-4" />
           <h1 className="text-3xl font-black text-text tracking-tight">Catarina</h1>
           <p className="text-text-muted mt-1">Devora Team Planner</p>
         </motion.div>
@@ -189,6 +190,33 @@ export default function LoginPage() {
                 >
                   <div className="relative">
                     <SectionDropdown value={section} onChange={setSection} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* PFP — register only (optional) */}
+            <AnimatePresence initial={false}>
+              {isRegister && (
+                <motion.div
+                  key="pfp-field"
+                  initial={{ opacity: 0, y: -16, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1, height: "auto", marginBottom: 0 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98, height: 0, marginBottom: 0 }}
+                  transition={FIELD_TRANSITION}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div>
+                    <label htmlFor="login-pfp" className="block text-sm font-medium text-text-muted mb-1.5">
+                      Profile Picture <span className="text-text-muted/60">(optional)</span>
+                    </label>
+                    <input
+                      id="login-pfp"
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={(e) => setPfp(e.target.files?.[0] || null)}
+                      className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text focus:outline-none focus:border-accent transition-colors file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent/10 file:text-accent hover:file:bg-accent/20"
+                    />
                   </div>
                 </motion.div>
               )}

@@ -6,10 +6,17 @@ import { prisma } from "@/lib/prisma";
 import { SECTIONS } from "@/lib/auth";
 import { notifyAdmins } from "@/lib/notify";
 import bcrypt from "bcryptjs";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password, section } = await req.json();
+    const formData = await req.formData();
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const section = formData.get("section") as string;
+    const pfp = formData.get("pfp") as File | null;
 
     if (!name || !email || !password || !section) {
       return NextResponse.json(
@@ -18,7 +25,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!SECTIONS.includes(section)) {
+    if (!SECTIONS.includes(section as typeof SECTIONS[number])) {
       return NextResponse.json(
         { error: "Invalid section" },
         { status: 400 }
@@ -55,6 +62,7 @@ export async function POST(req: Request) {
       name: string;
       password: string;
       section: string;
+      pfp: string | null;
       status: string;
       createdAt: Date;
       updatedAt: Date;
@@ -66,22 +74,54 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    let pfpPath: string | null = null;
+    if (pfp && pfp.size > 0) {
+      const ALLOWED_TYPES = new Set([
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ]);
+      if (!ALLOWED_TYPES.has(pfp.type)) {
+        return NextResponse.json(
+          { error: "Unsupported file type. Use JPG, PNG, GIF, or WebP." },
+          { status: 400 }
+        );
+      }
+      if (pfp.size > 5 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "File too large. Max 5 MB." },
+          { status: 400 }
+        );
+      }
+      const ext = pfp.name.split(".").pop() || "jpg";
+      const filename = `register-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      const filepath = path.join(uploadDir, filename);
+      await mkdir(uploadDir, { recursive: true });
+      const bytes = Buffer.from(await pfp.arrayBuffer());
+      await writeFile(filepath, bytes);
+      pfpPath = `/uploads/${filename}`;
+    }
+
+    const hashedPassword = await bcrypt.hash(password as string, 12);
 
     /* Create or update the approval request */
     const approval = await prisma.approval.upsert({
       where: { email },
       update: {
-        name,
+        name: name as string,
         password: hashedPassword,
-        section,
+        section: section as string,
+        pfp: pfpPath,
         status: "PENDING",
       },
       create: {
-        name,
-        email,
+        name: name as string,
+        email: email as string,
         password: hashedPassword,
-        section,
+        section: section as string,
+        pfp: pfpPath,
       },
     });
 

@@ -162,6 +162,7 @@ model Approval {
   email     String   @unique
   password  String   // bcrypt hash — stored until approved
   section   String   // requested section
+  pfp       String?  // optional profile picture path
   status    String   @default("PENDING") // PENDING | APPROVED | REJECTED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
