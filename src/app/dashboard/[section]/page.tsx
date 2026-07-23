@@ -192,14 +192,17 @@ export default function SectionPage({
     current: number;
     target: number;
     deadline: string;
+    monthId: string;
   }) => {
     const res = await fetch("/api/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, section, monthId }),
+      body: JSON.stringify({ ...data, section }),
     });
     if (!res.ok) throw new Error("Failed to create goal");
-    fetchGoals(monthId!);
+    const { goal } = await res.json();
+    fetchGoals(data.monthId);
+    return goal?.id || null;
   };
 
   const handleUpdateGoal = async (data: {
@@ -208,6 +211,7 @@ export default function SectionPage({
     current: number;
     target: number;
     deadline: string;
+    monthId: string;
   }) => {
     if (!editingGoal) return;
     const res = await fetch(`/api/goals/${editingGoal.id}`, {
@@ -216,7 +220,7 @@ export default function SectionPage({
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update goal");
-    fetchGoals(monthId!);
+    fetchGoals(data.monthId);
   };
 
   const handleSaveAssignments = async (goalId: string, assignments: GoalAssignmentData[]) => {

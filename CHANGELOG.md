@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] — 2026-07-23 · *In Progress*
+
+> Preliminary fix for corrupted `GoalForm.tsx` — full patch still required.
+
+### ✦ Bug Fixes
+
+- **GoalForm** — Initial recovery patch applied to restore component integrity after corruption. Form state, assignment picker, and modal structure have been stabilized. Further refactoring and validation still needed.
+
+---
+
 ## [0.1.0] — 2026-07-23 · *Initial Release*
 
 > The first complete version of Catarina, live on Turso with full team functionality.

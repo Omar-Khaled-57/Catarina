@@ -26,7 +26,8 @@ interface GoalFormProps {
     current: number;
     target: number;
     deadline: string;
-  }) => Promise<void> | void;
+    monthId: string;
+  }) => Promise<string | null> | string | null;
   onSaveAssignments: (goalId: string, assignments: GoalAssignmentData[]) => Promise<void> | void;
   initialData: {
     id?: string;
@@ -169,18 +170,19 @@ export default function GoalForm({
 
     setIsSaving(true);
     try {
-      await onSave({
+      const newGoalId = await onSave({
         name: name.trim(),
         description: description.trim(),
         current,
         target,
         deadline,
+        monthId,
       });
 
-      if (goalId && assignments.length > 0) {
+      if (assignments.length > 0 && (goalId || newGoalId)) {
         setSavingAssignments(true);
         try {
-          await onSaveAssignments(goalId, assignments);
+          await onSaveAssignments(goalId || newGoalId!, assignments);
         } finally {
           setSavingAssignments(false);
         }
