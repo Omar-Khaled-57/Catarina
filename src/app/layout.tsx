@@ -61,6 +61,12 @@ export const metadata: Metadata = {
     images: ["https://catarina-devora.vercel.app/meta.png"],
     creator: "@omar_khaled",
   },
+  other: {
+    "og:image:width": "1200",
+    "og:image:height": "630",
+    "og:image:type": "image/png",
+    "og:image:secure_url": "https://catarina-devora.vercel.app/meta.png",
+  },
   robots: {
     index: true,
     follow: true,
