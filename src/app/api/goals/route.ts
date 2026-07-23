@@ -27,7 +27,32 @@ export async function GET(req: Request) {
       steps: { orderBy: { order: "asc" } },
     },
     orderBy: [{ done: "asc" }, { deadline: "asc" }],
-  });
+  }) as unknown as Array<{
+    id: string;
+    name: string;
+    description: string;
+    current: number;
+    target: number;
+    done: boolean;
+    deadline: Date;
+    carriedOver: boolean;
+    section: string;
+    monthId: string;
+    authorId: string;
+    goalNumber: number;
+    completedAt: Date | null;
+    deadlineSetByAdmin: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    comments: { id: string }[];
+    assignments: {
+      userId: string;
+      canCheck: boolean;
+      canEdit: boolean;
+      user: { id: string; name: string; pfp: string | null };
+    }[];
+    steps: { id: string; text: string; done: boolean; order: number; goalId: string; createdAt: Date; updatedAt: Date }[];
+  }>;
 
   /* Flatten assignment user data */
   const formatted = goals.map((g) => ({
