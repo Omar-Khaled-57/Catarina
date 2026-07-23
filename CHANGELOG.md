@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.1.5] — 2026-07-23 · *Stability & UX Polish*
+
+### ✦ Bug Fixes & Improvements
+
+- **Welcome Notification** — Hardcoded "Why Catarina? 🌸" pinned notification now ensured for ALL users (including admins) on every `/api/auth/me` call until they mark it read or delete it
+- **Register Flow** — Added optional profile picture upload during registration; falls back to section-colored default PFP from `/pfps/` if no image provided
+- **Approval Flow** — New users created from approvals now receive the correct default PFP based on their assigned section
+- **Custom 404 Page** — Replaced Next.js default 404 with stylized page using `/rina/404.png` and navigation buttons
+- **Routing** — Invalid section slugs on `/dashboard/[section]` now redirect client-side to `/dashboard` instead of causing runtime errors
+- **PWA** — Manifest name and short_name set to "Catarina"; service worker upgraded to v2 with stale-while-revalidate caching
+- **SEO & Accessibility** — Added `robots.ts`, skip-to-content link, improved label associations, focus trap in modals, and ARIA attributes on custom dropdown
+- **Build Fixes** — Resolved Prisma 7 type inference issues across all API routes; added `postinstall` script for Prisma client generation; fixed Vercel deployment build failures
+
+### ✦ Infrastructure
+
+- **Version bump** — 0.1.0 → 0.1.5
+- **Database** — Added `pfp` field to `Approval` model for registration photo uploads
+
+---
+
 ## [Unreleased] — 2026-07-23 · *In Progress*
 
 > Preliminary fix for corrupted `GoalForm.tsx` — full patch still required.

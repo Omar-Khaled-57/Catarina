@@ -4,7 +4,7 @@
   <p><strong>A private team planning & tracking system built for Devora.</strong></p>
   <p>
     <a href="https://catarina-devora.vercel.app"><img src="https://img.shields.io/badge/live-catarina--devora.vercel.app-00E8A2?style=flat-square" /></a>
-    <img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" />
+    <img src="https://img.shields.io/badge/version-0.1.5-blue?style=flat-square" />
     <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" />
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" />
