@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "sonner";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -19,7 +20,10 @@ const cairo = Cairo({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://catarina-devora.vercel.app"),
-  title: "Catarina — Devora Team Planner",
+  title: {
+    default: "Catarina — Devora Team Planner",
+    template: "%s | Catarina",
+  },
   description:
     "Monthly planning and progress tracking for the Devora team. Manage goals, track completion, and generate reports.",
   keywords: ["planning", "team", "goals", "devora", "project management"],
@@ -54,6 +58,24 @@ export const metadata: Metadata = {
     description: "Monthly planning and progress tracking for the Devora team.",
     images: ["/meta.png"],
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+};
+
+export const viewport = {
+  themeColor: "#00E8A2",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -66,6 +88,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${cairo.variable} antialiased min-h-screen`}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-bg focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
         <ThemeProvider>
           <AuthProvider>
             {children}
@@ -77,17 +105,7 @@ export default function RootLayout({
             />
           </AuthProvider>
         </ThemeProvider>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
-          }}
-        />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

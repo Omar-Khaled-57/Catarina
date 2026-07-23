@@ -512,9 +512,11 @@ export default function SectionPage({
 
           {/* Search */}
           <div className="relative sm:w-56 shrink-0">
-            <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-text-muted pointer-events-none" />
+            <label htmlFor="goal-search" className="sr-only">Search goals</label>
+            <Search size={14} className="absolute top-1/2 -translate-y-1/2 start-3 text-text-muted pointer-events-none" aria-hidden="true" />
             <input
-              type="text"
+              id="goal-search"
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search goals..."

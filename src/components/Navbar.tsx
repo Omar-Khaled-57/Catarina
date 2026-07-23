@@ -293,7 +293,7 @@ function ProfileModal({
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
               className="absolute -bottom-0.5 -right-0.5 h-6 w-6 rounded-full bg-accent flex items-center justify-center text-bg shadow-lg hover:bg-accent-2 transition-colors disabled:opacity-50"
-              title="Upload photo"
+              aria-label="Upload profile photo"
             >
               <Upload size={11} />
             </button>

@@ -79,7 +79,7 @@ export default function LoginPage() {
   const toggleMode = () => setIsRegister((prev) => !prev);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 pt-16 pb-48">
+    <div id="main-content" className="flex min-h-screen items-center justify-center p-4 pt-16 pb-48">
       {/* Background glow effect */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/5 blur-[120px] rounded-full" />
@@ -127,10 +127,11 @@ export default function LoginPage() {
                   style={{ overflow: "hidden" }}
                 >
                   <div>
-                    <label className="block text-sm font-medium text-text-muted mb-1.5">
+                    <label htmlFor="login-name" className="block text-sm font-medium text-text-muted mb-1.5">
                       Full Name
                     </label>
                     <input
+                      id="login-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -145,10 +146,11 @@ export default function LoginPage() {
 
             {/* Email */}
             <div className="pt-2">
-              <label className="block text-sm font-medium text-text-muted mb-1.5">
+              <label htmlFor="login-email" className="block text-sm font-medium text-text-muted mb-1.5">
                 Email
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -160,10 +162,11 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-text-muted mb-1.5">
+              <label htmlFor="login-password" className="block text-sm font-medium text-text-muted mb-1.5">
                 Password
               </label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -185,9 +188,6 @@ export default function LoginPage() {
                   transition={FIELD_TRANSITION}
                 >
                   <div className="relative">
-                    <label className="block text-sm font-medium text-text-muted mb-1.5">
-                      Team Section
-                    </label>
                     <SectionDropdown value={section} onChange={setSection} />
                   </div>
                 </motion.div>
@@ -238,7 +238,10 @@ function SectionDropdown({
   onChange: (s: Section) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   /* Close on outside click */
   useEffect(() => {
@@ -251,14 +254,71 @@ function SectionDropdown({
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen]);
 
+  /* Keyboard navigation */
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openMenu();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = prev < SECTIONS.length - 1 ? prev + 1 : 0;
+          return next;
+        });
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = prev > 0 ? prev - 1 : SECTIONS.length - 1;
+          return next;
+        });
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < SECTIONS.length) {
+          onChange(SECTIONS[focusedIndex]);
+          setIsOpen(false);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setIsOpen(false);
+        triggerRef.current?.focus();
+        break;
+      case "Tab":
+        setIsOpen(false);
+        break;
+    }
+  };
+
+  const openMenu = () => {
+    setIsOpen(true);
+    setFocusedIndex(SECTIONS.indexOf(value));
+  };
+
   const color = SECTION_COLORS[value];
 
   return (
     <div ref={ref} className="relative">
+      <label htmlFor="login-section" className="block text-sm font-medium text-text-muted mb-1.5">
+        Team Section
+      </label>
       {/* Trigger */}
       <button
+        id="login-section"
+        ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
+        onKeyDown={handleKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
         className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text flex items-center gap-3 focus:outline-none focus:border-accent transition-colors"
       >
         <span
@@ -275,53 +335,59 @@ function SectionDropdown({
           className={`text-text-muted transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
+          aria-hidden="true"
         />
       </button>
 
       {/* Dropdown — absolute so it pushes page height, no clipping */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.96 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute left-0 right-0 mt-2 rounded-xl bg-surface border border-border shadow-[0_12px_40px_rgba(0,0,0,0.4)] overflow-hidden"
-            style={{ zIndex: 50 }}
-          >
-            {SECTIONS.map((s) => {
-              const c = SECTION_COLORS[s];
-              const isSelected = s === value;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => {
-                    onChange(s);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                    isSelected ? "bg-accent/5" : "hover:bg-surface-2"
-                  }`}
+      {isOpen && (
+        <motion.div
+          ref={listboxRef}
+          role="listbox"
+          aria-label="Team sections"
+          initial={{ opacity: 0, y: -8, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.96 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute left-0 right-0 mt-2 rounded-xl bg-surface border border-border shadow-[0_12px_40px_rgba(0,0,0,0.4)] overflow-hidden"
+          style={{ zIndex: 50 }}
+        >
+          {SECTIONS.map((s, index) => {
+            const c = SECTION_COLORS[s];
+            const isSelected = s === value;
+            const isFocused = index === focusedIndex;
+            return (
+              <button
+                key={s}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(s);
+                  setIsOpen(false);
+                }}
+                onMouseEnter={() => setFocusedIndex(index)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                  isSelected ? "bg-accent/5" : isFocused ? "bg-surface-2" : "hover:bg-surface-2"
+                }`}
+              >
+                <span
+                  className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
+                  style={{ backgroundColor: `${c}20`, color: c }}
                 >
-                  <span
-                    className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
-                    style={{ backgroundColor: `${c}20`, color: c }}
-                  >
-                    {SECTION_ICONS[s]}
-                  </span>
-                  <span className="flex-1 text-left font-medium text-text">
-                    {SECTION_LABELS[s]}
-                  </span>
-                  {isSelected && (
-                    <Check size={16} className="text-accent shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  {SECTION_ICONS[s]}
+                </span>
+                <span className="flex-1 text-left font-medium text-text">
+                  {SECTION_LABELS[s]}
+                </span>
+                {isSelected && (
+                  <Check size={16} className="text-accent shrink-0" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
+        </motion.div>
+      )}
     </div>
   );
 }
