@@ -19,7 +19,24 @@ export async function PUT(req: Request, { params }: Params) {
   const { name, description, current, target, deadline, monthId } = await req.json();
 
   /* Fetch the existing goal to check permissions */
-  const existing = await prisma.goal.findUnique({ where: { id } });
+  const existing = await prisma.goal.findUnique({ where: { id } }) as {
+    id: string;
+    name: string;
+    description: string;
+    current: number;
+    target: number;
+    done: boolean;
+    deadline: Date;
+    carriedOver: boolean;
+    section: string;
+    monthId: string;
+    authorId: string;
+    goalNumber: number;
+    completedAt: Date | null;
+    deadlineSetByAdmin: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
   if (!existing) {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }

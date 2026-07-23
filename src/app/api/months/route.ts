@@ -9,7 +9,16 @@ export async function GET() {
     include: {
       _count: { select: { goals: true } },
     },
-  });
+  }) as Array<{
+    id: string;
+    name: string;
+    year: number;
+    month: number;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: { goals: number };
+  }>;
 
   return NextResponse.json({ months });
 }

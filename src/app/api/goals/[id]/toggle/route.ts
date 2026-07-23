@@ -19,7 +19,24 @@ export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
   const { done } = await req.json();
 
-  const goal = await prisma.goal.findUnique({ where: { id } });
+  const goal = await prisma.goal.findUnique({ where: { id } }) as {
+    id: string;
+    name: string;
+    description: string;
+    current: number;
+    target: number;
+    done: boolean;
+    deadline: Date;
+    carriedOver: boolean;
+    section: string;
+    monthId: string;
+    authorId: string;
+    goalNumber: number;
+    completedAt: Date | null;
+    deadlineSetByAdmin: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
   if (!goal) {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
@@ -49,13 +66,13 @@ export async function PATCH(req: Request, { params }: Params) {
     const assignments = await prisma.goalAssignment.findMany({
       where: { goalId: id },
       select: { userId: true },
-    });
+    }) as Array<{ userId: string }>;
     const assigneeIds = assignments.map((a) => a.userId).filter((uid) => uid !== payload.userId);
     if (assigneeIds.length > 0) {
       const completer = await prisma.user.findUnique({
         where: { id: payload.userId },
         select: { name: true },
-      });
+      }) as { name: string } | null;
       await notifyMany(assigneeIds, {
         type: "GOAL_COMPLETED",
         title: "Goal completed",

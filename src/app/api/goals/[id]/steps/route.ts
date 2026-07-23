@@ -49,7 +49,10 @@ export async function POST(
       name: true,
       assignments: { select: { userId: true } },
     },
-  });
+  }) as {
+    name: string;
+    assignments: { userId: string }[];
+  } | null;
 
   if (goal) {
     const assigneeIds = goal.assignments.map((a) => a.userId).filter((uid) => uid !== payload.userId);

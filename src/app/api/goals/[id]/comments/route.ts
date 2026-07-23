@@ -18,7 +18,14 @@ export async function GET(_req: Request, { params }: Params) {
       author: { select: { name: true, role: true } },
     },
     orderBy: { createdAt: "asc" },
-  });
+  }) as Array<{
+    id: string;
+    text: string;
+    goalId: string;
+    authorId: string;
+    author: { name: string; role: string };
+    createdAt: Date;
+  }>;
 
   return NextResponse.json({ comments });
 }

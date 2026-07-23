@@ -24,7 +24,15 @@ export async function POST(req: Request) {
     if (previousMonthId) {
       const prevMonth = await prisma.month.findUnique({
         where: { id: previousMonthId },
-      });
+      }) as {
+        id: string;
+        name: string;
+        year: number;
+        month: number;
+        isArchived: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      } | null;
       if (!prevMonth) {
         return NextResponse.json(
           { error: "Previous month not found" },
@@ -42,7 +50,15 @@ export async function POST(req: Request) {
     /* Check if this month already exists */
     const existing = await prisma.month.findUnique({
       where: { year_month: { year: newYear, month: newMonth } },
-    });
+    }) as {
+      id: string;
+      name: string;
+      year: number;
+      month: number;
+      isArchived: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
     if (existing) {
       return NextResponse.json(
         { error: "This month already exists" },
@@ -68,7 +84,24 @@ export async function POST(req: Request) {
           monthId: previousMonthId,
           done: false,
         },
-      });
+      }) as Array<{
+        id: string;
+        name: string;
+        description: string;
+        current: number;
+        target: number;
+        done: boolean;
+        deadline: Date;
+        carriedOver: boolean;
+        section: string;
+        monthId: string;
+        authorId: string;
+        goalNumber: number;
+        completedAt: Date | null;
+        deadlineSetByAdmin: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      }>;
 
       if (unfinishedGoals.length > 0) {
         await prisma.goal.createMany({

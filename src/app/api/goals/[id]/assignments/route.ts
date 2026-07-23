@@ -20,7 +20,12 @@ export async function GET(_req: Request, { params }: Params) {
   const assignments = await prisma.goalAssignment.findMany({
     where: { goalId: id },
     include: { user: { select: { id: true, name: true, pfp: true } } },
-  });
+  }) as Array<{
+    userId: string;
+    canCheck: boolean;
+    canEdit: boolean;
+    user: { id: string; name: string; pfp: string | null };
+  }>;
 
   return NextResponse.json({
     assignments: assignments.map((a) => ({

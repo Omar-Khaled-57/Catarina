@@ -25,7 +25,18 @@ export async function GET(req: Request) {
       { createdAt: "desc" },
     ],
     take: 100,
-  });
+  }) as Array<{
+    id: string;
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    read: boolean;
+    pinned: boolean;
+    refType: string | null;
+    refId: string | null;
+    createdAt: Date;
+  }>;
 
   const unreadCount = await prisma.notification.count({
     where: { userId: payload.userId, read: false },

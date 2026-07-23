@@ -27,7 +27,10 @@ export async function PUT(req: Request) {
   if (data.email) {
     const existing = await prisma.user.findFirst({
       where: { email: data.email, NOT: { id: payload.userId } },
-    });
+    }) as {
+      id: string;
+      email: string;
+    } | null;
     if (existing) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }

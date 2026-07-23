@@ -20,7 +20,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email } }) as {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      password: string;
+      pfp: string | null;
+      bio: string | null;
+      primarySection: string | null;
+      permissions: string;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
     if (existing) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }

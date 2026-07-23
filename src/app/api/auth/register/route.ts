@@ -26,7 +26,19 @@ export async function POST(req: Request) {
     }
 
     /* Check if email is already registered as a user */
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email } }) as {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      password: string;
+      pfp: string | null;
+      bio: string | null;
+      primarySection: string | null;
+      permissions: string;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
     if (existingUser) {
       return NextResponse.json(
         { error: "Email already registered" },
@@ -37,7 +49,16 @@ export async function POST(req: Request) {
     /* Check if there's already a pending approval for this email */
     const existingApproval = await prisma.approval.findUnique({
       where: { email },
-    });
+    }) as {
+      id: string;
+      email: string;
+      name: string;
+      password: string;
+      section: string;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
     if (existingApproval && existingApproval.status === "PENDING") {
       return NextResponse.json(
         { error: "A request for this email is already pending approval" },
