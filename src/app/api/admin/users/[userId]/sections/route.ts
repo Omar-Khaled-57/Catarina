@@ -31,7 +31,8 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   /* Replace all section assignments in a transaction */
-  await prisma.$transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.$transaction(async (tx: any) => {
     await tx.userSection.deleteMany({ where: { userId } });
     if (sections.length > 0) {
       await tx.userSection.createMany({
