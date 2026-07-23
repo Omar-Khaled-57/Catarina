@@ -40,7 +40,7 @@ export async function PUT(req: Request) {
 
   if (action === "approve") {
     /* Create the user account */
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {
           name: approval.name,
