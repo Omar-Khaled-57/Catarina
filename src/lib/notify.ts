@@ -48,7 +48,7 @@ export async function notifyAdmins(
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN" },
     select: { id: true },
-  });
+  }) as Array<{ id: string }>;
   return notifyMany(admins.map((a) => a.id), opts);
 }
 
@@ -62,7 +62,7 @@ export async function notifySection(
   const members = await prisma.userSection.findMany({
     where: { section },
     select: { userId: true },
-  });
+  }) as Array<{ userId: string }>;
   return notifyMany(
     [...new Set(members.map((m) => m.userId))],
     opts
