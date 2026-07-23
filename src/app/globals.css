@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+/* ─── Catarina Design Tokens ────────────────────────────────────────────────── */
+/* Hodor-inspired: neon teal on dark, glassmorphism, glow effects                */
+/* Uses CSS logical properties throughout for RTL-ready layout                   */
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-glow: var(--accent-glow);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+
+  --color-marketing: #FF4D6A;
+  --color-art: #7C3AED;
+  --color-technical: #3B82F6;
+  --color-management: #F59E0B;
+
+  --font-inter: var(--font-inter), sans-serif;
+  --font-cairo: var(--font-cairo), sans-serif;
+}
+
+/* ─── Dark Theme (Default) ──────────────────────────────────────────────────── */
+:root {
+  --bg: #060B14;
+  --surface: #0D1824;
+  --surface-2: #142035;
+  --border: rgba(0, 232, 162, 0.15);
+  --accent: #00E8A2;
+  --accent-2: #00C87A;
+  --accent-glow: rgba(0, 232, 162, 0.25);
+  --danger: #FF4D6A;
+  --warning: #FFB830;
+  --text: #F0F6FF;
+  --text-muted: #5A7A99;
+}
+
+/* ─── Light Theme ───────────────────────────────────────────────────────────── */
+html.light {
+  --bg: #F0F6FF;
+  --surface: #FFFFFF;
+  --surface-2: #E2E8F0;
+  --border: rgba(0, 232, 162, 0.3);
+  --accent: #00C47A;
+  --accent-2: #00E8A2;
+  --accent-glow: rgba(0, 196, 122, 0.25);
+  --danger: #E11D48;
+  --warning: #D97706;
+  --text: #060B14;
+  --text-muted: #5A7A99;
+}
+
+/* ─── Base Styles ───────────────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html[dir="rtl"] body {
+  font-family: var(--font-cairo);
+}
+
+/* ─── Custom Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ─── Glassmorphism Utility ─────────────────────────────────────────────────── */
+.glass {
+  background: rgba(13, 24, 36, 0.6);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+}
+html.light .glass {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 196, 122, 0.2);
+}
+nav.glass {
+  -webkit-backdrop-filter: blur(32px);
+  backdrop-filter: blur(32px);
+}
+
+/* ─── Glow Effects ──────────────────────────────────────────────────────────── */
+.glow-accent {
+  box-shadow: 0 0 20px var(--accent-glow), 0 0 60px var(--accent-glow);
+}
+.glow-danger {
+  box-shadow: 0 0 20px rgba(255, 77, 106, 0.25);
+}
+.glow-warning {
+  box-shadow: 0 0 20px rgba(255, 184, 48, 0.25);
+}
+
+/* ─── Print / PDF Styles ────────────────────────────────────────────────────── */
+@media print {
+  * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  body > * {
+    display: none !important;
+  }
+  #catarina-print-report {
+    display: block !important;
+  }
+  @page {
+    margin: 1.5cm 2cm;
+    size: A4 portrait;
+  }
+}
+#printable-report {
+  display: none;
+}
+#printable-report.printing {
+  display: block !important;
+  font-family: 'Inter', sans-serif;
+  color: #060b14;
+  background: #ffffff;
+  padding: 2rem;
+}
+
+/* ─── Sonner Toast Fixes ────────────────────────────────────────────────────── */
+html.dark [data-sonner-toast] [data-description] {
+  color: var(--text) !important;
+  opacity: 0.8;
+}
+html.dark [data-sonner-toast] [data-title] {
+  color: var(--text) !important;
+}
+
+/* ─── Section Color Accents ─────────────────────────────────────────────────── */
+.section-marketing { --section-color: #00E8A2; }
+.section-art { --section-color: #7C3AED; }
+.section-technical { --section-color: #3B82F6; }
+.section-management { --section-color: #F59E0B; }
+
+/* ─── Modal Scrollbar ──────────────────────────────────────────────────────── */
+.modal-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 4px;
+  transition: background 0.2s, width 0.2s, box-shadow 0.2s;
+}
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  width: 7px;
+  box-shadow: 0 0 8px 2px var(--accent-glow), 0 0 16px 4px var(--accent-glow);
+}
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-2) transparent;
+}
+
+/* ─── Checkbox Pulse Animation ──────────────────────────────────────────────── */
+@keyframes checkbox-pulse {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.25); }
+  60%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.checkbox-pulse {
+  animation: checkbox-pulse 0.4s ease-out;
+}
+
+/* ─── In-View Fade-In Animation ────────────────────────────────────────────── */
+.in-view {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.in-view-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.in-view-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

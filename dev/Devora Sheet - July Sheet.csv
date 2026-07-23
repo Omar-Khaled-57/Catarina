@@ -1,0 +1,31 @@
+Section,Goal Number,Goal Name,Description,Target,Done,Deadline,Percentage
+MARKETING,1,Devora mission and vision,"Define the Mission & vision of Devora and give the art section the key ideas",2,FALSE,2026-07-31,0
+MARKETING,2,Why we named Devora,"Define why we named it devora & give to art section the key ideas, assets, and keyword",1,TRUE,2026-07-31,100
+MARKETING,3,Show one of our projects,"Specify how to show one of our projects and give it to the art section with the keywords",1,FALSE,2026-07-31,0
+MARKETING,4,Talk about team members,"Description and how to view it with the art section",1,FALSE,2026-07-31,0
+MARKETING,5,Services,"Define and specify what are our services and how to market with them",1,TRUE,2026-07-31,100
+MARKETING,6,Put next week plan,"Make the full week plan with every single detail, such as how to view them, the keywords in the post, and a reference",1,FALSE,2026-07-31,0
+MARKETING,7,Describe in the system the plan,"Specify the next week's plan in the system",1,FALSE,2026-07-31,0
+ART,1,Dentist System UI/UX,"Design the UI/UX based on the requirement of the technical team",1,FALSE,2026-07-31,0
+ART,2,Zamalk's Cafe website UI/UX,"Design a meaningful UI/UX based on the cafe's identity and the requirements from the technical team",1,FALSE,2026-07-31,0
+ART,3,Personal Cards Design,"Design a professional personal card for the company team that is required to be professional and simple",1,FALSE,2026-07-31,0
+ART,4,Services posts,"Based on the description and data from the marketing team, design meaningful posts for our services",9,FALSE,2026-07-31,77
+ART,5,Mission & vision post design,"Based on the description and data from the marketing team, design a 3-photo post describing our mission & vision",3,FALSE,2026-07-31,0
+ART,6,Design project post,"Based on the description and data from the marketing team, design a 3-photo post describing one of our projects",3,FALSE,2026-07-31,0
+ART,7,Design Team members post,"Based on the description and data from the marketing team, design a post viewing our team members",6,FALSE,2026-07-31,0
+ART,8,Devora Website UI/UX,"Based on the requirements of the management team, design several UI/UX pages of Devora as a website",1,FALSE,2026-07-31,0
+ART,9,Why we named Devora Post,"Based on the description and data from the marketing team, design a post viewing why we named it Devora",3,FALSE,2026-07-31,0
+TECHNICAL,1,Create the dentist app system design,"Create the System Design of the dentist system and provide the required to the art team",1,TRUE,2026-07-31,100
+TECHNICAL,2,Create the system design and req. of the Zamalk Cafe,"Create the System Design of the cafe website and provide the required to the art team",1,TRUE,2026-07-31,100
+TECHNICAL,3,Provide the System Design and req. of devora site,"Create the System Design of the Devora website and provide the required to the art team",1,FALSE,2026-07-31,0
+TECHNICAL,4,Implement Zamalk website,"Start implementing the website as soon as the art team finishes the design",1,FALSE,2026-07-31,0
+TECHNICAL,5,Hover Website,"Finish Implementing Hover Website",1,TRUE,2026-07-31,100
+MANAGEMENT,1,Create Editable System,"Create a system to track the progress and performance of the team",1,TRUE,2026-07-22,100
+MANAGEMENT,2,Setup Team Plans,"Initialize the team goals and targets",3,TRUE,2026-07-22,100
+MANAGEMENT,3,Organize & Maintain New Services,"Offer and try to provide new services for the team and clients",2,FALSE,2026-07-31,0
+MANAGEMENT,4,Offer Free Services,"Try to contact some clients for free services",3,TRUE,2026-07-31,100
+MANAGEMENT,5,Track The Team Sections For 9 Days,"Track the system and performance for each team member",10,FALSE,2026-07-31,30
+MANAGEMENT,6,Supply New Customers,"Make the full week plan with every single detail, such as how to view them, the keywords in the post, and a reference",3,FALSE,2026-07-31,0
+MANAGEMENT,7,Create a LinkedIn Account,"Create Devora LinkedIn Account",1,FALSE,2026-07-25,0
+MANAGEMENT,8,Meet with Hisham Abd El Latif,"Schedule a meeting with him",1,FALSE,2026-07-31,0
+MANAGEMENT,9,Gather Zamalk cafe info.,"Collect All info about the cafe",1,FALSE,2026-07-26,0

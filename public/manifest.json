@@ -1,0 +1,24 @@
+{
+  "id": "https://catarina-devora.vercel.app/",
+  "name": "Catarina",
+  "short_name": "Catarina",
+  "description": "Monthly planning and progress tracking for the Devora team.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#060B14",
+  "theme_color": "#00E8A2",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

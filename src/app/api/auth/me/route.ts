@@ -1,0 +1,43 @@
+// GET /api/auth/me — Return the currently authenticated user
+// Returns 401 if no valid token is present
+
+import { NextResponse } from "next/server";
+import { verifyToken } from "@/lib/auth.server";
+import { prisma } from "@/lib/prisma";
+import { parsePermissions } from "@/lib/permissions";
+
+export async function GET() {
+  const payload = await verifyToken();
+  if (!payload) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  /* Fetch fresh user data with sections */
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      pfp: true,
+      bio: true,
+      primarySection: true,
+      permissions: true,
+      userSections: { select: { section: true } },
+    },
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    user: {
+      ...user,
+      sections: user.userSections.map((us) => us.section),
+      userSections: undefined,
+      permissions: user.role === "ADMIN" ? { canCreateGoals: true, canEditGoals: true, canDeleteGoals: true, canManageMembers: true, canCreateMonths: true } : parsePermissions(user.permissions),
+    },
+  });
+}

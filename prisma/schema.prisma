@@ -1,0 +1,189 @@
+// Catarina - Devora Team Planning Database Schema
+// Models: User, UserSection, GoalAssignment, Month, Goal, Comment, Archive
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── User Model ────────────────────────────────────────────────────────────────
+// Supports two roles: ADMIN (full access) and MEMBER (section-scoped access)
+// Members can belong to multiple sections via UserSection join table
+// permissions JSON stores granular per-member rights (admin-only field)
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash
+  role      String   @default("MEMBER") // ADMIN | MEMBER
+  pfp       String?  // Profile picture path (e.g. /uploads/xxx.gif)
+  bio       String?  // Short bio / line (nullable)
+  primarySection String? // Admin-only: which section to highlight on dashboard
+  permissions String   @default("{}") // JSON: { canCreateGoals, canEditGoals, canDeleteGoals, canManageMembers, canCreateMonths }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goals           Goal[]
+  comments        Comment[]
+  userSections    UserSection[]
+  goalAssignments GoalAssignment[]
+  notifications   Notification[]
+
+  @@index([role])
+}
+
+// ─── UserSection Join Table ────────────────────────────────────────────────────
+// Allows a user to belong to multiple team sections simultaneously
+model UserSection {
+  id        String   @id @default(cuid())
+  userId    String
+  section   String   // MARKETING | ART | TECHNICAL | MANAGEMENT
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, section])
+  @@index([section])
+}
+
+// ─── GoalAssignment Join Table ─────────────────────────────────────────────────
+// Links specific users to specific goals with per-goal permissions
+// Admin assigns members to goals; assigned members can act on those goals
+model GoalAssignment {
+  id       String  @id @default(cuid())
+  canCheck Boolean @default(true)  // Can toggle done/unchecked
+  canEdit  Boolean @default(false) // Can edit goal details (current, target, etc.)
+
+  goalId String
+  goal   Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, userId])
+  @@index([userId])
+}
+
+// ─── Month Model ───────────────────────────────────────────────────────────────
+model Month {
+  id         String   @id @default(cuid())
+  name       String
+  year       Int
+  month      Int      // 1-12
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  goals    Goal[]
+  archives Archive[]
+
+  @@unique([year, month])
+}
+
+// ─── Goal Model ────────────────────────────────────────────────────────────────
+model Goal {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  goalNumber  Int      @default(0)
+  current     Int      @default(0)
+  target      Int      @default(1)
+  done        Boolean  @default(false)
+  deadline    DateTime
+  completedAt DateTime?
+  carriedOver Boolean  @default(false)
+  section     String
+
+  deadlineSetByAdmin Boolean @default(false)
+
+  monthId String
+  month   Month @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  comments    Comment[]
+  assignments GoalAssignment[]
+  steps       Step[]
+
+  @@index([section])
+  @@index([monthId])
+  @@index([done])
+  @@index([deadline])
+}
+
+// ─── Step Model ───────────────────────────────────────────────────────────────
+// Subtask steps within a goal — checklist items
+model Step {
+  id     String  @id @default(cuid())
+  text   String
+  done   Boolean @default(false)
+  order  Int     @default(0)
+
+  goalId String
+  goal   Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+}
+
+// ─── Comment Model ─────────────────────────────────────────────────────────────
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goalId String
+  goal   Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// ─── Archive Model ─────────────────────────────────────────────────────────────
+model Archive {
+  id        String   @id @default(cuid())
+  summary   String
+  createdAt DateTime @default(now())
+
+  monthId String
+  month   Month @relation(fields: [monthId], references: [id], onDelete: Cascade)
+}
+
+// ─── Approval Model ───────────────────────────────────────────────────────────
+// Pending sign-up requests that require admin approval before activation
+model Approval {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash — stored until approved
+  section   String   // requested section
+  status    String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Notification Model ───────────────────────────────────────────────────────
+// In-app notifications for users — goals, steps, deadlines, signups, etc.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // GOAL_CREATED | STEP_ADDED | MEMBER_JOINED | SIGNUP_REQUEST | DEADLINE_APPROACHING | DEADLINE_MISSED | GOAL_COMPLETED | SYSTEM
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  pinned    Boolean  @default(false)
+  refId     String?  // optional: ID of related entity (goal, user, etc.)
+  refType   String?  // optional: "goal" | "step" | "user" | "approval"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, pinned])
+  @@index([createdAt])
+}
