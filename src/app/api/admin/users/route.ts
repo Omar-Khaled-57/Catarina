@@ -26,7 +26,18 @@ export async function GET() {
       _count: { select: { goals: true, comments: true } },
     },
     orderBy: { createdAt: "asc" },
-  });
+  }) as Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    pfp: string | null;
+    bio: string | null;
+    permissions: string;
+    createdAt: Date;
+    userSections: { section: string }[];
+    _count: { goals: number; comments: number };
+  }>;
 
   const formatted = users.map((u) => ({
     ...u,
