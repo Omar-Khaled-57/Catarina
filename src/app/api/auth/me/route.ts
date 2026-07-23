@@ -26,7 +26,17 @@ export async function GET() {
       permissions: true,
       userSections: { select: { section: true } },
     },
-  });
+  }) as {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    pfp: string | null;
+    bio: string | null;
+    primarySection: string | null;
+    permissions: string;
+    userSections: { section: string }[];
+  } | null;
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });

@@ -120,8 +120,10 @@ export async function POST(req: Request) {
       const userWithSections = await prisma.user.findUnique({
         where: { id: payload.userId },
         include: { userSections: { select: { section: true } } },
-      });
-      const userSections = userWithSections?.userSections.map((us) => us.section) || [];
+      }) as {
+        userSections: { section: string }[];
+      } | null;
+      const userSections = userWithSections?.userSections.map((us: { section: string }) => us.section) || [];
       const perms = parsePermissions(
         (await prisma.user.findUnique({ where: { id: payload.userId }, select: { permissions: true } }))?.permissions || "{}"
       );

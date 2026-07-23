@@ -28,7 +28,12 @@ export async function GET(req: Request) {
       userSections: { select: { section: true } },
     },
     orderBy: { name: "asc" },
-  });
+  }) as Array<{
+    id: string;
+    name: string;
+    pfp: string | null;
+    userSections: { section: string }[];
+  }>;
 
   return NextResponse.json({
     users: users.map((u) => ({
