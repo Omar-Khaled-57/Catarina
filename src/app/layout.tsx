@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     siteName: "Catarina",
     images: [
       {
-        url: "/meta.png",
+        url: "https://catarina-devora.vercel.app/meta.png",
         secureUrl: "https://catarina-devora.vercel.app/meta.png",
         type: "image/png",
         width: 1200,
