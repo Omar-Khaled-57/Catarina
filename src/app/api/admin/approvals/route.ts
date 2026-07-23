@@ -40,6 +40,7 @@ export async function PUT(req: Request) {
 
   if (action === "approve") {
     /* Create the user account */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = await prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {
