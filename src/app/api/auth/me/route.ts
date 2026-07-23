@@ -50,14 +50,25 @@ export async function GET() {
     },
   });
 
-  if (!hasWelcome) {
+  if (hasWelcome) {
+    if (hasWelcome.message !== "هو كده يكتفمك") {
+      await prisma.notification.update({
+        where: { id: hasWelcome.id },
+        data: {
+          message: "هو كده يكتفمك",
+          pinned: true,
+          refType: "audio",
+          refId: "/fun.mp3",
+        },
+      });
+    }
+  } else {
     await prisma.notification.create({
       data: {
         userId: user.id,
         type: "SYSTEM",
         title: "Why Catarina? 🌸",
-        message:
-          "هو كده يكتفمك",
+        message: "هو كده يكتفمك",
         pinned: true,
         refType: "audio",
         refId: "/fun.mp3",

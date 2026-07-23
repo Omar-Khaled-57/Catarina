@@ -221,8 +221,7 @@ async function main() {
       userId: u.id,
       type: "SYSTEM",
       title: "Why Catarina? 🌸",
-      message:
-        "هو كده يكتفمك",
+      message: "هو كده يكتفمك",
       pinned: true,
       refType: "audio",
       refId: "/fun.mp3",
