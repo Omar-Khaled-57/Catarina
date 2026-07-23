@@ -47,7 +47,8 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   /* Replace all assignments in a transaction */
-  await prisma.$transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.$transaction(async (tx: any) => {
     await tx.goalAssignment.deleteMany({ where: { goalId: id } });
 
     if (assignments.length > 0) {
