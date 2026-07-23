@@ -22,7 +22,18 @@ export async function POST(req: Request) {
     const user = await prisma.user.findUnique({
       where: { email },
       include: { userSections: { select: { section: true } } },
-    });
+    }) as {
+      id: string;
+      email: string;
+      password: string;
+      name: string;
+      role: string;
+      pfp: string | null;
+      bio: string | null;
+      primarySection: string | null;
+      permissions: string;
+      userSections: { section: string }[];
+    } | null;
     if (!user) {
       return NextResponse.json(
         { error: "Invalid email or password" },
