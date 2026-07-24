@@ -119,7 +119,7 @@ export default function DashboardPage() {
         </div>
       ) : goals.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Image src="/rina/think.webp" alt="Catarina thinking" width={80} height={80} className="mb-4 rounded-xl" />
+          <Image src="/rina/think.webp" alt="Catarina thinking" width={120} height={120} className="mb-4 rounded-2xl" />
           <h3 className="text-lg font-bold text-text">No Goals Yet</h3>
           <p className="mt-1 text-sm text-text-muted max-w-sm">
             No goals have been created for this month yet. Create a new month or

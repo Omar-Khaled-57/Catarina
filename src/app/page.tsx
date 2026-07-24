@@ -127,10 +127,7 @@ export default function LoginPage() {
         >
           <Image src="/logo.webp" alt="Catarina Logo" width={100} height={100} className="h-25 w-25 mx-auto object-contain mb-4" />
           <h1 className="text-3xl font-black text-text tracking-tight">Catarina</h1>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <Image src="/rina/wave.webp" alt="Catarina waving" width={32} height={32} className="rounded-lg" />
-            <p className="text-text-muted">Devora Team Planner</p>
-          </div>
+          <p className="text-text-muted mt-1">Devora Team Planner</p>
         </motion.div>
 
         {/* Form Card */}

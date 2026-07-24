@@ -268,7 +268,7 @@ export default function NotificationPanel({
         </div>
       ) : notifications.length === 0 ? (
         <div className="text-center py-10 text-text-muted">
-          <Image src="/rina/sleeping.webp" alt="Catarina sleeping" width={48} height={48} className="mx-auto mb-3 rounded-xl" />
+          <Image src="/rina/sleeping.webp" alt="Catarina sleeping" width={96} height={96} className="mx-auto mb-3 rounded-2xl" />
           <p className="text-sm font-medium">No notifications yet</p>
         </div>
       ) : (
@@ -286,11 +286,9 @@ export default function NotificationPanel({
               >
                 <div className={`mt-0.5 shrink-0 ${isWelcome || TYPE_IMAGE[n.type] ? "" : iconColor}`}>
                   {isWelcome ? (
-                    <Image src="/rina/happy.webp" alt="Catarina" width={24} height={24} className="rounded-lg" />
-                  ) : n.type === "MEMBER_DELETED" ? (
-                    <Image src={TYPE_IMAGE[n.type]} alt="Catarina saying bye" width={64} height={64} className="rounded-xl" />
+                    <Image src="/rina/happy.webp" alt="Catarina" width={48} height={48} className="rounded-xl" />
                   ) : TYPE_IMAGE[n.type] ? (
-                    <Image src={TYPE_IMAGE[n.type]} alt="Catarina" width={24} height={24} className="rounded-lg" />
+                    <Image src={TYPE_IMAGE[n.type]} alt="Catarina" width={48} height={48} className="rounded-xl" />
                   ) : (
                     <Icon size={15} />
                   )}

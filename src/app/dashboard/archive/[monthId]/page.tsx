@@ -970,7 +970,7 @@ function SectionDetail({
       {/* Goals */}
       {goals.length === 0 ? (
         <div className="glass rounded-2xl text-center py-16 text-text-muted">
-          <Image src="/rina/think.webp" alt="Catarina thinking" width={56} height={56} className="mx-auto mb-3 rounded-xl" />
+          <Image src="/rina/think.webp" alt="Catarina thinking" width={120} height={120} className="mx-auto mb-3 rounded-2xl" />
           <p className="text-sm font-semibold">No goals in this section</p>
         </div>
       ) : (

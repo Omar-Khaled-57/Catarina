@@ -559,7 +559,7 @@ export default function SectionPage({
         </div>
       ) : goals.length === 0 ? (
         <div className="glass rounded-2xl text-center py-20 text-text-muted">
-          <Image src="/rina/think.webp" alt="Catarina thinking" width={64} height={64} className="mx-auto mb-3 rounded-xl" />
+          <Image src="/rina/think.webp" alt="Catarina thinking" width={120} height={120} className="mx-auto mb-3 rounded-2xl" />
           <p className="text-lg font-semibold">No goals in this section yet</p>
           <p className="text-sm mt-1 opacity-60">
             {canCreate ? 'Click "New Goal" to add one.' : "Ask an admin to create goals."}
