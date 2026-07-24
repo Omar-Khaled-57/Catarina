@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 /uploads
+/public/uploads
 dev.db
 .windsurf/
 
