@@ -23,13 +23,11 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 
-/* ─── Section Prefix Map ─────────────────────────────────────────────────── */
-const SECTION_PREFIX: Record<string, string> = {
-  MANAGEMENT: "MNG",
-  ART: "ART",
-  MARKETING: "MRK",
-  TECHNICAL: "TEC",
-};
+/* ─── Section Prefix Map (fallback) ────────────────────────────────────────── */
+function getSectionPrefix(section: string, prefixMap?: Record<string, string>): string {
+  if (prefixMap?.[section]) return prefixMap[section];
+  return section.slice(0, 3).toUpperCase();
+}
 function EditableProgress({
   current,
   target,
@@ -300,6 +298,7 @@ export default function GoalCard({
   isAdmin,
   permissions,
   color,
+  sectionPrefixes,
   onToggle,
   onEdit,
   onDelete,
@@ -312,6 +311,7 @@ export default function GoalCard({
   isAdmin: boolean;
   permissions: { canEditGoals: boolean; canDeleteGoals: boolean };
   color: string;
+  sectionPrefixes?: Record<string, string>;
   onToggle: (id: string, done: boolean) => void;
   onEdit: (goal: GoalData) => void;
   onDelete: (id: string) => void;
@@ -350,7 +350,7 @@ export default function GoalCard({
     onProgressChange(goal.id, current, target);
   };
 
-  const prefix = SECTION_PREFIX[goal.section] || goal.section.slice(0, 3).toUpperCase();
+  const prefix = getSectionPrefix(goal.section, sectionPrefixes);
 
   return (
     <motion.div

@@ -33,10 +33,14 @@ export default function SectionManager() {
     try {
       const res = await fetch("/api/admin/sections");
       const data = await res.json();
-      /* GET /api/admin/sections doesn't exist yet, use public endpoint */
-      const pubRes = await fetch("/api/sections");
-      const pubData = await pubRes.json();
-      setSections(pubData.sections || []);
+      if (data.sections) {
+        setSections(data.sections);
+      } else {
+        /* Fallback to public endpoint */
+        const pubRes = await fetch("/api/sections");
+        const pubData = await pubRes.json();
+        setSections(pubData.sections || []);
+      }
     } catch {
       /* silent */
     } finally {

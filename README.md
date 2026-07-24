@@ -4,7 +4,7 @@
   <p><strong>A private team planning & tracking system built for Devora.</strong></p>
   <p>
     <a href="https://catarina-devora.vercel.app"><img src="https://img.shields.io/badge/live-catarina--devora.vercel.app-00E8A2?style=flat-square" /></a>
-    <img src="https://img.shields.io/badge/version-0.1.6-blue?style=flat-square" />
+    <img src="https://img.shields.io/badge/version-0.1.7-blue?style=flat-square" />
     <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" />
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" />
@@ -83,8 +83,9 @@ src/
 ├── components/
 │   ├── ui/                  # Reusable primitives (Modal, CountUp, InView...)
 │   ├── ColorPicker.tsx      # Premade + custom HSL color picker
+│   ├── Footer.tsx           # App footer with branding
 │   ├── SectionManager.tsx   # Admin section CRUD UI
-│   ├── Navbar.tsx
+│   ├── Navbar.tsx           # Responsive navbar with mobile hamburger menu
 │   ├── SectionCard.tsx
 │   ├── SectionChart.tsx
 │   └── NotificationPanel.tsx

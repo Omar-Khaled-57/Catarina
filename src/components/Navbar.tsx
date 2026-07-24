@@ -3,17 +3,16 @@
 /**
  * Navbar — Top navigation bar with glassmorphism effect.
  * Shows app name, theme toggle, and user menu with PFP.
- * Clicking PFP opens a profile modal with user details.
- * Responsive: collapses to hamburger on mobile.
+ * Responsive: hamburger menu on mobile with framer-motion animation.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn, getDefaultPfp } from "@/lib/utils";
-import { SECTION_COLORS, SECTION_LABELS, type Section } from "@/lib/auth";
 import Modal from "@/components/ui/Modal";
 import NotificationPanel from "@/components/NotificationPanel";
 import { Sun, Moon, LogOut, User, Upload, Check, Bell } from "lucide-react";
@@ -25,6 +24,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [showProfile, setShowProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   /* Poll unread notification count */
@@ -47,116 +47,289 @@ export default function Navbar() {
     }
   }, [user, fetchUnread]);
 
+  /* Close mobile menu on route change */
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
+
+  const navLinks = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/archive", label: "Archive" },
+    ...(isAdmin ? [{ href: "/dashboard/admin", label: "Admin" }] : []),
+  ];
+
   return (
     <>
-      <nav className="glass sticky top-0 z-40 border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Left: Logo + App Name */}
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <Image src="/logo.webp" alt="Catarina Logo" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
-              <span className="text-lg font-bold text-text tracking-tight">
-                Catarina
-              </span>
-            </Link>
+      <nav className="glass sticky top-0 z-40 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          {/* Left: Logo + App Name */}
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <Image
+              src="/logo.webp"
+              alt="Catarina Logo"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-xl object-contain shadow-[0_0_12px_rgba(0,232,162,0.15)] transition-transform group-hover:scale-105"
+            />
+            <span className="text-lg font-bold text-text tracking-tight">
+              Catarina
+            </span>
+          </Link>
 
-            {/* Center: Navigation Links */}
-            <div className="hidden sm:flex items-center gap-1">
-              <NavLink href="/dashboard" active={pathname === "/dashboard"}>
-                Dashboard
-              </NavLink>
-              <NavLink
-                href="/dashboard/archive"
-                active={pathname.startsWith("/dashboard/archive")}
-              >
-                Archive
-              </NavLink>
-              {isAdmin && (
-                <NavLink
-                  href="/dashboard/admin"
-                  active={pathname.startsWith("/dashboard/admin")}
+          {/* Center: Navigation Links (Desktop) */}
+          <div className="hidden flex-1 justify-center gap-1 md:flex">
+            {navLinks.map((link) => {
+              const isActive =
+                link.href === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : pathname.startsWith(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "relative px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "text-accent"
+                      : "text-text-muted hover:text-text"
+                  )}
                 >
-                  Admin
-                </NavLink>
+                  {link.label}
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-0 h-0.5 w-full rounded-full bg-accent shadow-[0_0_8px_rgba(0,232,162,0.3)]" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="rounded-lg p-2 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {/* Notification Bell (desktop only — mobile has it in menu) */}
+            <button
+              onClick={() => setShowNotifications(true)}
+              className="relative hidden rounded-lg p-2 text-text-muted hover:bg-surface-2 hover:text-text transition-colors md:block"
+              aria-label="Notifications"
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg bg-danger flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
               )}
-            </div>
+            </button>
 
-            {/* Right: Theme Toggle + User Menu */}
-            <div className="flex items-center gap-3">
-              {/* Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="rounded-lg p-2 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
-                aria-label="Toggle theme"
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-
-              {/* Notification Bell */}
-              <button
-                onClick={() => setShowNotifications(true)}
-                className="relative rounded-lg p-2 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
-                aria-label="Notifications"
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg bg-danger flex items-center justify-center">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* User Info + PFP */}
-              {user && (
-                <div className="flex items-center gap-3">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-sm font-semibold text-text leading-tight">
-                      {user.name}
-                    </p>
-                    <p className="text-xs text-text-muted">{user.role}</p>
-                  </div>
-
-                  {/* PFP Button — opens profile modal */}
-                  <button
-                    onClick={() => setShowProfile(true)}
-                    className="relative h-9 w-9 rounded-full overflow-hidden border-2 border-border hover:border-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50"
-                    aria-label="View profile"
-                  >
-                    {user.pfp ? (
-                      <Image
-                        src={user.pfp}
-                        alt={`${user.name} avatar`}
-                        fill
-                        sizes="36px"
-                        className="object-cover"
-                      />
-                    ) : getDefaultPfp(user.primarySection || user.sections[0]) ? (
-                      <Image
-                        src={getDefaultPfp(user.primarySection || user.sections[0])!}
-                        alt={`${user.name} avatar`}
-                        fill
-                        sizes="36px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-surface-2">
-                        <User size={16} className="text-text-muted" aria-hidden="true" />
-                      </div>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={logout}
-                    className="rounded-lg p-2 text-text-muted hover:bg-danger/10 hover:text-danger transition-colors"
-                    aria-label="Logout"
-                  >
-                    <LogOut size={18} />
-                  </button>
+            {/* User Info + PFP (desktop) */}
+            {user && (
+              <div className="hidden items-center gap-3 md:flex">
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-text leading-tight">
+                    {user.name}
+                  </p>
+                  <p className="text-xs text-text-muted">{user.role}</p>
                 </div>
-              )}
-            </div>
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="relative h-9 w-9 rounded-full overflow-hidden border-2 border-border hover:border-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50"
+                  aria-label="View profile"
+                >
+                  {user.pfp ? (
+                    <Image src={user.pfp} alt={`${user.name} avatar`} fill sizes="36px" className="object-cover" />
+                  ) : getDefaultPfp(user.primarySection || user.sections[0]) ? (
+                    <Image src={getDefaultPfp(user.primarySection || user.sections[0])!} alt={`${user.name} avatar`} fill sizes="36px" className="object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-surface-2">
+                      <User size={16} className="text-text-muted" aria-hidden="true" />
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={logout}
+                  className="rounded-lg p-2 text-text-muted hover:bg-danger/10 hover:text-danger transition-colors"
+                  aria-label="Logout"
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+            )}
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden rounded-lg p-2 text-text hover:bg-surface-2 transition-colors"
+              aria-label="Toggle menu"
+              aria-expanded={isMenuOpen}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {isMenuOpen ? (
+                  <>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </>
+                ) : (
+                  <>
+                    <line x1="4" x2="20" y1="12" y2="12" />
+                    <line x1="4" x2="20" y1="6" y2="6" />
+                    <line x1="4" x2="20" y1="18" y2="18" />
+                  </>
+                )}
+              </svg>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              key="mobile-menu"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              className="md:hidden overflow-hidden"
+            >
+              <motion.div
+                initial={{ y: -8 }}
+                animate={{ y: 0 }}
+                exit={{ y: -8 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="mt-3 pt-3 border-t border-border flex flex-col gap-3 pb-2"
+              >
+                {/* User Info (mobile) */}
+                {user && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-3 px-1 pb-2"
+                  >
+                    <button
+                      onClick={() => { setShowProfile(true); setIsMenuOpen(false); }}
+                      className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-border shrink-0"
+                    >
+                      {user.pfp ? (
+                        <Image src={user.pfp} alt={`${user.name} avatar`} fill sizes="40px" className="object-cover" />
+                      ) : getDefaultPfp(user.primarySection || user.sections[0]) ? (
+                        <Image src={getDefaultPfp(user.primarySection || user.sections[0])!} alt={`${user.name} avatar`} fill sizes="40px" className="object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-surface-2">
+                          <User size={18} className="text-text-muted" />
+                        </div>
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-text truncate">{user.name}</p>
+                      <p className="text-xs text-text-muted">{user.role}</p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Nav Links */}
+                <div className="flex flex-col gap-1">
+                  {navLinks.map((link, i) => {
+                    const isActive =
+                      link.href === "/dashboard"
+                        ? pathname === "/dashboard"
+                        : pathname.startsWith(link.href);
+                    return (
+                      <motion.div
+                        key={link.href}
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2, delay: i * 0.06 }}
+                      >
+                        <Link
+                          href={link.href}
+                          onClick={() => setIsMenuOpen(false)}
+                          className={cn(
+                            "flex items-center px-3 py-2.5 text-sm font-semibold rounded-xl transition-colors",
+                            isActive
+                              ? "bg-accent/10 text-accent"
+                              : "text-text-muted hover:text-text hover:bg-surface-2"
+                          )}
+                        >
+                          {isActive && <span className="mr-2 h-1.5 w-1.5 rounded-full bg-accent" />}
+                          {link.label}
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                  className="h-px w-full bg-border"
+                />
+
+                {/* Notifications (mobile) */}
+                <motion.div
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: 0.12 }}
+                >
+                  <button
+                    onClick={() => { setShowNotifications(true); setIsMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold rounded-xl text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+                  >
+                    <Bell size={16} />
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full text-[10px] font-bold text-bg bg-danger flex items-center justify-center">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                </motion.div>
+
+                {/* Profile (mobile) */}
+                {user && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: 0.16 }}
+                  >
+                    <button
+                      onClick={() => { setShowProfile(true); setIsMenuOpen(false); }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold rounded-xl text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+                    >
+                      <User size={16} />
+                      My Profile
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* Logout (mobile) */}
+                {user && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: 0.2 }}
+                  >
+                    <button
+                      onClick={() => { logout(); setIsMenuOpen(false); }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-danger hover:bg-danger/10 transition-colors"
+                    >
+                      <LogOut size={16} />
+                      Logout
+                    </button>
+                  </motion.div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Profile Modal */}
@@ -212,7 +385,26 @@ function ProfileModal({
   const [editEmail, setEditEmail] = useState(user.email);
   const [editBio, setEditBio] = useState(user.bio || "");
   const [hasChanges, setHasChanges] = useState(false);
+  const [sectionLabels, setSectionLabels] = useState<Record<string, string>>({});
+  const [sectionColors, setSectionColors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+
+  /* Fetch dynamic section labels and colors */
+  useEffect(() => {
+    fetch("/api/sections")
+      .then((r) => r.json())
+      .then((data) => {
+        const labels: Record<string, string> = {};
+        const colors: Record<string, string> = {};
+        for (const s of data.sections || []) {
+          labels[s.key] = s.label;
+          colors[s.key] = s.color;
+        }
+        setSectionLabels(labels);
+        setSectionColors(colors);
+      })
+      .catch(() => {});
+  }, []);
 
   const markChanged = () => setHasChanges(true);
 
@@ -304,7 +496,7 @@ function ProfileModal({
             </span>
             <p className="text-[11px] text-text-muted mt-1">
               {user.sections.length > 0
-                ? user.sections.map((s) => SECTION_LABELS[s as Section] || s).join(", ")
+                ? user.sections.map((s) => sectionLabels[s] || s).join(", ")
                 : "No teams"}
             </p>
           </div>
@@ -350,7 +542,7 @@ function ProfileModal({
             </p>
             <div className="flex flex-wrap gap-1.5">
               {user.sections.map((s) => {
-                const c = SECTION_COLORS[s as Section] || "var(--accent)";
+                const c = sectionColors[s] || "#00E8A2";
                 const isHighlighted = isAdmin && pickedSection === s;
                 return (
                   <button
@@ -366,7 +558,7 @@ function ProfileModal({
                       border: isHighlighted ? `1.5px solid ${c}` : `1px solid ${c}25`,
                     }}
                   >
-                    {SECTION_LABELS[s as Section] || s}
+                    {sectionLabels[s] || s}
                     {isHighlighted && " ★"}
                   </button>
                 );
@@ -390,30 +582,5 @@ function ProfileModal({
         )}
       </div>
     </Modal>
-  );
-}
-
-/* ─── NavLink Helper ──────────────────────────────────────────────────────── */
-function NavLink({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        active
-          ? "bg-accent/10 text-accent"
-          : "text-text-muted hover:bg-surface-2 hover:text-text"
-      )}
-    >
-      {children}
-    </Link>
   );
 }

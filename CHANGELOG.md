@@ -26,7 +26,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.1.6] — 2026-07-24 · *Dynamic Sections, Notifications & Image Optimization*
+## [0.1.7] — 2026-07-24 · *UI Overhaul, Footer & Audit Fixes*
+
+### ✦ New Features
+
+- **Mobile Navigation** — Added hamburger menu on mobile with animated dropdown (framer-motion). Full menu with user info, nav links, notifications, profile, and logout. Matches hodor reference design
+- **Footer** — New app footer with logo, navigation links, and branding
+- **Admin Section API** — Added `GET /api/admin/sections` endpoint for listing all sections including inactive ones
+
+### ✦ Bug Fixes & Improvements
+
+- **SectionManager** — Fixed fetching from non-existent admin endpoint; now properly uses `GET /api/admin/sections`
+- **Login Page** — Replaced 12 hardcoded `SECTIONS`/`SECTION_COLORS`/`SECTION_LABELS` references with dynamic section data fetched from API
+- **Navbar** — Removed hardcoded section imports; profile modal now fetches dynamic section labels and colors from API
+- **GoalRow** — Removed dead `SECTION_COLORS` import (component only exported types, never rendered)
+- **GoalCard** — Replaced hardcoded `SECTION_PREFIX` map with dynamic `sectionPrefixes` prop (falls back to first 3 letters of section key)
+
+### ✦ Audit Fixes
+
+- Eliminated all remaining hardcoded section constants from client components
+- All section data now flows through the dynamic `GET /api/sections` endpoint with fallback defaults
+- Added `Footer` to dashboard layout
+- Mobile navbar now shows active state indicators (dot + accent underline)
 
 ### ✦ New Features
 

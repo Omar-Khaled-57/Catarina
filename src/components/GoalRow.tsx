@@ -9,7 +9,6 @@ import { useState } from "react";
 import Badge from "@/components/ui/Badge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { deadlineStatus, formatDateShort, calcPercentage, getDefaultPfp } from "@/lib/utils";
-import { SECTION_COLORS } from "@/lib/auth";
 import { Check, Pencil, Trash2, MessageSquare } from "lucide-react";
 
 export interface GoalData {
@@ -63,7 +62,7 @@ export default function GoalRow({
   const [isToggling, setIsToggling] = useState(false);
   const deadline = deadlineStatus(goal.deadline, goal.done);
   const percentage = calcPercentage(goal.current, goal.target);
-  const color = SECTION_COLORS[section as keyof typeof SECTION_COLORS] || "var(--accent)";
+  const color = "var(--accent)";
 
   const handleToggle = async () => {
     setIsToggling(true);

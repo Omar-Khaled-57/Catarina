@@ -1,9 +1,27 @@
+// GET /api/admin/sections — List all sections including inactive (admin only)
 // POST /api/admin/sections — Create a new section (admin only)
 
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { invalidateSectionCache } from "@/lib/sections";
+
+export async function GET() {
+  const payload = await verifyToken();
+  if (!payload || payload.role !== "ADMIN") {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  }
+
+  try {
+    const sections = await prisma.sectionConfig.findMany({
+      orderBy: { sortOrder: "asc" },
+    });
+    return NextResponse.json({ sections });
+  } catch (error) {
+    console.error("[ADMIN_SECTIONS_GET]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   const payload = await verifyToken();

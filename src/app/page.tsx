@@ -12,13 +12,25 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
-/* Legacy imports kept as fallback — dynamic sections loaded on mount */
-import { SECTIONS, SECTION_COLORS, SECTION_LABELS, type Section } from "@/lib/auth";
 import { toast } from "sonner";
 import { LayoutList, ChevronDown, Check, Activity, Palette, Code2, Users, ArrowRight, UserPlus, LogIn } from "lucide-react";
 import Image from "next/image";
 
-const SECTION_ICONS: Record<Section, React.ReactNode> = {
+interface DynamicSection {
+  key: string;
+  label: string;
+  color: string;
+  prefix: string;
+}
+
+const FALLBACK_SECTIONS: DynamicSection[] = [
+  { key: "MARKETING", label: "Marketing", color: "#FF4D6A", prefix: "MRK-" },
+  { key: "ART", label: "Art", color: "#7C3AED", prefix: "ART-" },
+  { key: "TECHNICAL", label: "Technical", color: "#3B82F6", prefix: "TEC-" },
+  { key: "MANAGEMENT", label: "Management", color: "#F59E0B", prefix: "MNG-" },
+];
+
+const SECTION_ICONS: Record<string, React.ReactNode> = {
   MARKETING: <Activity size={16} />,
   ART: <Palette size={16} />,
   TECHNICAL: <Code2 size={16} />,
@@ -41,12 +53,30 @@ export default function LoginPage() {
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [sections, setSections] = useState<DynamicSection[]>(FALLBACK_SECTIONS);
+
+  /* Fetch dynamic sections */
+  useEffect(() => {
+    fetch("/api/sections")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.sections?.length) {
+          setSections(data.sections.map((s: any) => ({
+            key: s.key,
+            label: s.label,
+            color: s.color,
+            prefix: s.prefix,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   /* Form state */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [section, setSection] = useState<Section>(SECTIONS[0]);
+  const [section, setSection] = useState<string>(FALLBACK_SECTIONS[0].key);
   const [pfp, setPfp] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -190,7 +220,7 @@ export default function LoginPage() {
                   transition={FIELD_TRANSITION}
                 >
                   <div className="relative">
-                    <SectionDropdown value={section} onChange={setSection} />
+                    <SectionDropdown value={section} onChange={setSection} sections={sections} />
                   </div>
                 </motion.div>
               )}
@@ -263,9 +293,11 @@ export default function LoginPage() {
 function SectionDropdown({
   value,
   onChange,
+  sections,
 }: {
-  value: Section;
-  onChange: (s: Section) => void;
+  value: string;
+  onChange: (section: string) => void;
+  sections: DynamicSection[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -298,22 +330,22 @@ function SectionDropdown({
       case "ArrowDown":
         e.preventDefault();
         setFocusedIndex((prev) => {
-          const next = prev < SECTIONS.length - 1 ? prev + 1 : 0;
+          const next = prev < sections.length - 1 ? prev + 1 : 0;
           return next;
         });
         break;
       case "ArrowUp":
         e.preventDefault();
         setFocusedIndex((prev) => {
-          const next = prev > 0 ? prev - 1 : SECTIONS.length - 1;
+          const next = prev > 0 ? prev - 1 : sections.length - 1;
           return next;
         });
         break;
       case "Enter":
       case " ":
         e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < SECTIONS.length) {
-          onChange(SECTIONS[focusedIndex]);
+        if (focusedIndex >= 0 && focusedIndex < sections.length) {
+          onChange(sections[focusedIndex].key);
           setIsOpen(false);
         }
         break;
@@ -330,10 +362,11 @@ function SectionDropdown({
 
   const openMenu = () => {
     setIsOpen(true);
-    setFocusedIndex(SECTIONS.indexOf(value));
+    setFocusedIndex(sections.findIndex((s) => s.key === value));
   };
 
-  const color = SECTION_COLORS[value];
+  const currentSection = sections.find((s) => s.key === value) || sections[0];
+  const color = currentSection.color;
 
   return (
     <div ref={ref} className="relative">
@@ -358,7 +391,7 @@ function SectionDropdown({
           {SECTION_ICONS[value]}
         </span>
         <span className="flex-1 text-left font-medium">
-          {SECTION_LABELS[value]}
+          {currentSection.label}
         </span>
         <ChevronDown
           size={16}
@@ -382,18 +415,18 @@ function SectionDropdown({
           className="absolute left-0 right-0 mt-2 rounded-xl bg-surface border border-border shadow-[0_12px_40px_rgba(0,0,0,0.4)] overflow-hidden"
           style={{ zIndex: 50 }}
         >
-          {SECTIONS.map((s, index) => {
-            const c = SECTION_COLORS[s];
-            const isSelected = s === value;
+          {sections.map((s, index) => {
+            const c = s.color;
+            const isSelected = s.key === value;
             const isFocused = index === focusedIndex;
             return (
               <button
-                key={s}
+                key={s.key}
                 type="button"
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => {
-                  onChange(s);
+                  onChange(s.key);
                   setIsOpen(false);
                 }}
                 onMouseEnter={() => setFocusedIndex(index)}
@@ -405,10 +438,10 @@ function SectionDropdown({
                   className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
                   style={{ backgroundColor: `${c}20`, color: c }}
                 >
-                  {SECTION_ICONS[s]}
+                  {SECTION_ICONS[s.key]}
                 </span>
                 <span className="flex-1 text-left font-medium text-text">
-                  {SECTION_LABELS[s]}
+                  {s.label}
                 </span>
                 {isSelected && (
                   <Check size={16} className="text-accent shrink-0" aria-hidden="true" />
