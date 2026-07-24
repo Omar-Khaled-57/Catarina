@@ -63,6 +63,19 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
+  /* Auto-select latest month on load */
+  useEffect(() => {
+    fetch("/api/months")
+      .then((res) => res.json())
+      .then((data) => {
+        const months = data.months || [];
+        if (months.length > 0 && !monthId) {
+          setMonthId(months[months.length - 1].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   /* Section lookup helpers */
   const getSectionColor = (key: string) => sections.find((s) => s.key === key)?.color || "var(--accent)";
   const getSectionLabel = (key: string) => sections.find((s) => s.key === key)?.label || key;
@@ -298,8 +311,8 @@ export default function AdminPage() {
       </Modal>
 
       {/* ── Section Manager ────────────────────────────────────────────── */}
-      <div className="glass rounded-2xl overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-art to-technical opacity-60" />
+      <div className="glass rounded-2xl overflow-visible transition-all duration-300 ease-out">
+        <div className="h-1 w-full bg-gradient-to-r from-art to-technical opacity-60 rounded-t-2xl" />
         <div className="p-4">
           <SectionManager />
         </div>

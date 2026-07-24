@@ -11,6 +11,7 @@ import Modal from "@/components/ui/Modal";
 import ColorPicker from "@/components/ColorPicker";
 import { Plus, Pencil, Trash2, GripVertical, Palette } from "lucide-react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SectionConfig {
   id: string;
@@ -122,17 +123,27 @@ export default function SectionManager() {
       </div>
 
       {sections.length === 0 ? (
-        <div className="text-center py-8 text-text-muted">
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="text-center py-8 text-text-muted"
+        >
           <Palette size={24} className="mx-auto mb-2 opacity-30" />
           <p className="text-sm font-medium">No sections</p>
-        </div>
+        </motion.div>
       ) : (
-        <div className="space-y-2">
-          {sections.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-3 p-3 rounded-xl bg-surface-2/50 border border-border/30 group hover:border-border/60 transition-colors"
-            >
+        <AnimatePresence mode="popLayout">
+          <div className="space-y-2">
+            {sections.map((s) => (
+              <motion.div
+                key={s.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                className="flex items-center gap-3 p-3 rounded-xl bg-surface-2/50 border border-border/30 group hover:border-border/60 transition-colors"
+              >
               {/* Color dot */}
               <div
                 className="h-8 w-8 rounded-lg shrink-0"
@@ -174,9 +185,10 @@ export default function SectionManager() {
                   <Trash2 size={14} />
                 </button>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
+        </AnimatePresence>
       )}
 
       {/* Create Modal */}
