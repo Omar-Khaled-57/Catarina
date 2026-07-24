@@ -69,7 +69,7 @@ export default function Navbar() {
               alt="Catarina Logo"
               width={36}
               height={36}
-              className="h-9 w-9 rounded-xl object-contain shadow-[0_0_12px_rgba(0,232,162,0.15)] transition-transform group-hover:scale-105"
+              className="h-9 w-9 rounded-xl object-contain transition-transform group-hover:scale-105"
             />
             <span className="text-lg font-bold text-text tracking-tight">
               Catarina

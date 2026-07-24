@@ -156,7 +156,7 @@ export default function AdminPage() {
 
       {/* ── Pending Approvals ───────────────────────────────────────────── */}
       {approvals.length > 0 && (
-        <div className="glass rounded-2xl overflow-hidden">
+      <div className="glass rounded-2xl overflow-visible">
           <div className="h-1 w-full bg-warning opacity-60" />
           <div className="p-4">
             <h2 className="text-sm font-bold text-text mb-3 flex items-center gap-2">
