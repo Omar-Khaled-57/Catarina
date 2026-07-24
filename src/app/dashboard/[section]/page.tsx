@@ -68,7 +68,6 @@ function DonutChart({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const doneLen = (donePercent / 100) * circumference;
-  const remainLen = (remainingPercent / 100) * circumference;
 
   const pad = 16;
   const outer = size + pad * 2;
@@ -104,12 +103,6 @@ function DonutChart({
         fill="none"
         stroke="var(--text-muted)"
         strokeWidth={strokeWidth}
-        strokeDasharray={`${remainLen} ${circumference - remainLen}`}
-        strokeDashoffset={-animatedDone}
-        strokeLinecap="round"
-        style={{
-          transition: "stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
       />
       <circle
         cx={outer / 2}
@@ -123,7 +116,7 @@ function DonutChart({
         strokeDashoffset={animatedOffset}
         style={{
           transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
-          filter: `drop-shadow(0 0 10px ${color}90)`,
+          filter: animatedDone > 0 ? `drop-shadow(0 0 10px ${color}90)` : "none",
         }}
       />
     </svg>
