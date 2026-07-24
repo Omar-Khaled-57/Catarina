@@ -91,6 +91,7 @@ const TYPE_COLOR: Record<string, string> = {
 const TYPE_IMAGE: Record<string, string> = {
   GOAL_REACHED:          "/rina/excited.webp",
   GOAL_COMPLETED:        "/rina/excited.webp",
+  MEMBER_JOINED:        "/rina/excited.webp",
   SIGNUP_REQUEST:        "/rina/thumb.webp",
   SIGNUP_REJECTED:       "/rina/cry.webp",
   MEMBER_LEFT_SECTION:   "/rina/cry.webp",
