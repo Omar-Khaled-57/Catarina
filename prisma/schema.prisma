@@ -24,6 +24,7 @@ model User {
   bio       String?  // Short bio / line (nullable)
   primarySection String? // Admin-only: which section to highlight on dashboard
   permissions String   @default("{}") // JSON: { canCreateGoals, canEditGoals, canDeleteGoals, canManageMembers, canCreateMonths }
+  welcomeSeen Boolean  @default(false) // Show celebration modal on first login
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

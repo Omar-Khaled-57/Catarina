@@ -93,12 +93,12 @@ export default function LoginPage() {
           toast.error(result.error || "Registration failed");
         }
       } else {
-        const success = await login(email, password);
-        if (success) {
+        const result = await login(email, password);
+        if (result.success) {
           toast.success("Welcome back!");
           router.push("/dashboard");
         } else {
-          toast.error("Invalid email or password");
+          toast.error(result.error || "Invalid email or password");
         }
       }
     } catch {

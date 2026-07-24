@@ -26,6 +26,7 @@ export interface AuthUser {
   bio: string | null;
   sections: string[];
   primarySection: string | null;
+  welcomeSeen: boolean;
   permissions: MemberPermissions;
 }
 
@@ -33,7 +34,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (
     name: string,
     email: string,
@@ -43,16 +44,18 @@ interface AuthContextValue {
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  markWelcomeSeen: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
   isAdmin: false,
-  login: async () => false,
+  login: async () => ({ success: false }),
   register: async () => ({ success: false }),
   logout: async () => {},
   refreshUser: async () => {},
+  markWelcomeSeen: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -70,18 +73,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* Login with email/password */
   const login = useCallback(
-    async (email: string, password: string): Promise<boolean> => {
+    async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setUser(data.user);
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false, error: data.error || "Login failed" };
     },
     []
   );
@@ -136,6 +139,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /* Mark welcome as seen */
+  const markWelcomeSeen = useCallback(async () => {
+    try {
+      await fetch("/api/auth/welcome-seen", { method: "POST" });
+      setUser((prev) => (prev ? { ...prev, welcomeSeen: true } : null));
+    } catch { /* silent */ }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -146,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshUser,
+        markWelcomeSeen,
       }}
     >
       {children}

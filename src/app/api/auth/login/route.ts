@@ -32,9 +32,33 @@ export async function POST(req: Request) {
       bio: string | null;
       primarySection: string | null;
       permissions: string;
+      welcomeSeen: boolean;
       userSections: { section: string }[];
     } | null;
+
     if (!user) {
+      /* Check if email exists as a rejected approval */
+      const rejectedApproval = await prisma.approval.findFirst({
+        where: { email, status: "REJECTED" },
+      }) as { id: string } | null;
+      if (rejectedApproval) {
+        return NextResponse.json(
+          { error: "Your signup request was rejected by an admin." },
+          { status: 403 }
+        );
+      }
+
+      /* Check if email exists as a pending approval */
+      const pendingApproval = await prisma.approval.findFirst({
+        where: { email, status: "PENDING" },
+      }) as { id: string } | null;
+      if (pendingApproval) {
+        return NextResponse.json(
+          { error: "Your account is still pending admin approval." },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
@@ -68,6 +92,7 @@ export async function POST(req: Request) {
         pfp: user.pfp,
         bio: user.bio,
         primarySection: user.primarySection,
+        welcomeSeen: user.welcomeSeen,
         permissions: user.role === "ADMIN" ? { canCreateGoals: true, canEditGoals: true, canDeleteGoals: true, canManageMembers: true, canCreateMonths: true } : parsePermissions(user.permissions),
         sections,
       },

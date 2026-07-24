@@ -24,6 +24,7 @@ export async function GET() {
       bio: true,
       primarySection: true,
       permissions: true,
+      welcomeSeen: true,
       userSections: { select: { section: true } },
     },
   }) as {
@@ -35,6 +36,7 @@ export async function GET() {
     bio: string | null;
     primarySection: string | null;
     permissions: string;
+    welcomeSeen: boolean;
     userSections: { section: string }[];
   } | null;
 
