@@ -105,8 +105,11 @@ function DonutChart({
         stroke="var(--text-muted)"
         strokeWidth={strokeWidth}
         strokeDasharray={`${remainLen} ${circumference - remainLen}`}
-        strokeDashoffset={-doneLen}
+        strokeDashoffset={-animatedDone}
         strokeLinecap="round"
+        style={{
+          transition: "stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
       />
       <circle
         cx={outer / 2}

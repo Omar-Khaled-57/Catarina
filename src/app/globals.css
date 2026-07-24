@@ -206,9 +206,6 @@ html.dark [data-sonner-toast] [data-title] {
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;
 }
-.modal-scroll:hover {
-  scrollbar-color: var(--accent) transparent;
-}
 
 /* ─── Checkbox Pulse Animation ──────────────────────────────────────────────── */
 @keyframes checkbox-pulse {
