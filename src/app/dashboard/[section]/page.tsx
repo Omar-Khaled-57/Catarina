@@ -21,19 +21,22 @@ import { type GoalData } from "@/components/GoalRow";
 import { Plus, ListChecks, ArrowDownAZ, ArrowDownWideNarrow, CalendarDays, Users, Hash, ArrowUpDown, Search } from "lucide-react";
 
 /* ─── Custom Hook: useCountUp ────────────────────────────────────────────── */
-function useCountUp(target: number, duration: number = 800) {
+function useCountUp(target: number, duration: number = 1000) {
   const [value, setValue] = useState(0);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    let start = performance.now();
-    const startValue = value;
+    const start = performance.now();
+    const startValue = 0;
     const update = (now: number) => {
       const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      setValue(startValue + (target - startValue) * easeOut);
-      if (progress < 1) {
+      const t = Math.min(elapsed / duration, 1);
+      /* ease-out-expo with slight overshoot feel */
+      const ease = t < 1
+        ? 1 - Math.pow(2, -10 * t)
+        : 1;
+      setValue(startValue + (target - startValue) * ease);
+      if (t < 1) {
         rafRef.current = requestAnimationFrame(update);
       } else {
         setValue(target);
@@ -43,7 +46,7 @@ function useCountUp(target: number, duration: number = 800) {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [target]);
+  }, [target, duration]);
 
   return value;
 }
@@ -70,6 +73,17 @@ function DonutChart({
   const pad = 16;
   const outer = size + pad * 2;
 
+  /* Animate from 0 on mount */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const animatedDone = mounted ? doneLen : 0;
+  const animatedRemain = mounted ? remainLen : 0;
+  const animatedOffset = mounted ? 0 : circumference;
+
   return (
     <svg
       viewBox={`0 0 ${outer} ${outer}`}
@@ -92,9 +106,12 @@ function DonutChart({
           fill="none"
           stroke="var(--text-muted)"
           strokeWidth={strokeWidth}
-          strokeDasharray={`${remainLen} ${circumference - remainLen}`}
-          strokeDashoffset={-doneLen}
-          style={{ transition: "stroke-dasharray 0.8s ease-out, stroke-dashoffset 0.8s ease-out" }}
+          strokeDasharray={`${animatedRemain} ${circumference - animatedRemain}`}
+          strokeDashoffset={-animatedDone}
+          strokeLinecap="round"
+          style={{
+            transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
         />
       )}
       {doneLen > 0 && (
@@ -106,9 +123,12 @@ function DonutChart({
           stroke={color}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
-          strokeDasharray={`${doneLen} ${circumference - doneLen}`}
-          strokeDashoffset={0}
-          style={{ transition: "stroke-dasharray 0.8s ease-out", filter: `drop-shadow(0 0 8px ${color}80)` }}
+          strokeDasharray={`${animatedDone} ${circumference - animatedDone}`}
+          strokeDashoffset={animatedOffset}
+          style={{
+            transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
+            filter: `drop-shadow(0 0 10px ${color}90)`,
+          }}
         />
       )}
     </svg>

@@ -30,7 +30,7 @@ export default function Footer() {
             <span className="text-xs text-text-muted">
               &copy; {year} Devora
             </span>
-            <span className="text-[10px] text-text-muted/50 bg-surface-2 px-1.5 py-0.5 rounded-md font-mono">
+            <span className="text-[10px] font-bold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded-md font-mono">
               v0.1.5
             </span>
           </div>
