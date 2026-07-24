@@ -58,28 +58,46 @@ export async function POST(req: Request, { params }: Params) {
     },
   });
 
-  /* Notify goal assignees about the new comment */
+  /* Notify section members + admins about the new comment */
   const goal = await prisma.goal.findUnique({
     where: { id },
     select: {
       name: true,
-      assignments: { select: { userId: true } },
+      section: true,
     },
   }) as {
     name: string;
-    assignments: { userId: string }[];
+    section: string;
   } | null;
 
   if (goal) {
-    const assigneeIds = goal.assignments
-      .map((a) => a.userId)
-      .filter((uid) => uid !== payload.userId);
-    if (assigneeIds.length > 0) {
-      const authorName = comment.author?.name || "Someone";
-      await notifyMany(assigneeIds, {
+    const authorName = comment.author?.name || "Someone";
+
+    /* Get all members of this goal's section */
+    const sectionMembers = await prisma.userSection.findMany({
+      where: { section: goal.section },
+      select: { userId: true },
+    }) as Array<{ userId: string }>;
+
+    /* Get all admins */
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    }) as Array<{ id: string }>;
+
+    /* Combine and deduplicate, excluding the comment author */
+    const notifyIds = [
+      ...new Set([
+        ...sectionMembers.map((m) => m.userId),
+        ...admins.map((a) => a.id),
+      ]),
+    ].filter((uid) => uid !== payload.userId);
+
+    if (notifyIds.length > 0) {
+      await notifyMany(notifyIds, {
         type: "COMMENT_ADDED",
         title: "New comment on goal",
-        message: `${authorName} commented on "${goal.name}".`,
+        message: `${authorName} commented on "${goal.name}" in ${goal.section}.`,
         refId: id,
         refType: "goal",
       });
