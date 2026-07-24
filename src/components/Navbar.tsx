@@ -16,6 +16,7 @@ import { cn, getDefaultPfp } from "@/lib/utils";
 import Modal from "@/components/ui/Modal";
 import NotificationPanel from "@/components/NotificationPanel";
 import { Sun, Moon, LogOut, User, Upload, Check, Bell } from "lucide-react";
+import { toast } from "sonner";
 import Image from "next/image";
 
 export default function Navbar() {
@@ -430,8 +431,14 @@ function ProfileModal({
         const data = await res.json();
         setPfp(data.url);
         setHasChanges(true);
+        toast.success("Profile picture updated");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Upload failed, try again");
       }
-    } catch { /* silent */ } finally {
+    } catch {
+      toast.error("Upload failed, try again");
+    } finally {
       setUploading(false);
     }
   };
@@ -458,8 +465,14 @@ function ProfileModal({
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
+        toast.success("Profile saved");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to save, try again");
       }
-    } catch { /* silent */ } finally {
+    } catch {
+      toast.error("Failed to save, try again");
+    } finally {
       setSaving(false);
     }
   };

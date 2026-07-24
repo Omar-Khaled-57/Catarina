@@ -332,13 +332,14 @@ function useFileUpload() {
       const res = await fetch("/api/upload", { method: "POST", body: form });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Upload failed");
+        toast.error(data.error || "Upload failed, try again");
         return null;
       }
       const data = await res.json();
+      toast.success("Profile picture updated");
       return data.url;
     } catch {
-      toast.error("Upload failed");
+      toast.error("Upload failed, try again");
       return null;
     } finally {
       setUploading(false);
@@ -391,7 +392,7 @@ function PfpUpload({
         >
           <Upload size={12} /> Upload Photo
         </Button>
-        <p className="text-[10px] text-text-muted mt-1">JPG, PNG, GIF, WebP (max 5 MB)</p>
+        <p className="text-[10px] text-text-muted mt-1">JPG, PNG, GIF, WebP (max 2 MB)</p>
       </div>
     </div>
   );
