@@ -6,8 +6,6 @@ import { prisma } from "@/lib/prisma";
 import { getSectionKeys } from "@/lib/sections";
 import { notifyAdmins } from "@/lib/notify";
 import bcrypt from "bcryptjs";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export async function POST(req: Request) {
   try {
@@ -75,7 +73,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let pfpPath: string | null = null;
+    let pfpDataUri: string | null = null;
     if (pfp && pfp.size > 0) {
       const ALLOWED_TYPES = new Set([
         "image/jpeg",
@@ -89,20 +87,15 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      if (pfp.size > 5 * 1024 * 1024) {
+      if (pfp.size > 2 * 1024 * 1024) {
         return NextResponse.json(
-          { error: "File too large. Max 5 MB." },
+          { error: "File too large. Max 2 MB." },
           { status: 400 }
         );
       }
-      const ext = pfp.name.split(".").pop() || "jpg";
-      const filename = `register-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      const filepath = path.join(uploadDir, filename);
-      await mkdir(uploadDir, { recursive: true });
-      const bytes = Buffer.from(await pfp.arrayBuffer());
-      await writeFile(filepath, bytes);
-      pfpPath = `/uploads/${filename}`;
+      const bytes = await pfp.arrayBuffer();
+      const base64 = Buffer.from(bytes).toString("base64");
+      pfpDataUri = `data:${pfp.type};base64,${base64}`;
     }
 
     const hashedPassword = await bcrypt.hash(password as string, 12);
@@ -114,7 +107,7 @@ export async function POST(req: Request) {
         name: name as string,
         password: hashedPassword,
         section: section as string,
-        pfp: pfpPath,
+        pfp: pfpDataUri,
         status: "PENDING",
       },
       create: {
@@ -122,7 +115,7 @@ export async function POST(req: Request) {
         email: email as string,
         password: hashedPassword,
         section: section as string,
-        pfp: pfpPath,
+        pfp: pfpDataUri,
       },
     });
 
