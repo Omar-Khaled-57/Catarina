@@ -276,7 +276,7 @@ function SectionFormModal({
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={title} position="top">
+    <Modal isOpen onClose={onClose} title={title}>
       <div className="space-y-4">
         {/* Label */}
         <div>
