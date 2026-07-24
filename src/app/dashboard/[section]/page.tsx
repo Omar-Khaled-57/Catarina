@@ -104,21 +104,23 @@ function DonutChart({
         stroke="var(--text-muted)"
         strokeWidth={strokeWidth}
       />
-      <circle
-        cx={outer / 2}
-        cy={outer / 2}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={`${animatedDone} ${circumference - animatedDone}`}
-        strokeDashoffset={animatedOffset}
-        style={{
-          transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
-          filter: animatedDone > 0 ? `drop-shadow(0 0 10px ${color}90)` : "none",
-        }}
-      />
+      {donePercent >= 1 && (
+        <circle
+          cx={outer / 2}
+          cy={outer / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${animatedDone} ${circumference - animatedDone}`}
+          strokeDashoffset={animatedOffset}
+          style={{
+            transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
+            filter: `drop-shadow(0 0 10px ${color}90)`,
+          }}
+        />
+      )}
     </svg>
   );
 }
@@ -562,7 +564,7 @@ export default function SectionPage({
         <div className="flex items-center justify-center py-20">
           <div
             className="h-10 w-10 animate-spin rounded-full border-2 border-t-transparent"
-            style={{ borderColor: `${color}40`, borderTopColor: "transparent" }}
+            style={{ borderTopColor: "transparent", borderRightColor: `${color}40`, borderBottomColor: `${color}40`, borderLeftColor: `${color}40` }}
           />
         </div>
       ) : goals.length === 0 ? (
