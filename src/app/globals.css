@@ -188,7 +188,7 @@ html.dark [data-sonner-toast] [data-title] {
 
 /* ─── Modal Scrollbar ──────────────────────────────────────────────────────── */
 .modal-scroll::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
 }
 .modal-scroll::-webkit-scrollbar-track {
   background: transparent;
@@ -196,16 +196,19 @@ html.dark [data-sonner-toast] [data-title] {
 .modal-scroll::-webkit-scrollbar-thumb {
   background: var(--surface-2);
   border-radius: 4px;
-  transition: background 0.2s, width 0.2s, box-shadow 0.2s;
+  transition: background 0.15s, width 0.15s, box-shadow 0.15s;
 }
 .modal-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
-  width: 7px;
-  box-shadow: 0 0 8px 2px var(--accent-glow), 0 0 16px 4px var(--accent-glow);
+  width: 8px;
+  box-shadow: 0 0 8px 3px var(--accent-glow), 0 0 20px 6px var(--accent-glow);
 }
 .modal-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--surface-2) transparent;
+}
+.modal-scroll:hover {
+  scrollbar-color: var(--accent) transparent;
 }
 
 /* ─── Checkbox Pulse Animation ──────────────────────────────────────────────── */
