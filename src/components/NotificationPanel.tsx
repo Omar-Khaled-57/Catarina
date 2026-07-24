@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Modal from "@/components/ui/Modal";
+import MonthCelebrationModal from "@/components/MonthCelebrationModal";
 import Image from "next/image";
 import {
   Bell,
@@ -81,13 +82,35 @@ const TYPE_COLOR: Record<string, string> = {
   SIGNUP_REJECTED: "text-danger",
 };
 
+/**
+ * Which notification types show an image instead of a lucide icon.
+ * bye.webp is half-body portrait → rendered larger.
+ * cry.webp and excited.webp are head-only → standard emoji size.
+ * MONTH_CREATED / GOALS_CARRIED_OVER → trigger the big celebration modal (no inline image).
+ */
 const TYPE_IMAGE: Record<string, string> = {
-  GOAL_REACHED: "/rina/excited.webp",
-  SIGNUP_REQUEST: "/rina/thumb.webp",
-  MONTH_CREATED: "/rina/celebration.webp",
-  SIGNUP_REJECTED: "/rina/cry.webp",
-  MEMBER_DELETED: "/rina/bye.webp",
-  GOALS_CARRIED_OVER: "/rina/celebration.webp",
+  GOAL_REACHED:          "/rina/excited.webp",
+  GOAL_COMPLETED:        "/rina/excited.webp",
+  SIGNUP_REQUEST:        "/rina/thumb.webp",
+  SIGNUP_REJECTED:       "/rina/cry.webp",
+  MEMBER_LEFT_SECTION:   "/rina/cry.webp",
+  MEMBER_DELETED:        "/rina/bye.webp",
+};
+
+/** Types that skip the inline image and instead open the big celebration modal */
+const CELEBRATION_TYPES = new Set(["MONTH_CREATED", "GOALS_CARRIED_OVER"]);
+
+/**
+ * Image sizes per image file — tuned to actual content/aspect ratio.
+ * bye.webp   — half-body portrait (~600×670px source) → display larger
+ * excited / cry / happy / thumb / sleeping → head-only sticker, roughly square
+ */
+const IMAGE_SIZES: Record<string, { width: number; height: number; className: string }> = {
+  "/rina/bye.webp":     { width: 72, height: 88,  className: "rounded-xl object-contain" },
+  "/rina/excited.webp": { width: 48, height: 48,  className: "rounded-xl" },
+  "/rina/cry.webp":     { width: 48, height: 48,  className: "rounded-xl" },
+  "/rina/thumb.webp":   { width: 48, height: 48,  className: "rounded-xl" },
+  "/rina/happy.webp":   { width: 48, height: 48,  className: "rounded-xl" },
 };
 
 function timeAgo(dateStr: string): string {
@@ -162,6 +185,8 @@ export default function NotificationPanel({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const [celebrationMonth, setCelebrationMonth] = useState<string | undefined>();
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -236,6 +261,7 @@ export default function NotificationPanel({
   };
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title="Notifications" maxWidth="max-w-md">
       {/* Actions bar */}
       {notifications.length > 0 && (
@@ -277,18 +303,42 @@ export default function NotificationPanel({
             const Icon = TYPE_ICON[n.type] || Bell;
             const iconColor = TYPE_COLOR[n.type] || "text-text-muted";
             const isWelcome = n.title === "Why Catarina? 🌸";
+            const isCelebration = CELEBRATION_TYPES.has(n.type);
+            const imageSrc = isCelebration ? null : (isWelcome ? "/rina/happy.webp" : (TYPE_IMAGE[n.type] || null));
+            const imgSize = imageSrc ? (IMAGE_SIZES[imageSrc] ?? { width: 48, height: 48, className: "rounded-xl" }) : null;
             return (
               <div
                 key={n.id}
+                onClick={isCelebration ? () => {
+                  setCelebrationMonth(n.title);
+                  setCelebrationOpen(true);
+                  if (!n.read) markRead(n.id);
+                } : undefined}
                 className={`flex items-start gap-3 p-2.5 rounded-lg transition-colors group/n ${
                   n.read ? "opacity-60" : "bg-surface-2/40"
-                } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""}`}
+                } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""} ${
+                  isCelebration ? "cursor-pointer hover:bg-surface-2/60 ring-1 ring-amber-500/20" : ""
+                }`}
               >
-                <div className={`mt-0.5 shrink-0 ${isWelcome || TYPE_IMAGE[n.type] ? "" : iconColor}`}>
-                  {isWelcome ? (
-                    <Image src="/rina/happy.webp" alt="Catarina" width={48} height={48} className="rounded-xl" />
-                  ) : TYPE_IMAGE[n.type] ? (
-                    <Image src={TYPE_IMAGE[n.type]} alt="Catarina" width={48} height={48} className="rounded-xl" />
+                <div className={`shrink-0 ${
+                  imageSrc
+                    ? (imageSrc === "/rina/bye.webp" ? "mt-0" : "mt-0.5")
+                    : "mt-0.5"
+                } ${!imageSrc && !isCelebration ? iconColor : ""}`}>
+                  {isCelebration ? (
+                    /* Celebration types show a sparkle emoji badge instead of an image inline */
+                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-400/10 text-xl select-none">
+                      🎉
+                    </span>
+                  ) : imageSrc ? (
+                    <Image
+                      src={imageSrc}
+                      alt="Catarina"
+                      width={imgSize!.width}
+                      height={imgSize!.height}
+                      className={imgSize!.className}
+                      style={{ width: imgSize!.width, height: "auto" }}
+                    />
                   ) : (
                     <Icon size={15} />
                   )}
@@ -340,5 +390,13 @@ export default function NotificationPanel({
         </div>
       )}
     </Modal>
+
+    {/* Month Celebration Modal — big centered popup with confetti */}
+    <MonthCelebrationModal
+      isOpen={celebrationOpen}
+      onClose={() => setCelebrationOpen(false)}
+      monthName={celebrationMonth}
+    />
+    </>
   );
 }
