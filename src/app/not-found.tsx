@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * NotFound — Custom 404 page with context-aware messages.
+ * Shows different descriptions based on the URL path
+ * (e.g., unknown section, missing month, access denied).
+ */
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

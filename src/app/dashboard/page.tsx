@@ -148,16 +148,15 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(0,232,162,0.1)", border: "1px solid rgba(0,232,162,0.2)" }}>
-                  <CheckCircle2 size={18} style={{ color: "#00E8A2" }} />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 border border-accent/20">
+                  <CheckCircle2 size={18} className="text-accent" />
                 </div>
                 <div>
                   <p className="text-xs text-text-muted font-medium uppercase tracking-wider">Done</p>
                   <CountUp
                     value={globalStats.done}
                     delay={350}
-                    className="text-2xl font-black"
-                    style={{ color: "#00E8A2" }}
+                    className="text-2xl font-black text-accent"
                   />
                 </div>
               </div>

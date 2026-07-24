@@ -1,4 +1,8 @@
-// Shared Utility Functions
+/**
+ * Shared Utility Functions — Common helpers used across the app.
+ * Includes class merging, date formatting, stats calculation,
+ * section PFP defaults, and month name formatting.
+ */
 
 import { type ClassValue, clsx } from "clsx";
 
@@ -110,7 +114,6 @@ const SECTION_PFP: Record<string, string> = {
   ART: "/pfps/art.png",
   MANAGEMENT: "/pfps/mng.gif",
   TECHNICAL: "/pfps/tec.gif",
-  MARKETING: "/pfps/mrk.gif",
 };
 
 export function getDefaultPfp(section: string): string | null {

@@ -214,14 +214,14 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                 <line
                   x1={PAD_L} y1={y}
                   x2={SVG_W - PAD_R} y2={y}
-                  stroke="rgba(255,255,255,0.07)"
+                  stroke="var(--border)"
                   strokeDasharray="5 4"
                   strokeWidth="1"
                 />
                 <text
                   x={PAD_L - 6} y={y + 4}
                   textAnchor="end"
-                  fill="rgba(255,255,255,0.28)"
+                  fill="var(--text-muted)"
                   fontSize="10"
                   fontWeight="500"
                 >
@@ -323,7 +323,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                   x={centerX}
                   y={baseY + 18}
                   textAnchor="middle"
-                  fill="rgba(255,255,255,0.35)"
+                  fill="var(--text-muted)"
                   fontSize="8.5"
                   fontWeight="600"
                   letterSpacing="0.8"
@@ -349,7 +349,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
           <line
             x1={PAD_L} y1={baseY}
             x2={SVG_W - PAD_R} y2={baseY}
-            stroke="rgba(255,255,255,0.18)"
+            stroke="var(--border)"
             strokeWidth="1.5"
           />
         </svg>

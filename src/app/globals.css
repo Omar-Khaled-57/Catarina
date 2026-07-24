@@ -232,7 +232,3 @@ html.dark [data-sonner-toast] [data-title] {
   opacity: 1;
   transform: translateY(0);
 }
-.in-view-visible {
-  opacity: 1;
-  transform: translateY(0);
-}

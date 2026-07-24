@@ -1,6 +1,8 @@
-// Server-only Authentication Helpers
-// JWT token creation/verification using jose, with HttpOnly cookies
-// This file must ONLY be imported in Server Components or API routes
+/**
+ * Server-only Authentication Helpers — JWT token creation/verification
+ * using jose, with HttpOnly cookies for XSS protection.
+ * This file must ONLY be imported in Server Components or API routes.
+ */
 
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";

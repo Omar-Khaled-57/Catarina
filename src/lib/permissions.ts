@@ -1,5 +1,7 @@
-// Shared Permissions Types & Helpers
-// Granular per-member permissions controlled by admin
+/**
+ * Shared Permissions Types & Helpers — Granular per-member permissions
+ * controlled by admin. Defines permission flags, defaults, and serialization.
+ */
 
 /**
  * Permission flags for a member.

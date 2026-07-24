@@ -6,6 +6,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.0] — 2026-07-24 · *Profile System, Rina Expressions & Release Polish*
+
+> Major feature milestone — profile editing, character expressions, responsive UI overhaul, and release-ready code audit.
+
+### ✦ New Features
+
+- **Profile Editing (Self)** — Users can edit their own name, email, bio, profile picture, and password from the Navbar dropdown. Password change requires current password for security. Profile modal shows live preview of PFP and bio
+- **Profile Editing (Admin)** — Admin panel Edit User modal now supports password reset (`newPassword` field) without requiring the current password. Admins can update any user's name, email, bio, PFP, and password
+- **Welcome Celebration Modal** — First-time users see a full-screen celebration modal with bouncing `celebration.webp` Rina image, confetti particles, and a "Start Exploring" button. Text mentions profile customization. Persisted via `welcomeSeen` boolean on User model to show only once
+- **Login Rejection Feedback** — Login API detects rejected and pending approval accounts, returning specific error messages ("Your account has been rejected" / "Your account is pending approval") instead of generic "Invalid credentials"
+- **Comment Notifications** — Comments on goals now notify all section members + admins. The comment author is excluded from notifications. Uses new `COMMENT_ADDED` notification type with `MessageCircle` icon
+- **Rina Character Expressions** — Context-aware Rina images placed throughout the app:
+  - `think.webp` — Empty states (goals list, archive) at 120×120
+  - `sleeping.webp` — Empty notification list at 96×96
+  - `excited.webp` — Goal completion + member joined at 48×48
+  - `thumb.webp` — Signup approval request at 48×48
+  - `cry.webp` — Signup rejected + user left at 48×48
+  - `bye.webp` — User deleted at 72×88 (half-body)
+  - `happy.webp` — Welcome notification at 48×48
+  - `celebration.webp` — Welcome modal + month celebration
+  - `404.webp` — Custom 404 page at 280×280
+- **Default Admin Credentials** — Seed changed to `admin@team.com` / `admin123` with `/pfps/mng.gif` PFP for easy first-time setup
+- **Deploy-Your-Own README** — Complete rewrite with setup instructions, default credentials, profile customization docs, tech stack overview, and deployment guide
+
+### ✦ UI & Animation
+
+- **Portrait/Responsive Layouts** — New Month, New User, and New Section buttons use compact stacked layout (`flex-col sm:flex-row`) with reduced padding on mobile. Admin page header stacks vertically on small screens
+- **Scrollbar Hover Behavior** — Custom scrollbar thumb uses grey (`--text-muted`) by default, transitions to neon teal (`--accent`) only when cursor is near the scrollbar thumb area. Implemented via JS `onMouseMove` detection with `data-hover` attribute — `scrollbar-color` CSS property overridden in modern Chrome, so JS-based approach ensures cross-browser consistency
+- **Donut Chart Animation** — Grey completion ring is now static (full circle, no animation). Colored progress ring always renders and animates from 0% to target via CSS transitions (1.2s cubic-bezier 0.22,1,0.36,1). Drop-shadow glow on colored ring
+- **CountUp Animation Fix** — `useCountUp` hook fixed to always start from 0 (was starting from previous value on remount). Uses ease-out-expo easing for natural deceleration over 1000ms
+- **Navbar Logo Shadow** — Removed oversized `shadow-[0_0_12px...]` from Navbar logo for cleaner appearance
+- **Login Logo** — Removed `rounded-2xl shadow-2xl` from login page logo
+- **SectionManager Modal** — Uses React Portal (`createPortal` to `document.body`) for true viewport centering, bypassing `backdrop-filter` ancestors that break `position:fixed`
+- **Section Item Animation** — Removed `layout` prop and `AnimatePresence mode="popLayout"` from section list items; replaced with simple `opacity + y` fade-in for smoother transitions
+- **Mobile Navbar** — Simplified to single-layer design with tighter easing curves and faster stagger timing
+- **Version Badge** — Teal-accented version badge in Footer (`v0.2.0`, `text-accent bg-accent/10 border-accent/20`)
+
+### ✦ Bug Fixes
+
+- **CSS `borderColor` Conflict** — Loading spinner mixed shorthand `borderColor` with longhand `borderTopColor`; replaced with all longhand properties for consistent rendering
+- **SectionChart Light Theme** — Replaced hardcoded `rgba(255,255,255,...)` colors with CSS variable-based `var(--border)` and `var(--text-muted)` for proper light theme support
+- **Duplicate CSS Rule** — Removed duplicate `.in-view-visible` declaration in `globals.css`
+- **Hardcoded Colors** — Dashboard page "Done" stat replaced inline `style={{ color: "#00E8A2" }}` with Tailwind `text-accent`, `bg-accent/10`, `border-accent/20` classes
+- **Missing Asset Reference** — Removed non-existent `/pfps/mrk.gif` from `SECTION_PFP` map
+
+### ✦ Code Quality Audit
+
+- **JSDoc Headers** — Added missing `/** */` comment headers to `not-found.tsx`, `ServiceWorkerRegister.tsx`
+- **Comment Style Consistency** — Converted `//` comment headers to `/** */` JSDoc format in `lib/utils.ts`, `lib/auth.server.ts`, `lib/permissions.ts`
+- **SectionManager Overflow** — Changed admin page container from `overflow-hidden` to `overflow-visible` with `transition-all duration-300`; removed gradient bar that clipped content
+
+### ✦ New Files
+
+- `src/components/WelcomeModal.tsx` — First-time welcome celebration modal
+- `README.md` — Complete deploy-your-own documentation
+
+### ✦ New API Routes
+
+- `PUT /api/auth/profile` — Self-service profile editing (name, email, bio, PFP, password)
+- `PUT /api/admin/users/[userId]` — Admin user editing with optional password reset
+- `POST /api/auth/welcome-seen` — Marks welcome modal as seen
+
+### ✦ Infrastructure
+
+- **Database** — Added `welcomeSeen Boolean @default(false)` to User model (schema + Turso)
+- **Image Optimization** — All Rina expression images optimized to WebP format (84% payload reduction)
+- **PWA** — Service worker upgraded to v2 with stale-while-revalidate caching
+
+---
+
 ## [0.1.5] — 2026-07-23 · *Stability & UX Polish*
 
 ### ✦ Bug Fixes & Improvements
@@ -23,72 +93,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Version bump** — 0.1.0 → 0.1.5
 - **Database** — Added `pfp` field to `Approval` model for registration photo uploads
-
----
-
-## [0.1.7] — 2026-07-24 · *UI Overhaul, Footer & Audit Fixes*
-
-### ✦ New Features
-
-- **Mobile Navigation** — Added hamburger menu on mobile with animated dropdown (framer-motion). Full menu with user info, nav links, notifications, profile, and logout. Matches hodor reference design
-- **Footer** — New app footer with logo, navigation links, and branding
-- **Admin Section API** — Added `GET /api/admin/sections` endpoint for listing all sections including inactive ones
-
-### ✦ Bug Fixes & Improvements
-
-- **SectionManager** — Fixed fetching from non-existent admin endpoint; now properly uses `GET /api/admin/sections`
-- **Login Page** — Replaced 12 hardcoded `SECTIONS`/`SECTION_COLORS`/`SECTION_LABELS` references with dynamic section data fetched from API
-- **Navbar** — Removed hardcoded section imports; profile modal now fetches dynamic section labels and colors from API
-- **GoalRow** — Removed dead `SECTION_COLORS` import (component only exported types, never rendered)
-- **GoalCard** — Replaced hardcoded `SECTION_PREFIX` map with dynamic `sectionPrefixes` prop (falls back to first 3 letters of section key)
-
-### ✦ Audit Fixes
-
-- Eliminated all remaining hardcoded section constants from client components
-- All section data now flows through the dynamic `GET /api/sections` endpoint with fallback defaults
-- Added `Footer` to dashboard layout
-- Mobile navbar now shows active state indicators (dot + accent underline)
-
-### ✦ New Features
-
-- **Dynamic Sections** — Replaced hardcoded `SECTIONS` constant with database-backed `SectionConfig` model. Admins can now add, edit, rename, recolor, and soft-delete sections from the Admin Panel via a new Section Manager UI
-- **Color Picker** — New `ColorPicker` component with 8 premade colors and a custom HSL picker. Up to 10 custom colors saved to localStorage
-- **Section Prefixes** — Each section now has a configurable prefix (e.g. `MRK-`, `ART-`) stored in `SectionConfig` for future goal numbering
-- **Expanded Notifications** — 7 new notification types: `SIGNUP_REJECTED`, `GOAL_REACHED`, `COMMENT_ADDED`, `MEMBER_LEFT_SECTION`, `MEMBER_DELETED`, `MONTH_CREATED`, `GOALS_CARRIED_OVER`, `ROLE_CHANGED`. Wired into approvals, promotions, comments, goal toggles, month creation, and user management API routes
-- **Strict Routing** — Invalid section slugs and deleted archive months now render a proper 404 page with context-aware messaging instead of silent redirects
-- **Image Optimization** — All Rina expression images and logo resized to optimal WebP dimensions. Total image payload reduced from 1.17 MB to 183 KB (84% reduction)
-
-### ✦ Bug Fixes & Improvements
-
-- **PWA Name** — Installed app name now shows only "Catarina" on all platforms (was "Catarina — Devora Team Planner" on Android). Manifest and all metadata sources unified
-- **PWA Icons** — Generated properly-sized icons (192x192, 512x512, apple-touch-icon 180x180) from the WebP logo instead of serving a 1 MB PNG
-- **404 Page** — Enhanced with `usePathname()` to show context-specific messages for section vs archive vs generic routes
-- **Archive Month Validation** — Invalid `monthId` in URL now calls `notFound()` instead of rendering a blank page
-- **Section Card & Chart** — Components now accept dynamic `color` and `label` props instead of relying on hardcoded constants
-
-### ✦ New Files
-
-- `src/lib/sections.ts` — Dynamic section loader with 30-second cache and hardcoded fallback
-- `src/components/ColorPicker.tsx` — Premade + custom color picker
-- `src/components/SectionManager.tsx` — Admin section CRUD UI
-- `src/app/api/sections/route.ts` — Public sections endpoint
-- `src/app/api/admin/sections/route.ts` — Admin create section
-- `src/app/api/admin/sections/[id]/route.ts` — Admin update/delete section
-
-### ✦ Infrastructure
-
-- **Database** — Added `SectionConfig` model with `key`, `label`, `prefix`, `color`, `sortOrder`, `isActive` fields
-- **Seed** — Updated `prisma/seed.ts` to create default sections and `SectionConfig` records
-
----
-
-## [Unreleased] — 2026-07-23 · *In Progress*
-
-> Preliminary fix for corrupted `GoalForm.tsx` — full patch still required.
-
-### ✦ Bug Fixes
-
-- **GoalForm** — Initial recovery patch applied to restore component integrity after corruption. Form state, assignment picker, and modal structure have been stabilized. Further refactoring and validation still needed.
 
 ---
 
