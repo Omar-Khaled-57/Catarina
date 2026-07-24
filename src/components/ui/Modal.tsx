@@ -17,6 +17,7 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   maxWidth?: string;
+  position?: "center" | "top";
 }
 
 export default function Modal({
@@ -25,6 +26,7 @@ export default function Modal({
   title,
   children,
   maxWidth = "max-w-lg",
+  position = "center",
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -92,7 +94,7 @@ export default function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className={`fixed inset-0 z-50 flex ${position === "top" ? "items-start pt-[12vh]" : "items-center"} justify-center p-4`}
           onClick={(e) => {
             if (e.target === overlayRef.current) onClose();
           }}
@@ -108,7 +110,7 @@ export default function Modal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ type: "spring", bounce: 0.2, duration: 0.3 }}
-            className={`relative glass rounded-2xl ${maxWidth} w-full max-h-[90vh] flex flex-col`}
+            className={`relative rounded-2xl bg-surface border border-border/60 ${maxWidth} w-full max-h-[90vh] flex flex-col`}
           >
             {/* Top bar: title + close button in same row */}
             <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
