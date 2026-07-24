@@ -104,23 +104,21 @@ function DonutChart({
         stroke="var(--text-muted)"
         strokeWidth={strokeWidth}
       />
-      {donePercent >= 1 && (
-        <circle
-          cx={outer / 2}
-          cy={outer / 2}
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={`${animatedDone} ${circumference - animatedDone}`}
-          strokeDashoffset={animatedOffset}
-          style={{
-            transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
-            filter: `drop-shadow(0 0 10px ${color}90)`,
-          }}
-        />
-      )}
+      <circle
+        cx={outer / 2}
+        cy={outer / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={`${animatedDone} ${circumference - animatedDone}`}
+        strokeDashoffset={animatedOffset}
+        style={{
+          transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
+          filter: `drop-shadow(0 0 10px ${color}90)`,
+        }}
+      />
     </svg>
   );
 }

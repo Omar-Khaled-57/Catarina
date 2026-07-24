@@ -7,7 +7,7 @@
  * Uses Framer Motion for enter/exit animations.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
@@ -29,7 +29,16 @@ export default function Modal({
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+
+  const handleScrollHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const nearThumb = e.clientX > rect.right - 12;
+    el.dataset.hover = nearThumb ? "true" : "";
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -131,7 +140,14 @@ export default function Modal({
               </button>
             </div>
 
-            <div className="px-5 pb-5 overflow-y-auto modal-scroll">
+            <div
+              ref={scrollRef}
+              className="px-5 pb-5 overflow-y-auto modal-scroll"
+              onMouseMove={handleScrollHover}
+              onMouseLeave={() => {
+                if (scrollRef.current) scrollRef.current.dataset.hover = "";
+              }}
+            >
               {children}
             </div>
           </motion.div>
