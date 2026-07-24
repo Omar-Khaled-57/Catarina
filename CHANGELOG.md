@@ -26,6 +26,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.1.6] — 2026-07-24 · *Dynamic Sections, Notifications & Image Optimization*
+
+### ✦ New Features
+
+- **Dynamic Sections** — Replaced hardcoded `SECTIONS` constant with database-backed `SectionConfig` model. Admins can now add, edit, rename, recolor, and soft-delete sections from the Admin Panel via a new Section Manager UI
+- **Color Picker** — New `ColorPicker` component with 8 premade colors and a custom HSL picker. Up to 10 custom colors saved to localStorage
+- **Section Prefixes** — Each section now has a configurable prefix (e.g. `MRK-`, `ART-`) stored in `SectionConfig` for future goal numbering
+- **Expanded Notifications** — 7 new notification types: `SIGNUP_REJECTED`, `GOAL_REACHED`, `COMMENT_ADDED`, `MEMBER_LEFT_SECTION`, `MEMBER_DELETED`, `MONTH_CREATED`, `GOALS_CARRIED_OVER`, `ROLE_CHANGED`. Wired into approvals, promotions, comments, goal toggles, month creation, and user management API routes
+- **Strict Routing** — Invalid section slugs and deleted archive months now render a proper 404 page with context-aware messaging instead of silent redirects
+- **Image Optimization** — All Rina expression images and logo resized to optimal WebP dimensions. Total image payload reduced from 1.17 MB to 183 KB (84% reduction)
+
+### ✦ Bug Fixes & Improvements
+
+- **PWA Name** — Installed app name now shows only "Catarina" on all platforms (was "Catarina — Devora Team Planner" on Android). Manifest and all metadata sources unified
+- **PWA Icons** — Generated properly-sized icons (192x192, 512x512, apple-touch-icon 180x180) from the WebP logo instead of serving a 1 MB PNG
+- **404 Page** — Enhanced with `usePathname()` to show context-specific messages for section vs archive vs generic routes
+- **Archive Month Validation** — Invalid `monthId` in URL now calls `notFound()` instead of rendering a blank page
+- **Section Card & Chart** — Components now accept dynamic `color` and `label` props instead of relying on hardcoded constants
+
+### ✦ New Files
+
+- `src/lib/sections.ts` — Dynamic section loader with 30-second cache and hardcoded fallback
+- `src/components/ColorPicker.tsx` — Premade + custom color picker
+- `src/components/SectionManager.tsx` — Admin section CRUD UI
+- `src/app/api/sections/route.ts` — Public sections endpoint
+- `src/app/api/admin/sections/route.ts` — Admin create section
+- `src/app/api/admin/sections/[id]/route.ts` — Admin update/delete section
+
+### ✦ Infrastructure
+
+- **Database** — Added `SectionConfig` model with `key`, `label`, `prefix`, `color`, `sortOrder`, `isActive` fields
+- **Seed** — Updated `prisma/seed.ts` to create default sections and `SectionConfig` records
+
+---
+
 ## [Unreleased] — 2026-07-23 · *In Progress*
 
 > Preliminary fix for corrupted `GoalForm.tsx` — full patch still required.

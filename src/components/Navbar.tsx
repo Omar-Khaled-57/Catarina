@@ -54,7 +54,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
             {/* Left: Logo + App Name */}
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Image src="/logo.png" alt="Catarina Logo" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
+              <Image src="/logo.webp" alt="Catarina Logo" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" />
               <span className="text-lg font-bold text-text tracking-tight">
                 Catarina
               </span>

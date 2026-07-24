@@ -2,14 +2,44 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Home, ArrowLeft } from "lucide-react";
 
+function getPathContext(pathname: string): { title: string; description: string } {
+  if (pathname.startsWith("/dashboard/archive")) {
+    return {
+      title: "Month not found",
+      description: "This month report doesn't exist or has been deleted. Catarina checked everywhere — it's gone.",
+    };
+  }
+  if (/^\/dashboard\/[^/]+/.test(pathname)) {
+    const section = pathname.split("/dashboard/")[1]?.split("/")[0] || "";
+    return {
+      title: `Unknown section: ${section}`,
+      description: `There's no team section called "${section}". Did you mistype it? Catarina can't find it either.`,
+    };
+  }
+  if (pathname.startsWith("/dashboard/admin")) {
+    return {
+      title: "Access denied",
+      description: "You don't have admin privileges to view this page. Ask an admin for access.",
+    };
+  }
+  return {
+    title: "Lost in the void?",
+    description: "The page you're looking for doesn't exist or has been moved. Even Catarina can't find it — and she remembers everything.",
+  };
+}
+
 export default function NotFound() {
+  const pathname = usePathname();
+  const ctx = getPathContext(pathname);
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="text-center">
         <Image
-          src="/rina/404.png"
+          src="/rina/404.webp"
           alt="404"
           width={280}
           height={280}
@@ -17,11 +47,10 @@ export default function NotFound() {
           priority
         />
         <h1 className="text-4xl font-black text-text mb-3 tracking-tight">
-          Lost in the void?
+          {ctx.title}
         </h1>
         <p className="text-text-muted mb-8 max-w-md mx-auto text-sm leading-relaxed">
-          The page you’re looking for doesn’t exist or has been moved. 
-          Even Catarina can’t find it — and she remembers everything.
+          {ctx.description}
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link

@@ -12,7 +12,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { SECTION_COLORS, type Section, SECTIONS, SECTION_LABELS } from "@/lib/auth";
 import { calcSectionStats } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 
@@ -22,8 +21,15 @@ interface Goal {
   target: number;
 }
 
+interface SectionData {
+  key: string;
+  label: string;
+  color: string;
+}
+
 interface SectionChartProps {
-  data: Record<Section, Goal[]>;
+  data: Record<string, Goal[]>;
+  sections?: SectionData[];
 }
 
 /* ─── SVG layout constants ───────────────────────────────────────────────── */
@@ -46,16 +52,25 @@ const pts = (coords: [number, number][]) =>
 /** ease-out swing: starts fast, decelerates smoothly */
 const swingOut = (t: number) => 1 - Math.cos((t * Math.PI) / 2);
 
-export default function SectionChart({ data }: SectionChartProps) {
-  const sections = SECTIONS.map((section) => {
-    const stats = calcSectionStats(data[section] || []);
+export default function SectionChart({ data, sections: sectionsProp }: SectionChartProps) {
+  /* Fallback section data if not provided */
+  const fallbackSections = [
+    { key: "MARKETING", label: "Marketing", color: "#FF4D6A" },
+    { key: "ART", label: "Art", color: "#7C3AED" },
+    { key: "TECHNICAL", label: "Technical", color: "#3B82F6" },
+    { key: "MANAGEMENT", label: "Management", color: "#F59E0B" },
+  ];
+  const sectionDefs = sectionsProp || fallbackSections;
+
+  const sections = sectionDefs.map((s) => {
+    const stats = calcSectionStats(data[s.key] || []);
     return {
-      section,
-      label: SECTION_LABELS[section],
+      section: s.key,
+      label: s.label,
       percentage: stats.percentage,
       done: stats.done,
       total: stats.total,
-      color: SECTION_COLORS[section],
+      color: s.color,
     };
   });
 

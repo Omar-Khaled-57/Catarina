@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
+/* Legacy imports kept as fallback — dynamic sections loaded on mount */
 import { SECTIONS, SECTION_COLORS, SECTION_LABELS, type Section } from "@/lib/auth";
 import { toast } from "sonner";
 import { LayoutList, ChevronDown, Check, Activity, Palette, Code2, Users, ArrowRight, UserPlus, LogIn } from "lucide-react";
@@ -94,7 +95,7 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Image src="/logo.png" alt="Catarina Logo" width={100} height={100} className="h-25 w-25 mx-auto rounded-2xl object-contain shadow-2xl mb-4" />
+          <Image src="/logo.webp" alt="Catarina Logo" width={100} height={100} className="h-25 w-25 mx-auto rounded-2xl object-contain shadow-2xl mb-4" />
           <h1 className="text-3xl font-black text-text tracking-tight">Catarina</h1>
           <p className="text-text-muted mt-1">Devora Team Planner</p>
         </motion.div>

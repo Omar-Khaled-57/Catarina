@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, use, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import GoalForm, { type GoalAssignmentData } from "@/components/GoalForm";
 import GoalCard from "@/components/GoalCard";
@@ -15,7 +15,6 @@ import MonthSelector from "@/components/MonthSelector";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { calcSectionStats } from "@/lib/utils";
-import { SECTION_COLORS } from "@/lib/auth";
 import { toast } from "sonner";
 import { type GoalData } from "@/components/GoalRow";
 import { Plus, ListChecks, ArrowDownAZ, ArrowDownWideNarrow, CalendarDays, Users, Hash, ArrowUpDown, Search } from "lucide-react";
@@ -123,16 +122,30 @@ export default function SectionPage({
 }) {
   const { section: sectionParam } = use(params);
   const section = sectionParam.toUpperCase();
-  const router = useRouter();
   const { user, isAdmin } = useAuth();
   const permissions = user?.permissions || { canEditGoals: false, canDeleteGoals: false, canCreateGoals: true, canManageMembers: false, canCreateMonths: false };
 
-  /* Redirect invalid sections to dashboard */
+  const [sectionColor, setSectionColor] = useState("var(--accent)");
+  const [validSections, setValidSections] = useState<string[]>([]);
+
+  /* Fetch sections and validate */
   useEffect(() => {
-    if (!["MARKETING", "ART", "TECHNICAL", "MANAGEMENT"].includes(section)) {
-      router.replace("/dashboard");
-    }
-  }, [section, router]);
+    fetch("/api/sections")
+      .then((res) => res.json())
+      .then((data) => {
+        const secs = data.sections || [];
+        const keys = secs.map((s: { key: string }) => s.key);
+        setValidSections(keys);
+
+        const found = secs.find((s: { key: string }) => s.key === section);
+        if (found) {
+          setSectionColor(found.color);
+        } else {
+          notFound();
+        }
+      })
+      .catch(() => notFound());
+  }, [section]);
 
   const [monthId, setMonthId] = useState<string | null>(null);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -154,7 +167,7 @@ export default function SectionPage({
   /* Search state */
   const [search, setSearch] = useState("");
 
-  const color = SECTION_COLORS[section as keyof typeof SECTION_COLORS] || "var(--accent)";
+  const color = sectionColor;
 
   /* Fetch goals for selected month + section */
   const fetchGoals = useCallback(

@@ -11,7 +11,6 @@ import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Badge from "@/components/ui/Badge";
 import CountUp from "@/components/ui/CountUp";
-import { SECTION_COLORS, type Section } from "@/lib/auth";
 import { calcSectionStats } from "@/lib/utils";
 import { Activity, Palette, Code2, Users } from "lucide-react";
 
@@ -23,14 +22,17 @@ interface Goal {
 }
 
 interface SectionCardProps {
-  section: Section;
+  section: string;
   goals: Goal[];
   highlight?: boolean;
+  color?: string;
+  label?: string;
 }
 
-export default function SectionCard({ section, goals, highlight }: SectionCardProps) {
+export default function SectionCard({ section, goals, highlight, color: colorProp, label: labelProp }: SectionCardProps) {
   const stats = calcSectionStats(goals);
-  const color = SECTION_COLORS[section];
+  const color = colorProp || "#00E8A2";
+  const label = labelProp || section;
 
   return (
     <Link href={`/dashboard/${section.toLowerCase()}`}>
@@ -44,8 +46,8 @@ export default function SectionCard({ section, goals, highlight }: SectionCardPr
         {/* Section Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <SectionIcon section={section} />
-            <h3 className="text-lg font-bold text-text">{section}</h3>
+            <SectionIcon section={section} color={color} />
+            <h3 className="text-lg font-bold text-text">{label}</h3>
           </div>
           <div className="flex items-center gap-2">
             {highlight && (
@@ -104,25 +106,25 @@ export default function SectionCard({ section, goals, highlight }: SectionCardPr
 }
 
 /* ─── Section Icon Helper ─────────────────────────────────────────────────── */
-function SectionIcon({ section }: { section: Section }) {
-  const color = SECTION_COLORS[section];
+function SectionIcon({ section, color }: { section: string; color?: string }) {
+  const resolvedColor = color || "#00E8A2";
 
-  const icons: Record<Section, React.ReactNode> = {
-    MARKETING: <Activity size={20} style={{ color }} />,
-    ART: <Palette size={20} style={{ color }} />,
-    TECHNICAL: <Code2 size={20} style={{ color }} />,
-    MANAGEMENT: <Users size={20} style={{ color }} />,
+  const icons: Record<string, React.ReactNode> = {
+    MARKETING: <Activity size={20} style={{ color: resolvedColor }} />,
+    ART: <Palette size={20} style={{ color: resolvedColor }} />,
+    TECHNICAL: <Code2 size={20} style={{ color: resolvedColor }} />,
+    MANAGEMENT: <Users size={20} style={{ color: resolvedColor }} />,
   };
 
   return (
     <div
       className="flex h-9 w-9 items-center justify-center rounded-xl"
       style={{
-        backgroundColor: `${color}15`,
-        border: `1px solid ${color}30`,
+        backgroundColor: `${resolvedColor}15`,
+        border: `1px solid ${resolvedColor}30`,
       }}
     >
-      {icons[section]}
+      {icons[section] || <Activity size={20} style={{ color: resolvedColor }} />}
     </div>
   );
 }

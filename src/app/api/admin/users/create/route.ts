@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
-import { SECTIONS } from "@/lib/auth";
+import { getSectionKeys } from "@/lib/sections";
 import { serializePermissions, type MemberPermissions, DEFAULT_PERMISSIONS } from "@/lib/permissions";
 import bcrypt from "bcryptjs";
 
@@ -58,11 +58,12 @@ export async function POST(req: Request) {
       });
 
       if (Array.isArray(sections) && sections.length > 0) {
-        const validSet = new Set(SECTIONS);
-        const validSections = sections.filter((s: string) => validSet.has(s as typeof SECTIONS[number]));
-        if (validSections.length > 0) {
+        const validSections = await getSectionKeys();
+        const validSet = new Set(validSections);
+        const validSectionsFiltered = sections.filter((s: string) => validSet.has(s.toUpperCase()));
+        if (validSectionsFiltered.length > 0) {
           await tx.userSection.createMany({
-            data: validSections.map((section: string) => ({ userId: newUser.id, section })),
+            data: validSectionsFiltered.map((section: string) => ({ userId: newUser.id, section: section.toUpperCase() })),
           });
         }
       }

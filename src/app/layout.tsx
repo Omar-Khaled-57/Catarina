@@ -21,11 +21,11 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   metadataBase: new URL("https://catarina-devora.vercel.app"),
   title: {
-    default: "Catarina — Devora Team Planner",
+    default: "Catarina",
     template: "%s | Catarina",
   },
   description:
-    "Monthly planning and progress tracking for the Devora team. Manage goals, track completion, and generate reports.",
+    "Team planning and progress tracking for Devora.",
   keywords: ["planning", "team", "goals", "devora", "project management"],
   authors: [{ name: "Devora" }],
   manifest: "/manifest.json",
@@ -33,12 +33,12 @@ export const metadata: Metadata = {
     canonical: "https://catarina-devora.vercel.app",
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Catarina — Devora Team Planner",
-    description: "Monthly planning and progress tracking for the Devora team.",
+    title: "Catarina",
+    description: "Team planning and progress tracking for Devora.",
     url: "https://catarina-devora.vercel.app",
     siteName: "Catarina",
     images: [
@@ -56,8 +56,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Catarina — Devora Team Planner",
-    description: "Monthly planning and progress tracking for the Devora team.",
+    title: "Catarina",
+    description: "Team planning and progress tracking for Devora.",
     images: ["https://catarina-devora.vercel.app/og-image.png"],
     creator: "@omar_khaled",
   },

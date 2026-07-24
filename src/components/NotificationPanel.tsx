@@ -23,6 +23,13 @@ import {
   Info,
   Play,
   Pause,
+  Trophy,
+  MessageCircle,
+  UserMinus,
+  UserX,
+  CalendarPlus,
+  ArrowRightLeft,
+  Shield,
 } from "lucide-react";
 
 interface Notification {
@@ -46,6 +53,13 @@ const TYPE_ICON: Record<string, typeof Bell> = {
   DEADLINE_MISSED: AlertTriangle,
   GOAL_COMPLETED: Award,
   SYSTEM: Info,
+  GOAL_REACHED: Trophy,
+  COMMENT_ADDED: MessageCircle,
+  MEMBER_LEFT_SECTION: UserMinus,
+  MEMBER_DELETED: UserX,
+  MONTH_CREATED: CalendarPlus,
+  GOALS_CARRIED_OVER: ArrowRightLeft,
+  ROLE_CHANGED: Shield,
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -57,6 +71,13 @@ const TYPE_COLOR: Record<string, string> = {
   DEADLINE_MISSED: "text-danger",
   GOAL_COMPLETED: "text-accent",
   SYSTEM: "text-text-muted",
+  GOAL_REACHED: "text-accent",
+  COMMENT_ADDED: "text-technical",
+  MEMBER_LEFT_SECTION: "text-danger",
+  MEMBER_DELETED: "text-danger",
+  MONTH_CREATED: "text-management",
+  GOALS_CARRIED_OVER: "text-warning",
+  ROLE_CHANGED: "text-art",
 };
 
 function timeAgo(dateStr: string): string {
@@ -255,7 +276,7 @@ export default function NotificationPanel({
               >
                 <div className={`mt-0.5 shrink-0 ${isWelcome ? "" : iconColor}`}>
                   {isWelcome ? (
-                    <Image src="/rina/happy.png" alt="Catarina" width={24} height={24} className="rounded-lg" />
+                    <Image src="/rina/happy.webp" alt="Catarina" width={24} height={24} className="rounded-lg" />
                   ) : (
                     <Icon size={15} />
                   )}

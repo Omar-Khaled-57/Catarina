@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
-import { SECTIONS } from "@/lib/auth";
+import { getSectionKeys } from "@/lib/sections";
 
 export async function PUT(req: Request) {
   const payload = await verifyToken();
@@ -17,8 +17,9 @@ export async function PUT(req: Request) {
   }
 
   const { section } = await req.json();
+  const validSections = await getSectionKeys();
 
-  if (!section || !SECTIONS.includes(section)) {
+  if (!section || !validSections.includes(section)) {
     return NextResponse.json({ error: "Invalid section" }, { status: 400 });
   }
 

@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { SECTIONS } from "@/lib/auth";
+import { getSectionKeys } from "@/lib/sections";
 import { notifyAdmins } from "@/lib/notify";
 import bcrypt from "bcryptjs";
 import { writeFile, mkdir } from "fs/promises";
@@ -25,7 +25,8 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!SECTIONS.includes(section as typeof SECTIONS[number])) {
+    const validSections = await getSectionKeys();
+    if (!validSections.includes(section.toUpperCase())) {
       return NextResponse.json(
         { error: "Invalid section" },
         { status: 400 }

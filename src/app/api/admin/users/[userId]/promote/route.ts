@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
+import { notify } from "@/lib/notify";
 
 interface Params {
   params: Promise<{ userId: string }>;
@@ -39,6 +40,16 @@ export async function POST(_req: Request, { params }: Params) {
     where: { id: userId },
     data: { role: newRole },
     select: { id: true, name: true, role: true },
+  });
+
+  /* Notify the affected user about their role change */
+  await notify({
+    userId,
+    type: "ROLE_CHANGED",
+    title: `Role changed to ${newRole}`,
+    message: `Your role has been changed from ${user.role} to ${newRole} by an admin.`,
+    refId: userId,
+    refType: "user",
   });
 
   return NextResponse.json({ user: updated });

@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
-import { notify } from "@/lib/notify";
+import { notify, notifyAdmins } from "@/lib/notify";
 import { getDefaultPfp } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
@@ -106,6 +106,15 @@ export async function PUT(req: Request) {
     await prisma.approval.update({
       where: { id },
       data: { status: "REJECTED" },
+    });
+
+    /* Notify admins about the rejection */
+    await notifyAdmins({
+      type: "SIGNUP_REJECTED",
+      title: "Signup request rejected",
+      message: `The signup request from ${approval.name} (${approval.email}) has been rejected.`,
+      refId: approval.id,
+      refType: "approval",
     });
 
     return NextResponse.json({ message: "Request rejected" });

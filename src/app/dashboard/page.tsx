@@ -12,10 +12,16 @@ import SectionChart from "@/components/SectionChart";
 import MonthSelector from "@/components/MonthSelector";
 import CountUp from "@/components/ui/CountUp";
 import InView from "@/components/ui/InView";
-import { SECTIONS, type Section } from "@/lib/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { calcSectionStats } from "@/lib/utils";
 import { LayoutList, Target, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+
+/** Section data from the API */
+interface SectionData {
+  key: string;
+  label: string;
+  color: string;
+}
 
 /** Goal data structure from the API */
 interface Goal {
@@ -34,7 +40,16 @@ export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
   const [monthId, setMonthId] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [sections, setSections] = useState<SectionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  /* Fetch sections */
+  useEffect(() => {
+    fetch("/api/sections")
+      .then((res) => res.json())
+      .then((data) => setSections(data.sections || []))
+      .catch(() => {});
+  }, []);
 
   /* Fetch goals for the selected month */
   const fetchGoals = useCallback(async (mId: string) => {
@@ -72,13 +87,13 @@ export default function DashboardPage() {
   };
 
   /* Group goals by section */
-  const goalsBySection = SECTIONS.reduce(
-    (acc, section) => {
-      acc[section] = goals.filter((g) => g.section === section);
-      return acc;
-    },
-    {} as Record<Section, Goal[]>
-  );
+  const goalsBySection = useMemo(() => {
+    const acc: Record<string, Goal[]> = {};
+    for (const s of sections) {
+      acc[s.key] = goals.filter((g) => g.section === s.key);
+    }
+    return acc;
+  }, [goals, sections]);
 
   /* Global stats across all sections */
   const globalStats = useMemo(() => {
@@ -183,23 +198,25 @@ export default function DashboardPage() {
 
           {/* Section Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {SECTIONS.map((section, i) => (
-              <InView key={section} delay={150 * (i + 1)}>
+            {sections.map((section, i) => (
+              <InView key={section.key} delay={150 * (i + 1)}>
                 <SectionCard
-                  section={section}
-                  goals={goalsBySection[section]}
+                  section={section.key}
+                  goals={goalsBySection[section.key] || []}
                   highlight={
                     isAdmin
-                      ? section === (user?.primarySection || "MANAGEMENT")
-                      : user?.sections.includes(section)
+                      ? section.key === (user?.primarySection || "MANAGEMENT")
+                      : user?.sections.includes(section.key)
                   }
+                  color={section.color}
+                  label={section.label}
                 />
               </InView>
             ))}
           </div>
 
           {/* Performance Chart */}
-          <SectionChart data={goalsBySection} />
+          <SectionChart data={goalsBySection} sections={sections} />
         </>
       )}
     </div>

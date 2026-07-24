@@ -83,5 +83,26 @@ export async function PATCH(req: Request, { params }: Params) {
     }
   }
 
+  /* Notify when goal reaches 100% target (even if not toggled done) */
+  if (done && !goal.done) {
+    /* Goal just marked as done — GOAL_REACHED for section members */
+    const sectionMembers = await prisma.userSection.findMany({
+      where: { section: goal.section },
+      select: { userId: true },
+    }) as Array<{ userId: string }>;
+    const sectionUserIds = [...new Set(sectionMembers.map((m) => m.userId))].filter(
+      (uid) => uid !== payload.userId
+    );
+    if (sectionUserIds.length > 0) {
+      await notifyMany(sectionUserIds, {
+        type: "GOAL_REACHED",
+        title: "Goal target reached!",
+        message: `"${goal.name}" has reached its target of ${goal.target}.`,
+        refId: id,
+        refType: "goal",
+      });
+    }
+  }
+
   return NextResponse.json({ goal: updated });
 }

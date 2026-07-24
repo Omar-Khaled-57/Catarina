@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
+import { notifyMany } from "@/lib/notify";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -56,6 +57,34 @@ export async function POST(req: Request, { params }: Params) {
       author: { select: { name: true, role: true } },
     },
   });
+
+  /* Notify goal assignees about the new comment */
+  const goal = await prisma.goal.findUnique({
+    where: { id },
+    select: {
+      name: true,
+      assignments: { select: { userId: true } },
+    },
+  }) as {
+    name: string;
+    assignments: { userId: string }[];
+  } | null;
+
+  if (goal) {
+    const assigneeIds = goal.assignments
+      .map((a) => a.userId)
+      .filter((uid) => uid !== payload.userId);
+    if (assigneeIds.length > 0) {
+      const authorName = comment.author?.name || "Someone";
+      await notifyMany(assigneeIds, {
+        type: "COMMENT_ADDED",
+        title: "New comment on goal",
+        message: `${authorName} commented on "${goal.name}".`,
+        refId: id,
+        refType: "goal",
+      });
+    }
+  }
 
   return NextResponse.json({ comment }, { status: 201 });
 }

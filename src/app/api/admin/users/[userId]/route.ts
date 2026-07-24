@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { serializePermissions, type MemberPermissions } from "@/lib/permissions";
+import { notify } from "@/lib/notify";
 
 interface Params {
   params: Promise<{ userId: string }>;
@@ -66,7 +67,34 @@ export async function DELETE(_req: Request, { params }: Params) {
   }
 
   try {
+    /* Get user info before deletion for notification */
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, userSections: { select: { section: true } } },
+    }) as { name: string; userSections: { section: string }[] } | null;
+
     await prisma.user.delete({ where: { id: userId } });
+
+    /* Notify all admins about the deletion */
+    if (userToDelete) {
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN" },
+        select: { id: true },
+      }) as Array<{ id: string }>;
+      for (const admin of admins) {
+        if (admin.id !== payload.userId) {
+          await notify({
+            userId: admin.id,
+            type: "MEMBER_DELETED",
+            title: "Member deleted",
+            message: `${userToDelete.name} has been deleted from the system by an admin.`,
+            refId: userId,
+            refType: "user",
+          });
+        }
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[ADMIN_USER_DELETE]", error);

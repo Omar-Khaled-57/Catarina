@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
+import { notifyMany } from "@/lib/notify";
 
 export async function POST(req: Request) {
   const payload = await verifyToken();
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
 
     /* Carry over unfinished goals from the previous month */
     let carriedOver = 0;
+    let carriedGoalNames: string[] = [];
     if (previousMonthId) {
       const unfinishedGoals = await prisma.goal.findMany({
         where: {
@@ -120,6 +122,46 @@ export async function POST(req: Request) {
           })),
         });
         carriedOver = unfinishedGoals.length;
+        carriedGoalNames = unfinishedGoals.map((g) => g.name);
+      }
+    }
+
+    /* Notify all users about the new month */
+    const allUsers = await prisma.user.findMany({
+      select: { id: true },
+    }) as Array<{ id: string }>;
+    const allUserIds = allUsers.map((u) => u.id);
+
+    if (allUserIds.length > 0) {
+      await notifyMany(allUserIds, {
+        type: "MONTH_CREATED",
+        title: "New month created",
+        message: `A new planning month has been created: ${newMonthRecord.name}.`,
+        refId: newMonthRecord.id,
+        refType: "month",
+      });
+    }
+
+    /* Notify assignees about carried over goals */
+    if (carriedOver > 0) {
+      const carriedAssignments = await prisma.goal.findMany({
+        where: { monthId: newMonthRecord.id, carriedOver: true },
+        select: {
+          assignments: { select: { userId: true } },
+        },
+      });
+      const carriedUserIds = [...new Set(
+        carriedAssignments.flatMap((g) => g.assignments.map((a) => a.userId))
+      )];
+
+      if (carriedUserIds.length > 0) {
+        await notifyMany(carriedUserIds, {
+          type: "GOALS_CARRIED_OVER",
+          title: "Goals carried over",
+          message: `${carriedOver} goal${carriedOver > 1 ? "s" : ""} carried over to ${newMonthRecord.name}: ${carriedGoalNames.slice(0, 3).join(", ")}${carriedGoalNames.length > 3 ? "..." : ""}.`,
+          refId: newMonthRecord.id,
+          refType: "month",
+        });
       }
     }
 

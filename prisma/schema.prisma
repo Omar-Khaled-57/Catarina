@@ -173,7 +173,7 @@ model Approval {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // GOAL_CREATED | STEP_ADDED | MEMBER_JOINED | SIGNUP_REQUEST | DEADLINE_APPROACHING | DEADLINE_MISSED | GOAL_COMPLETED | SYSTEM
+  type      String   // GOAL_CREATED | STEP_ADDED | MEMBER_JOINED | SIGNUP_REQUEST | DEADLINE_APPROACHING | DEADLINE_MISSED | GOAL_COMPLETED | SYSTEM | GOAL_REACHED | COMMENT_ADDED | MEMBER_LEFT_SECTION | MEMBER_DELETED | MONTH_CREATED | GOALS_CARRIED_OVER | ROLE_CHANGED
   title     String
   message   String
   read      Boolean  @default(false)
@@ -187,4 +187,21 @@ model Notification {
   @@index([userId, read])
   @@index([userId, pinned])
   @@index([createdAt])
+}
+
+// ─── SectionConfig Model ─────────────────────────────────────────────────────
+// Dynamic section definitions — admin can add/remove/customize team sections
+model SectionConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique    // Uppercase key: "MARKETING", "ART"
+  label     String              // Display name: "Marketing"
+  prefix    String              // Goal ID prefix: "MRK-"
+  color     String              // Hex color: "#FF4D6A"
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
 }

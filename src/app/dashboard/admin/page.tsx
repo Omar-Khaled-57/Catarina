@@ -12,7 +12,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import MonthSelector from "@/components/MonthSelector";
-import { SECTIONS, SECTION_COLORS, SECTION_LABELS, type Section } from "@/lib/auth";
+import SectionManager from "@/components/SectionManager";
 import {
   type MemberPermissions,
   DEFAULT_PERMISSIONS,
@@ -20,6 +20,14 @@ import {
 } from "@/lib/permissions";
 import { toast } from "sonner";
 import { User, Pencil, Trash2, Plus, Shield, ShieldOff, Upload, Check, UserCheck, UserX } from "lucide-react";
+
+/** Section data from the API */
+interface SectionData {
+  key: string;
+  label: string;
+  prefix: string;
+  color: string;
+}
 
 interface UserData {
   id: string;
@@ -38,6 +46,7 @@ export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
+  const [sections, setSections] = useState<SectionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [monthId, setMonthId] = useState<string | null>(null);
 
@@ -45,6 +54,18 @@ export default function AdminPage() {
   const [deleteUser, setDeleteUser] = useState<UserData | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [approvals, setApprovals] = useState<{ id: string; name: string; email: string; section: string; createdAt: string }[]>([]);
+
+  /* Fetch sections */
+  useEffect(() => {
+    fetch("/api/sections")
+      .then((res) => res.json())
+      .then((data) => setSections(data.sections || []))
+      .catch(() => {});
+  }, []);
+
+  /* Section lookup helpers */
+  const getSectionColor = (key: string) => sections.find((s) => s.key === key)?.color || "var(--accent)";
+  const getSectionLabel = (key: string) => sections.find((s) => s.key === key)?.label || key;
 
   useEffect(() => {
     if (!authLoading && !isAdmin) router.push("/dashboard");
@@ -152,8 +173,8 @@ export default function AdminPage() {
                     <p className="text-sm font-semibold text-text truncate">{a.name}</p>
                     <p className="text-xs text-text-muted truncate">{a.email}</p>
                     <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1"
-                      style={{ backgroundColor: `${SECTION_COLORS[a.section as keyof typeof SECTION_COLORS] || "var(--accent)"}15`, color: SECTION_COLORS[a.section as keyof typeof SECTION_COLORS] || "var(--accent)" }}>
-                      {SECTION_LABELS[a.section as keyof typeof SECTION_LABELS] || a.section}
+                      style={{ backgroundColor: `${getSectionColor(a.section)}15`, color: getSectionColor(a.section) }}>
+                      {getSectionLabel(a.section)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -207,11 +228,11 @@ export default function AdminPage() {
               {/* Sections */}
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {u.sections.map((s) => {
-                  const c = SECTION_COLORS[s as Section] || "var(--accent)";
+                  const c = getSectionColor(s);
                   return (
                     <span key={s} className="text-[10px] font-bold px-2 py-0.5 rounded-md"
                       style={{ backgroundColor: `${c}15`, color: c, border: `1px solid ${c}30` }}>
-                      {SECTION_LABELS[s as Section] || s}
+                      {getSectionLabel(s)}
                     </span>
                   );
                 })}
@@ -261,10 +282,10 @@ export default function AdminPage() {
       )}
 
       {editUser && (
-        <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={() => { setEditUser(null); fetchUsers(); }} />
+        <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={() => { setEditUser(null); fetchUsers(); }} sections={sections} />
       )}
       {showCreate && (
-        <CreateUserModal onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); fetchUsers(); }} />
+        <CreateUserModal onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); fetchUsers(); }} sections={sections} />
       )}
       <Modal isOpen={!!deleteUser} onClose={() => setDeleteUser(null)} title="Delete User">
         <p className="text-sm text-text-muted mb-4">
@@ -275,6 +296,14 @@ export default function AdminPage() {
           <Button onClick={handleDelete} className="bg-danger hover:bg-danger/90 text-white">Delete</Button>
         </div>
       </Modal>
+
+      {/* ── Section Manager ────────────────────────────────────────────── */}
+      <div className="glass rounded-2xl overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-art to-technical opacity-60" />
+        <div className="p-4">
+          <SectionManager />
+        </div>
+      </div>
     </div>
   );
 }
@@ -357,17 +386,17 @@ function PfpUpload({
 }
 
 /* ─── Edit User Modal ────────────────────────────────────────────────────── */
-function EditUserModal({ user, onClose, onSaved }: { user: UserData; onClose: () => void; onSaved: () => void }) {
+function EditUserModal({ user, onClose, onSaved, sections }: { user: UserData; onClose: () => void; onSaved: () => void; sections: SectionData[] }) {
   const { upload, uploading } = useFileUpload();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [bio, setBio] = useState(user.bio || "");
   const [pfp, setPfp] = useState(user.pfp || "");
-  const [sections, setSections] = useState<string[]>(user.sections);
+  const [userSections, setUserSections] = useState<string[]>(user.sections);
   const [permissions, setPermissions] = useState<MemberPermissions>(user.permissions);
   const [isSaving, setIsSaving] = useState(false);
 
-  const toggleSection = (s: string) => setSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
+  const toggleSection = (s: string) => setUserSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
   const togglePerm = (key: keyof MemberPermissions) => setPermissions((p) => ({ ...p, [key]: !p[key] }));
 
   const handleUpload = async (file: File) => {
@@ -388,7 +417,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: UserData; onClose: ()
       const secRes = await fetch(`/api/admin/users/${user.id}/sections`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections }),
+        body: JSON.stringify({ sections: userSections }),
       });
       if (!secRes.ok) { toast.error("Failed to update sections"); return; }
 
@@ -426,14 +455,14 @@ function EditUserModal({ user, onClose, onSaved }: { user: UserData; onClose: ()
         <div>
           <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Sections</label>
           <div className="flex flex-wrap gap-2">
-            {SECTIONS.map((s) => {
-              const c = SECTION_COLORS[s];
-              const on = sections.includes(s);
+            {sections.map((s) => {
+              const c = s.color;
+              const on = userSections.includes(s.key);
               return (
-                <button key={s} type="button" onClick={() => toggleSection(s)}
+                <button key={s.key} type="button" onClick={() => toggleSection(s.key)}
                   className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
                   style={{ backgroundColor: on ? `${c}20` : "transparent", color: on ? c : "var(--text-muted)", borderColor: on ? `${c}50` : "var(--border)" }}>
-                  {SECTION_LABELS[s]}
+                  {s.label}
                 </button>
               );
             })}
@@ -482,7 +511,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: UserData; onClose: ()
 }
 
 /* ─── Create User Modal ──────────────────────────────────────────────────── */
-function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function CreateUserModal({ onClose, onSaved, sections }: { onClose: () => void; onSaved: () => void; sections: SectionData[] }) {
   const { upload, uploading } = useFileUpload();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -490,11 +519,11 @@ function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const [role, setRole] = useState("MEMBER");
   const [pfp, setPfp] = useState("");
   const [bio, setBio] = useState("");
-  const [sections, setSections] = useState<string[]>([]);
+  const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<MemberPermissions>(DEFAULT_PERMISSIONS);
   const [isSaving, setIsSaving] = useState(false);
 
-  const toggleSection = (s: string) => setSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
+  const toggleSection = (s: string) => setSelectedSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
   const togglePerm = (key: keyof MemberPermissions) => setPermissions((p) => ({ ...p, [key]: !p[key] }));
 
   const handleUpload = async (file: File) => {
@@ -509,7 +538,7 @@ function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       const res = await fetch("/api/admin/users/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role, sections, pfp, bio, permissions }),
+        body: JSON.stringify({ name, email, password, role, sections: selectedSections, pfp, bio, permissions }),
       });
       if (res.ok) { toast.success("User created"); onSaved(); }
       else { const d = await res.json(); toast.error(d.error || "Failed"); }
@@ -560,13 +589,13 @@ function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
         <div>
           <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Sections</label>
           <div className="flex flex-wrap gap-2">
-            {SECTIONS.map((s) => {
-              const c = SECTION_COLORS[s]; const on = sections.includes(s);
+            {sections.map((s) => {
+              const c = s.color; const on = selectedSections.includes(s.key);
               return (
-                <button key={s} type="button" onClick={() => toggleSection(s)}
+                <button key={s.key} type="button" onClick={() => toggleSection(s.key)}
                   className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
                   style={{ backgroundColor: on ? `${c}20` : "transparent", color: on ? c : "var(--text-muted)", borderColor: on ? `${c}50` : "var(--border)" }}>
-                  {SECTION_LABELS[s]}
+                  {s.label}
                 </button>
               );
             })}

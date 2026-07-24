@@ -10,13 +10,15 @@
  */
 
 import { useState, useEffect, useRef, useMemo, use } from "react";
+import { notFound } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import GoalCard from "@/components/GoalCard";
 import SectionChart from "@/components/SectionChart";
 import { calcSectionStats, monthNameLine1, monthNameLine2, formatDate } from "@/lib/utils";
-import { SECTIONS, SECTION_COLORS, SECTION_LABELS, type Section } from "@/lib/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { type GoalData } from "@/components/GoalRow";
+/* Legacy imports kept as fallback — will use dynamic sections once loaded */
+import { SECTIONS, SECTION_COLORS, SECTION_LABELS } from "@/lib/auth";
 import {
   FileText, BarChart3, Layers, Sun, Moon, Download, X,
   CheckCircle2, Clock, Target, TrendingUp, ChevronRight, LayoutList
@@ -76,6 +78,7 @@ export default function ArchivedMonthPage({
   const { monthId } = use(params);
   const { user, isAdmin } = useAuth();
   const [goals, setGoals] = useState<GoalData[]>([]);
+  const [sections, setSections] = useState<{ key: string; label: string; color: string }[]>([]);
   const [monthInfo, setMonthInfo] = useState<{
     name: string;
     year: number;
@@ -86,7 +89,7 @@ export default function ArchivedMonthPage({
 
   /* Tab state */
   const [activeTab, setActiveTab] = useState<TabId>("overview");
-  const [activeSection, setActiveSection] = useState<Section | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   /* PDF export state */
   const [showExport, setShowExport] = useState(false);
@@ -105,8 +108,17 @@ export default function ArchivedMonthPage({
         const found = data.months?.find(
           (m: { id: string }) => m.id === monthId
         );
-        if (found) setMonthInfo(found);
+        if (found) {
+          setMonthInfo(found);
+        } else {
+          notFound();
+        }
       })
+      .catch(() => { notFound(); });
+
+    fetch("/api/sections")
+      .then((res) => res.json())
+      .then((data) => setSections(data.sections || []))
       .catch(() => {});
   }, [monthId]);
 
@@ -118,7 +130,7 @@ export default function ArchivedMonthPage({
           acc[section] = goals.filter((g) => g.section === section);
           return acc;
         },
-        {} as Record<Section, GoalData[]>
+        {} as Record<string, GoalData[]>
       ),
     [goals]
   );
@@ -141,7 +153,7 @@ export default function ArchivedMonthPage({
           acc[section] = calcSectionStats(goalsBySection[section]);
           return acc;
         },
-        {} as Record<Section, ReturnType<typeof calcSectionStats>>
+        {} as Record<string, ReturnType<typeof calcSectionStats>>
       ),
     [goalsBySection]
   );
@@ -862,14 +874,14 @@ function SectionDetail({
   isAdmin,
   user,
 }: {
-  section: Section;
+  section: string;
   goals: GoalData[];
   stats: ReturnType<typeof calcSectionStats>;
   isAdmin: boolean;
   user: { id: string; sections: string[] } | null;
 }) {
-  const color = SECTION_COLORS[section];
-  const label = SECTION_LABELS[section];
+  const color = (SECTION_COLORS as Record<string, string>)[section] || "#00E8A2";
+  const label = (SECTION_LABELS as Record<string, string>)[section] || section;
 
   return (
     <div className="space-y-4">

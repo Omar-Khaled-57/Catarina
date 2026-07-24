@@ -25,7 +25,20 @@ async function main() {
   await prisma.archive.deleteMany({});
   await prisma.month.deleteMany({});
   await prisma.userSection.deleteMany({});
+  await prisma.sectionConfig.deleteMany({});
   await prisma.user.deleteMany({});
+
+  /* ─── Seed Default Sections ─────────────────────────────────────────────── */
+  const defaultSections = [
+    { key: "MARKETING", label: "Marketing", prefix: "MRK", color: "#00E8A2", sortOrder: 0 },
+    { key: "ART", label: "Art", prefix: "ART", color: "#FF3CAC", sortOrder: 1 },
+    { key: "TECHNICAL", label: "Technical", prefix: "TEC", color: "#3B82F6", sortOrder: 2 },
+    { key: "MANAGEMENT", label: "Management", prefix: "MGT", color: "#A855F7", sortOrder: 3 },
+  ];
+  for (const section of defaultSections) {
+    await prisma.sectionConfig.create({ data: section });
+  }
+  console.log(`  Created ${defaultSections.length} default sections`);
 
   /* ─── Create Admin User ─────────────────────────────────────────────────── */
   const adminPassword = await bcrypt.hash("admin123", 12);

@@ -7,10 +7,18 @@ type NotificationType =
   | "STEP_ADDED"
   | "MEMBER_JOINED"
   | "SIGNUP_REQUEST"
+  | "SIGNUP_REJECTED"
   | "DEADLINE_APPROACHING"
   | "DEADLINE_MISSED"
   | "GOAL_COMPLETED"
-  | "SYSTEM";
+  | "SYSTEM"
+  | "GOAL_REACHED"
+  | "COMMENT_ADDED"
+  | "MEMBER_LEFT_SECTION"
+  | "MEMBER_DELETED"
+  | "MONTH_CREATED"
+  | "GOALS_CARRIED_OVER"
+  | "ROLE_CHANGED";
 
 /**
  * Create a notification for a single user.
