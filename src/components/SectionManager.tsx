@@ -116,7 +116,7 @@ export default function SectionManager() {
             Manage sections, colors, and ID prefixes
           </p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="text-xs gap-1.5 sm:gap-2 px-3 sm:px-5 py-2">
+        <Button onClick={() => setShowCreate(true)} className="text-[11px] sm:text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-1.5 sm:py-2">
           <Plus size={14} />
           <span>New Section</span>
         </Button>

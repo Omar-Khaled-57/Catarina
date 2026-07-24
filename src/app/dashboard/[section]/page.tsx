@@ -81,7 +81,6 @@ function DonutChart({
   }, []);
 
   const animatedDone = mounted ? doneLen : 0;
-  const animatedRemain = mounted ? remainLen : 0;
   const animatedOffset = mounted ? 0 : circumference;
 
   return (
@@ -105,12 +104,9 @@ function DonutChart({
         fill="none"
         stroke="var(--text-muted)"
         strokeWidth={strokeWidth}
-        strokeDasharray={`${animatedRemain} ${circumference - animatedRemain}`}
-        strokeDashoffset={-animatedDone}
+        strokeDasharray={`${remainLen} ${circumference - remainLen}`}
+        strokeDashoffset={-doneLen}
         strokeLinecap="round"
-        style={{
-          transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
       />
       <circle
         cx={outer / 2}

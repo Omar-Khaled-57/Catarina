@@ -194,18 +194,17 @@ html.dark [data-sonner-toast] [data-title] {
   background: transparent;
 }
 .modal-scroll::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  opacity: 0.35;
+  background: var(--text-muted);
   border-radius: 4px;
-  transition: opacity 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 .modal-scroll::-webkit-scrollbar-thumb:hover {
-  opacity: 1;
+  background: var(--accent);
   box-shadow: 0 0 8px 3px var(--accent-glow), 0 0 20px 6px var(--accent-glow);
 }
 .modal-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 212, 170, 0.35) transparent;
+  scrollbar-color: var(--text-muted) transparent;
 }
 .modal-scroll:hover {
   scrollbar-color: var(--accent) transparent;
