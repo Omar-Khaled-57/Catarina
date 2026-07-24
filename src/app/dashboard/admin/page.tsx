@@ -312,7 +312,6 @@ export default function AdminPage() {
 
       {/* ── Section Manager ────────────────────────────────────────────── */}
       <div className="glass rounded-2xl overflow-visible transition-all duration-300 ease-out">
-        <div className="h-1 w-full bg-gradient-to-r from-art to-technical opacity-60 rounded-t-2xl" />
         <div className="p-4">
           <SectionManager />
         </div>

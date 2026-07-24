@@ -11,7 +11,7 @@ import Modal from "@/components/ui/Modal";
 import ColorPicker from "@/components/ColorPicker";
 import { Plus, Pencil, Trash2, GripVertical, Palette } from "lucide-react";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface SectionConfig {
   id: string;
@@ -132,16 +132,13 @@ export default function SectionManager() {
           <p className="text-sm font-medium">No sections</p>
         </motion.div>
       ) : (
-        <AnimatePresence mode="popLayout">
-          <div className="space-y-2">
+        <div className="space-y-2">
             {sections.map((s) => (
               <motion.div
                 key={s.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
                 className="flex items-center gap-3 p-3 rounded-xl bg-surface-2/50 border border-border/30 group hover:border-border/60 transition-colors"
               >
               {/* Color dot */}
@@ -188,7 +185,6 @@ export default function SectionManager() {
             </motion.div>
           ))}
         </div>
-        </AnimatePresence>
       )}
 
       {/* Create Modal */}

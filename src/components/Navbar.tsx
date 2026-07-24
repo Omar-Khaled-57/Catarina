@@ -192,25 +192,19 @@ export default function Navbar() {
           {isMenuOpen && (
             <motion.div
               key="mobile-menu"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              initial={{ opacity: 0, height: 0, y: -6 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -6 }}
+              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
               className="md:hidden overflow-hidden"
             >
-              <motion.div
-                initial={{ y: -8 }}
-                animate={{ y: 0 }}
-                exit={{ y: -8 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="mt-3 pt-3 border-t border-border flex flex-col gap-3 pb-2"
-              >
+              <div className="mt-3 pt-3 border-t border-border flex flex-col gap-3 pb-2">
                 {/* User Info (mobile) */}
                 {user && (
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.15, delay: 0.05 }}
                     className="flex items-center gap-3 px-1 pb-2"
                   >
                     <button
@@ -244,9 +238,9 @@ export default function Navbar() {
                     return (
                       <motion.div
                         key={link.href}
-                        initial={{ opacity: 0, x: -12 }}
+                        initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.2, delay: i * 0.06 }}
+                        transition={{ duration: 0.15, delay: 0.04 + i * 0.04 }}
                       >
                         <Link
                           href={link.href}
@@ -269,15 +263,15 @@ export default function Navbar() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: 0.1 }}
+                  transition={{ duration: 0.15, delay: 0.08 }}
                   className="h-px w-full bg-border"
                 />
 
                 {/* Notifications (mobile) */}
                 <motion.div
-                  initial={{ opacity: 0, x: -12 }}
+                  initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: 0.12 }}
+                  transition={{ duration: 0.15, delay: 0.1 }}
                 >
                   <button
                     onClick={() => { setShowNotifications(true); setIsMenuOpen(false); }}
@@ -295,38 +289,38 @@ export default function Navbar() {
 
                 {/* Profile (mobile) */}
                 {user && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: 0.16 }}
+                <motion.div
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: 0.13 }}
+                >
+                  <button
+                    onClick={() => { setShowProfile(true); setIsMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold rounded-xl text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
                   >
-                    <button
-                      onClick={() => { setShowProfile(true); setIsMenuOpen(false); }}
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold rounded-xl text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
-                    >
-                      <User size={16} />
-                      My Profile
-                    </button>
-                  </motion.div>
+                    <User size={16} />
+                    My Profile
+                  </button>
+                </motion.div>
                 )}
 
                 {/* Logout (mobile) */}
                 {user && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: 0.2 }}
+                <motion.div
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: 0.16 }}
+                >
+                  <button
+                    onClick={() => { logout(); setIsMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-danger hover:bg-danger/10 transition-colors"
                   >
-                    <button
-                      onClick={() => { logout(); setIsMenuOpen(false); }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-danger hover:bg-danger/10 transition-colors"
-                    >
-                      <LogOut size={16} />
-                      Logout
-                    </button>
-                  </motion.div>
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </motion.div>
                 )}
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
