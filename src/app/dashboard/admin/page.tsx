@@ -151,14 +151,14 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-text tracking-tight">Admin Panel</h1>
           <p className="text-sm text-text-muted mt-0.5">Manage users, roles, permissions, and sections</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
+        <Button onClick={() => setShowCreate(true)} className="px-3 py-2 sm:px-5 sm:py-2.5">
           <Plus size={16} strokeWidth={2.5} />
-          New User
+          <span className="hidden sm:inline">New User</span>
         </Button>
       </div>
 

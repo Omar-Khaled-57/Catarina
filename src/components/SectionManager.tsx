@@ -116,9 +116,9 @@ export default function SectionManager() {
             Manage sections, colors, and ID prefixes
           </p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="text-xs">
+        <Button onClick={() => setShowCreate(true)} className="text-xs px-3 py-2 sm:px-5 sm:py-2.5">
           <Plus size={14} />
-          New Section
+          <span className="hidden sm:inline">New Section</span>
         </Button>
       </div>
 

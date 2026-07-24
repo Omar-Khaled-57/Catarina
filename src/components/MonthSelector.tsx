@@ -85,9 +85,9 @@ export default function MonthSelector({
   };
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
       {/* Month Navigation */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-center sm:justify-start gap-3">
         <button
           onClick={goToPrev}
           disabled={currentIndex <= 0}
@@ -96,7 +96,7 @@ export default function MonthSelector({
         >
           <ChevronLeft size={18} />
         </button>
-        <h2 className="text-xl font-bold text-text min-w-[160px] text-center">
+        <h2 className="text-lg sm:text-xl font-bold text-text min-w-[120px] sm:min-w-[160px] text-center">
           {currentMonth ? (
             <>
               <span>{monthNameLine1(currentMonth.month, currentMonth.year)}</span>
@@ -121,9 +121,10 @@ export default function MonthSelector({
           onClick={handleCreateMonth}
           isLoading={isCreating}
           variant="outline"
+          className="px-3 py-2 sm:px-5 sm:py-2.5"
         >
           <Plus size={16} />
-          New Month
+          <span className="hidden sm:inline">New Month</span>
         </Button>
       )}
     </div>
