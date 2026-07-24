@@ -205,6 +205,9 @@ html.dark [data-sonner-toast] [data-title] {
 }
 .modal-scroll {
   scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 170, 0.35) transparent;
+}
+.modal-scroll:hover {
   scrollbar-color: var(--accent) transparent;
 }
 

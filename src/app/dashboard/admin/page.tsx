@@ -156,9 +156,9 @@ export default function AdminPage() {
           <h1 className="text-2xl font-black text-text tracking-tight">Admin Panel</h1>
           <p className="text-sm text-text-muted mt-0.5">Manage users, roles, permissions, and sections</p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="px-3 py-2 sm:px-5 sm:py-2.5">
+        <Button onClick={() => setShowCreate(true)} className="gap-1.5 sm:gap-2 px-3 sm:px-5 py-2">
           <Plus size={16} strokeWidth={2.5} />
-          <span className="hidden sm:inline">New User</span>
+          <span className="text-xs sm:text-sm">New User</span>
         </Button>
       </div>
 

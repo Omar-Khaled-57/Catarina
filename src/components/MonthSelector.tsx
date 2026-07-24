@@ -121,10 +121,10 @@ export default function MonthSelector({
           onClick={handleCreateMonth}
           isLoading={isCreating}
           variant="outline"
-          className="px-3 py-2 sm:px-5 sm:py-2.5"
+          className="gap-1.5 sm:gap-2 px-3 sm:px-5 py-2"
         >
           <Plus size={16} />
-          <span className="hidden sm:inline">New Month</span>
+          <span className="text-xs sm:text-sm">New Month</span>
         </Button>
       )}
     </div>
