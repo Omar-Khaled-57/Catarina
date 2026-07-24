@@ -378,6 +378,9 @@ function ProfileModal({
   const [editName, setEditName] = useState(user.name);
   const [editEmail, setEditEmail] = useState(user.email);
   const [editBio, setEditBio] = useState(user.bio || "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [sectionLabels, setSectionLabels] = useState<Record<string, string>>({});
   const [sectionColors, setSectionColors] = useState<Record<string, string>>({});
@@ -434,15 +437,28 @@ function ProfileModal({
   };
 
   const handleSave = async () => {
+    if (newPassword && newPassword !== confirmPassword) {
+      return;
+    }
     setSaving(true);
     try {
-      await fetch("/api/auth/profile", {
+      const body: Record<string, string> = { name: editName, email: editEmail, bio: editBio, pfp: pfp || "" };
+      if (newPassword) {
+        body.currentPassword = currentPassword;
+        body.newPassword = newPassword;
+      }
+      const res = await fetch("/api/auth/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName, email: editEmail, bio: editBio, pfp }),
+        body: JSON.stringify(body),
       });
-      await refreshUser();
-      setHasChanges(false);
+      if (res.ok) {
+        await refreshUser();
+        setHasChanges(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
     } catch { /* silent */ } finally {
       setSaving(false);
     }
@@ -526,6 +542,48 @@ function ProfileModal({
               className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
             />
           </div>
+
+          {/* Password Change (collapsible) */}
+          <details className="group">
+            <summary className="text-[10px] font-semibold uppercase tracking-wider text-text-muted cursor-pointer select-none hover:text-text transition-colors">
+              Change Password
+            </summary>
+            <div className="mt-2 space-y-2">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); if (newPassword) markChanged(); }}
+                  placeholder="Enter current password"
+                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); markChanged(); }}
+                  placeholder="Min 6 characters"
+                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); markChanged(); }}
+                  placeholder="Repeat new password"
+                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+                />
+              </div>
+              {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-[10px] text-danger font-medium">Passwords do not match</p>
+              )}
+            </div>
+          </details>
         </div>
 
         {/* Sections — clickable for admins */}

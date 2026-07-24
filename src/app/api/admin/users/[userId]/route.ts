@@ -6,6 +6,7 @@ import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { serializePermissions, type MemberPermissions } from "@/lib/permissions";
 import { notify } from "@/lib/notify";
+import bcrypt from "bcryptjs";
 
 interface Params {
   params: Promise<{ userId: string }>;
@@ -19,9 +20,9 @@ export async function PUT(req: Request, { params }: Params) {
 
   const { userId } = await params;
   const body = await req.json();
-  const { name, email, bio, pfp, role, permissions } = body;
+  const { name, email, bio, pfp, role, permissions, newPassword } = body;
 
-  const data: Record<string, string | null> = {};
+  const data: Record<string, string | null | boolean> = {};
   if (name !== undefined) data.name = name;
   if (email !== undefined) data.email = email;
   if (bio !== undefined) data.bio = bio || null;
@@ -29,6 +30,9 @@ export async function PUT(req: Request, { params }: Params) {
   if (role !== undefined && ["ADMIN", "MEMBER"].includes(role)) data.role = role;
   if (permissions !== undefined && typeof permissions === "object") {
     data.permissions = serializePermissions(permissions as MemberPermissions);
+  }
+  if (newPassword && newPassword.length >= 6) {
+    data.password = await bcrypt.hash(newPassword, 12);
   }
 
   try {

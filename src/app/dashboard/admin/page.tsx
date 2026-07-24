@@ -406,6 +406,7 @@ function EditUserModal({ user, onClose, onSaved, sections }: { user: UserData; o
   const [pfp, setPfp] = useState(user.pfp || "");
   const [userSections, setUserSections] = useState<string[]>(user.sections);
   const [permissions, setPermissions] = useState<MemberPermissions>(user.permissions);
+  const [newPassword, setNewPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const toggleSection = (s: string) => setUserSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
@@ -419,10 +420,14 @@ function EditUserModal({ user, onClose, onSaved, sections }: { user: UserData; o
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      const body: Record<string, any> = { name, email, bio, pfp, permissions };
+      if (newPassword && newPassword.length >= 6) {
+        body.newPassword = newPassword;
+      }
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, bio, pfp, permissions }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { toast.error("Failed to update user"); return; }
 
@@ -461,6 +466,12 @@ function EditUserModal({ user, onClose, onSaved, sections }: { user: UserData; o
           <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={2}
             className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
             placeholder="Short bio..." />
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Reset Password <span className="normal-case font-normal opacity-60">(leave blank to keep current)</span></label>
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={6} placeholder="New password (min 6 chars)"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
         </div>
 
         {/* Sections */}

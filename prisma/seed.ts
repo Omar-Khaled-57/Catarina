@@ -43,15 +43,15 @@ async function main() {
   /* ─── Create Admin User ─────────────────────────────────────────────────── */
   const adminPassword = await bcrypt.hash("admin123", 12);
   const admin = await prisma.user.upsert({
-    where: { email: "admin@devora.com" },
+    where: { email: "admin@team.com" },
     update: {},
     create: {
       name: "Admin",
-      email: "admin@devora.com",
+      email: "admin@team.com",
       password: adminPassword,
       role: "ADMIN",
-      bio: "Devora team administrator",
-      pfp: null,
+      bio: "Team administrator",
+      pfp: "/pfps/mng.gif",
       primarySection: "MANAGEMENT",
     },
   });

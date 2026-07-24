@@ -54,9 +54,11 @@ export default function WelcomeModal() {
             <h2 className="text-2xl font-black text-text mt-4 mb-2">
               Welcome to Catarina!
             </h2>
-            <p className="text-sm text-text-muted mb-6 leading-relaxed">
+            <p className="text-sm text-text-muted mb-2 leading-relaxed">
               Your account has been approved. You&apos;re now part of the team.
-              Start by setting your goals and tracking your progress.
+            </p>
+            <p className="text-xs text-text-muted/70 mb-6 leading-relaxed">
+              Tap your <strong className="text-text-muted">profile picture</strong> in the navbar to customize your name, email, password, and photo anytime.
             </p>
 
             <button
