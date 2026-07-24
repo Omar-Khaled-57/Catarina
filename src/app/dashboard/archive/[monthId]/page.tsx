@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef, useMemo, use } from "react";
 import { notFound } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import GoalCard from "@/components/GoalCard";
 import SectionChart from "@/components/SectionChart";
 import { calcSectionStats, monthNameLine1, monthNameLine2, formatDate } from "@/lib/utils";
@@ -969,7 +970,7 @@ function SectionDetail({
       {/* Goals */}
       {goals.length === 0 ? (
         <div className="glass rounded-2xl text-center py-16 text-text-muted">
-          <LayoutList size={32} className="mx-auto mb-3 opacity-30" />
+          <Image src="/rina/think.webp" alt="Catarina thinking" width={56} height={56} className="mx-auto mb-3 rounded-xl" />
           <p className="text-sm font-semibold">No goals in this section</p>
         </div>
       ) : (

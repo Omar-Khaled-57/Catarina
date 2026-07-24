@@ -78,6 +78,16 @@ const TYPE_COLOR: Record<string, string> = {
   MONTH_CREATED: "text-management",
   GOALS_CARRIED_OVER: "text-warning",
   ROLE_CHANGED: "text-art",
+  SIGNUP_REJECTED: "text-danger",
+};
+
+const TYPE_IMAGE: Record<string, string> = {
+  GOAL_REACHED: "/rina/excited.webp",
+  SIGNUP_REQUEST: "/rina/thumb.webp",
+  MONTH_CREATED: "/rina/celebration.webp",
+  SIGNUP_REJECTED: "/rina/cry.webp",
+  MEMBER_DELETED: "/rina/cry.webp",
+  GOALS_CARRIED_OVER: "/rina/celebration.webp",
 };
 
 function timeAgo(dateStr: string): string {
@@ -258,7 +268,7 @@ export default function NotificationPanel({
         </div>
       ) : notifications.length === 0 ? (
         <div className="text-center py-10 text-text-muted">
-          <Bell size={28} className="mx-auto mb-2 opacity-30" />
+          <Image src="/rina/sleeping.webp" alt="Catarina sleeping" width={48} height={48} className="mx-auto mb-3 rounded-xl" />
           <p className="text-sm font-medium">No notifications yet</p>
         </div>
       ) : (
@@ -274,9 +284,11 @@ export default function NotificationPanel({
                   n.read ? "opacity-60" : "bg-surface-2/40"
                 } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""}`}
               >
-                <div className={`mt-0.5 shrink-0 ${isWelcome ? "" : iconColor}`}>
+                <div className={`mt-0.5 shrink-0 ${isWelcome || TYPE_IMAGE[n.type] ? "" : iconColor}`}>
                   {isWelcome ? (
                     <Image src="/rina/happy.webp" alt="Catarina" width={24} height={24} className="rounded-lg" />
+                  ) : TYPE_IMAGE[n.type] ? (
+                    <Image src={TYPE_IMAGE[n.type]} alt="Catarina" width={24} height={24} className="rounded-lg" />
                   ) : (
                     <Icon size={15} />
                   )}
