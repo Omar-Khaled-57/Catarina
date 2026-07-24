@@ -94,7 +94,7 @@ export default function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className={`fixed inset-0 z-50 flex ${position === "top" ? "items-start pt-[25vh]" : "items-center"} justify-center p-4`}
+          className={`fixed inset-0 z-50 flex ${position === "top" ? "items-start pt-[10vh] -mt-[15vh]" : "items-center"} justify-center p-4`}
           onClick={(e) => {
             if (e.target === overlayRef.current) onClose();
           }}
