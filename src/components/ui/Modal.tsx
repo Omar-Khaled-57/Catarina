@@ -2,12 +2,13 @@
 
 /**
  * Modal — Overlay dialog with backdrop blur.
+ * Uses React Portal to render into document.body, bypassing
+ * backdrop-filter ancestors that break position:fixed.
  * Uses Framer Motion for enter/exit animations.
- * Handles click-outside-to-close and Escape key.
- * Title and close button share the same top bar.
  */
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
@@ -17,7 +18,6 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   maxWidth?: string;
-  position?: "center" | "top";
 }
 
 export default function Modal({
@@ -26,10 +26,14 @@ export default function Modal({
   title,
   children,
   maxWidth = "max-w-lg",
-  position = "center",
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,7 +89,9 @@ export default function Modal({
     };
   }, [isOpen]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -94,7 +100,7 @@ export default function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className={`fixed inset-0 z-50 flex ${position === "top" ? "items-start pt-[10vh] -mt-[15vh]" : "items-center"} justify-center p-4`}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
           onClick={(e) => {
             if (e.target === overlayRef.current) onClose();
           }}
@@ -112,7 +118,6 @@ export default function Modal({
             transition={{ type: "spring", bounce: 0.2, duration: 0.3 }}
             className={`relative rounded-2xl bg-surface border border-border/60 ${maxWidth} w-full max-h-[90vh] flex flex-col`}
           >
-            {/* Top bar: title + close button in same row */}
             <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
               {title && (
                 <h2 className="text-lg font-bold text-text truncate">{title}</h2>
@@ -126,13 +131,13 @@ export default function Modal({
               </button>
             </div>
 
-            {/* Scrollable content area */}
             <div className="px-5 pb-5 overflow-y-auto modal-scroll">
               {children}
             </div>
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
