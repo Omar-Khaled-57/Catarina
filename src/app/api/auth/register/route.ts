@@ -138,10 +138,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       message: "Your account request has been submitted. An admin will review it shortly.",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[REGISTER]", error);
     return NextResponse.json(
-      { error: "Internal server error", detail: error?.message || String(error) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
