@@ -86,7 +86,7 @@ const TYPE_IMAGE: Record<string, string> = {
   SIGNUP_REQUEST: "/rina/thumb.webp",
   MONTH_CREATED: "/rina/celebration.webp",
   SIGNUP_REJECTED: "/rina/cry.webp",
-  MEMBER_DELETED: "/rina/cry.webp",
+  MEMBER_DELETED: "/rina/bye.webp",
   GOALS_CARRIED_OVER: "/rina/celebration.webp",
 };
 
@@ -287,6 +287,8 @@ export default function NotificationPanel({
                 <div className={`mt-0.5 shrink-0 ${isWelcome || TYPE_IMAGE[n.type] ? "" : iconColor}`}>
                   {isWelcome ? (
                     <Image src="/rina/happy.webp" alt="Catarina" width={24} height={24} className="rounded-lg" />
+                  ) : n.type === "MEMBER_DELETED" ? (
+                    <Image src={TYPE_IMAGE[n.type]} alt="Catarina saying bye" width={64} height={64} className="rounded-xl" />
                   ) : TYPE_IMAGE[n.type] ? (
                     <Image src={TYPE_IMAGE[n.type]} alt="Catarina" width={24} height={24} className="rounded-lg" />
                   ) : (
