@@ -96,7 +96,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
-## <img src="public/rina/celebration.webp" width="100" align="center" /> [0.2.0] — 2026-07-24 · *Profile System & Catarina Expression Overhaul*
+## <img src="public/rina/update.webp" width="100" align="center" /> [0.2.0] — 2026-07-24 · *Profile System & Catarina Expression Overhaul*
 
 > **Release Highlight:** Major feature release delivering user profile self-service editing, admin password management, context-aware Catarina pixel-art expressions, responsive layout polish, and full deployment documentation.
 
@@ -107,7 +107,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 - **Admin Password Reset (`PUT /api/admin/users/[userId]`)**:
   - Admin panel Edit User modal allows direct password resets without requiring current password verification.
 
-### <img src="public/rina/celebration.webp" width="80" align="center" /> ✦ First-Time Welcome Celebration
+### <img src="public/rina/celebration.webp" width="130" align="center" /> ✦ First-Time Welcome Celebration
 
 - **`WelcomeModal` Component**:
   - Interactive welcome modal showing bouncing `celebration.webp` Catarina mascot, confetti particle physics, and quick onboarding tips. Persisted per user via `welcomeSeen` flag.
