@@ -28,7 +28,7 @@ Administrators have global visibility across all sections, while members work wi
 
 ---
 
-## <img src="public/rina/thumb.webp" width="36" align="center" /> Deploy Your Own Catarina
+## <img src="public/rina/thumb.webp" width="100" align="center" /> Deploy Your Own Catarina
 
 Follow this step-by-step guide to deploy your own instance of Catarina on local development hardware or hosting platforms like Vercel with a Turso cloud database.
 
@@ -138,7 +138,7 @@ Sign in using the **Default Admin Credentials**:
 |---|---|---|
 | **Admin** | `admin@team.com` | `admin123` |
 
-> <img src="public/rina/excited.webp" width="24" align="center" /> **Important Security Action:** After logging in for the first time, click your profile picture in the navbar to change your email, password, and upload your custom profile photo!
+> <img src="public/rina/excited.webp" width="80" align="center" /> **Important Security Action:** After logging in for the first time, click your profile picture in the navbar to change your email, password, and upload your custom profile photo!
 
 ---
 
@@ -168,7 +168,7 @@ You can fully customize Catarina for your own team:
 
 ---
 
-## <img src="public/rina/happy.webp" width="36" align="center" /> Default Credentials
+## <img src="public/rina/happy.webp" width="100" align="center" /> Default Credentials
 
 | Role | Email | Password | Assigned Sections |
 |---|---|---|---|
@@ -180,7 +180,7 @@ You can fully customize Catarina for your own team:
 
 ---
 
-## <img src="public/rina/excited.webp" width="36" align="center" /> Profile Customization
+## <img src="public/rina/excited.webp" width="100" align="center" /> Profile Customization
 
 Every user can customize their personal profile from the Navbar modal:
 
@@ -203,7 +203,7 @@ When a user has not uploaded a custom avatar, section-themed default avatars are
 
 ---
 
-## <img src="public/rina/update.webp" width="36" align="center" /> Core Features
+## <img src="public/rina/update.webp" width="100" align="center" /> Core Features
 
 ### ✦ Real-Time Collaboration & Sync
 Changes made by team members (goal updates, step completions, new comments) sync automatically across active clients within 5 seconds without requiring page reloads. Includes optimistic UI updates, background delta fetching, and subtle shimmer animations on incoming changes.
@@ -225,29 +225,29 @@ Built with an offline-capable Service Worker (v3) and Web Manifest — installab
 
 ---
 
-## <img src="public/rina/think.webp" width="36" align="center" /> Catarina Expression Stickers
+## <img src="public/rina/think.webp" width="100" align="center" /> Catarina Expression Stickers
 
 Catarina features 13 context-aware pixel art expression stickers throughout the user interface:
 
 | Sticker | Asset Path | In-App Context & Expression |
 |---|---|---|
-| <img src="public/rina/logo.webp" width="40" /> | `public/rina/logo.webp` | Header logo, brand emblem, and application favicon |
-| <img src="public/rina/happy.webp" width="40" /> | `public/rina/happy.webp` | Welcome notifications, positive status alerts, success states |
-| <img src="public/rina/wave.webp" width="40" /> | `public/rina/wave.webp` | General intro sections, welcome messages |
-| <img src="public/rina/thumb.webp" width="40" /> | `public/rina/thumb.webp` | Deployment section headers, admin approval approvals |
-| <img src="public/rina/excited.webp" width="40" /> | `public/rina/excited.webp` | Goal completion popups, member joined notifications |
-| <img src="public/rina/celebration.webp" width="40" /> | `public/rina/celebration.webp` | First-time welcome celebration modal, month completion modal |
-| <img src="public/rina/bug-fix.webp" width="40" /> | `public/rina/bug-fix.webp` | Patch releases, bug fix notifications |
-| <img src="public/rina/update.webp" width="40" /> | `public/rina/update.webp` | Realtime sync notifications, feature updates |
-| <img src="public/rina/think.webp" width="40" /> | `public/rina/think.webp` | Empty goal state illustrations, search empty states |
-| <img src="public/rina/sleeping.webp" width="40" /> | `public/rina/sleeping.webp` | Empty notification panel state, footer mascot |
-| <img src="public/rina/cry.webp" width="40" /> | `public/rina/cry.webp` | Rejected sign-up requests, user left section alerts |
-| <img src="public/rina/bye.webp" width="40" /> | `public/rina/bye.webp` | Account deletion modals, sign-out prompts |
-| <img src="public/rina/404.webp" width="40" /> | `public/rina/404.webp` | Custom 404 page illustration |
+| <img src="public/rina/logo.webp" width="60" /> | `public/rina/logo.webp` | Header logo, brand emblem, and application favicon |
+| <img src="public/rina/happy.webp" width="60" /> | `public/rina/happy.webp` | Welcome notifications, positive status alerts, success states |
+| <img src="public/rina/wave.webp" width="60" /> | `public/rina/wave.webp` | General intro sections, welcome messages |
+| <img src="public/rina/thumb.webp" width="60" /> | `public/rina/thumb.webp` | Deployment section headers, admin approval approvals |
+| <img src="public/rina/excited.webp" width="60" /> | `public/rina/excited.webp` | Goal completion popups, member joined notifications |
+| <img src="public/rina/celebration.webp" width="60" /> | `public/rina/celebration.webp` | First-time welcome celebration modal, month completion modal |
+| <img src="public/rina/bug-fix.webp" width="60" /> | `public/rina/bug-fix.webp` | Patch releases, bug fix notifications |
+| <img src="public/rina/update.webp" width="60" /> | `public/rina/update.webp` | Realtime sync notifications, feature updates |
+| <img src="public/rina/think.webp" width="60" /> | `public/rina/think.webp` | Empty goal state illustrations, search empty states |
+| <img src="public/rina/sleeping.webp" width="60" /> | `public/rina/sleeping.webp` | Empty notification panel state, footer mascot |
+| <img src="public/rina/cry.webp" width="60" /> | `public/rina/cry.webp` | Rejected sign-up requests, user left section alerts |
+| <img src="public/rina/bye.webp" width="60" /> | `public/rina/bye.webp` | Account deletion modals, sign-out prompts |
+| <img src="public/rina/404.webp" width="60" /> | `public/rina/404.webp` | Custom 404 page illustration |
 
 ---
 
-## <img src="public/rina/celebration.webp" width="36" align="center" /> Tech Stack
+## <img src="public/rina/celebration.webp" width="100" align="center" /> Tech Stack
 
 | Layer | Technology | Version | Purpose |
 |---|---|---|---|
@@ -301,6 +301,6 @@ Private repository — designed for internal team deployment.
 ---
 
 <div align="center">
-  <img src="public/rina/sleeping.webp" width="64" alt="Catarina Sleeping" /><br/>
+  <img src="public/rina/sleeping.webp" width="120" alt="Catarina Sleeping" /><br/>
   <sub>Made with care for <strong>Devora</strong> · &copy; Devora</sub>
 </div>
