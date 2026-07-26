@@ -9,57 +9,20 @@
  * Non-admin members see the report + export PDF.
  */
 
-import { useState, useEffect, useRef, useMemo, use } from "react";
+import { useState, useEffect, useMemo, use } from "react";
 import { notFound } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import GoalCard from "@/components/GoalCard";
 import SectionChart from "@/components/SectionChart";
+import SectionDetail from "@/components/SectionDetail";
 import { calcSectionStats, monthNameLine1, monthNameLine2, formatDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { type GoalData } from "@/components/GoalRow";
-/* Legacy imports kept as fallback — will use dynamic sections once loaded */
+import { type GoalData } from "@/types";
 import { SECTIONS, SECTION_COLORS, SECTION_LABELS } from "@/lib/auth";
+import { PDF_PALETTE, type PdfTheme } from "@/lib/pdf-palette";
 import {
   FileText, BarChart3, Layers, Sun, Moon, Download, X,
-  CheckCircle2, Clock, Target, TrendingUp, ChevronRight, LayoutList
+  CheckCircle2, Clock, Target, TrendingUp, ChevronRight
 } from "lucide-react";
-
-/* ─── Dark/Light PDF palettes (mirrors globals.css) ─────────────────────── */
-const PDF_PALETTE = {
-  dark: {
-    bg: "#060B14",
-    surface: "#0D1824",
-    surface2: "#142035",
-    border: "rgba(0,232,162,0.15)",
-    text: "#F0F6FF",
-    textMuted: "#5A7A99",
-    accent: "#00E8A2",
-    accent2: "#00C87A",
-    danger: "#FF4D6A",
-    warning: "#FFB830",
-    marketing: "#FF4D6A",
-    art: "#7C3AED",
-    technical: "#3B82F6",
-    management: "#F59E0B",
-  },
-  light: {
-    bg: "#F0F6FF",
-    surface: "#FFFFFF",
-    surface2: "#E2E8F0",
-    border: "rgba(0,232,162,0.3)",
-    text: "#060B14",
-    textMuted: "#5A7A99",
-    accent: "#00C47A",
-    accent2: "#00E8A2",
-    danger: "#E11D48",
-    warning: "#D97706",
-    marketing: "#E11D48",
-    art: "#7C3AED",
-    technical: "#3B82F6",
-    management: "#D97706",
-  },
-};
 
 /* ─── Tab definitions ──────────────────────────────────────────────────── */
 type TabId = "overview" | "sections" | "performance";
@@ -79,7 +42,6 @@ export default function ArchivedMonthPage({
   const { monthId } = use(params);
   const { user, isAdmin } = useAuth();
   const [goals, setGoals] = useState<GoalData[]>([]);
-  const [sections, setSections] = useState<{ key: string; label: string; color: string }[]>([]);
   const [monthInfo, setMonthInfo] = useState<{
     name: string;
     year: number;
@@ -94,13 +56,13 @@ export default function ArchivedMonthPage({
 
   /* PDF export state */
   const [showExport, setShowExport] = useState(false);
-  const [pdfTheme, setPdfTheme] = useState<"dark" | "light">("dark");
+  const [pdfTheme, setPdfTheme] = useState<PdfTheme>("dark");
 
   useEffect(() => {
     fetch(`/api/goals?monthId=${monthId}`)
       .then((res) => res.json())
       .then((data) => setGoals(data.goals || []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setIsLoading(false));
 
     fetch("/api/months")
@@ -116,11 +78,6 @@ export default function ArchivedMonthPage({
         }
       })
       .catch(() => { notFound(); });
-
-    fetch("/api/sections")
-      .then((res) => res.json())
-      .then((data) => setSections(data.sections || []))
-      .catch(() => {});
   }, [monthId]);
 
   /* Group goals by section */
@@ -200,9 +157,8 @@ export default function ArchivedMonthPage({
         <div style="height:8px;background:${p.surface2};border-radius:999px;overflow:hidden;margin-bottom:16px;">
           <div style="height:100%;width:${stats.percentage}%;background:linear-gradient(90deg,${color},${color}cc);border-radius:999px;"></div>
         </div>
-        ${
-          sGoals.length > 0
-            ? `<table style="width:100%;border-collapse:collapse;">
+        ${sGoals.length > 0
+          ? `<table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr>
               <th style="padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-align:left;color:${p.textMuted};background:${p.surface};border-bottom:2px solid ${p.border};">ID</th>
@@ -214,7 +170,7 @@ export default function ArchivedMonthPage({
           </thead>
           <tbody>${goalRows}</tbody>
         </table>`
-            : `<p style="text-align:center;color:${p.textMuted};padding:24px;font-size:13px;">No goals in this section</p>`
+          : `<p style="text-align:center;color:${p.textMuted};padding:24px;font-size:13px;">No goals in this section</p>`
         }
       </div>`;
     }).join("");
@@ -306,10 +262,10 @@ export default function ArchivedMonthPage({
     <div style="margin-bottom:8px;">
       <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${p.textMuted};margin-bottom:12px;">Section Breakdown</div>
       ${SECTIONS.map((section) => {
-        const stats = sectionStats[section];
-        const color = SECTION_COLORS[section];
-        const label = SECTION_LABELS[section];
-        return `
+      const stats = sectionStats[section];
+      const color = SECTION_COLORS[section];
+      const label = SECTION_LABELS[section];
+      return `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
           <div style="width:10px;height:10px;border-radius:3px;background:${color};flex-shrink:0;"></div>
           <div style="flex:1;">
@@ -323,7 +279,7 @@ export default function ArchivedMonthPage({
           </div>
           <span style="font-size:11px;color:${p.textMuted};white-space:nowrap;">${stats.done}/${stats.total}</span>
         </div>`;
-      }).join("")}
+    }).join("")}
     </div>
   </div>
 
@@ -343,7 +299,6 @@ export default function ArchivedMonthPage({
         const PAD_L = 44;
         const PAD_T = 36;
         const PAD_R = 28;
-        const PAD_B = 56;
         const DEPTH_X = 22;
         const DEPTH_Y = 14;
         const BAR_AREA_W = SVG_W - PAD_L - PAD_R;
@@ -390,9 +345,9 @@ export default function ArchivedMonthPage({
         return `
           <defs>
             ${SECTIONS.map((section) => {
-              const id = section.toLowerCase();
-              const color = SECTION_COLORS[section];
-              return `
+          const id = section.toLowerCase();
+          const color = SECTION_COLORS[section];
+          return `
               <linearGradient id="pfg-${id}" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="${color}" stop-opacity="0.95" />
                 <stop offset="100%" stop-color="${color}" stop-opacity="0.48" />
@@ -405,7 +360,7 @@ export default function ArchivedMonthPage({
                 <stop offset="0%" stop-color="${color}" stop-opacity="1" />
                 <stop offset="100%" stop-color="${color}" stop-opacity="0.72" />
               </linearGradient>`;
-            }).join("")}
+        }).join("")}
           </defs>
           ${grid}
           ${bars}
@@ -492,11 +447,10 @@ export default function ArchivedMonthPage({
                 setActiveSection(SECTIONS[0]);
               }
             }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === tab.id
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === tab.id
                 ? "bg-accent text-bg shadow-md"
                 : "text-text-muted hover:text-text hover:bg-surface-2"
-            }`}
+              }`}
           >
             {tab.icon}
             {tab.label}
@@ -681,11 +635,10 @@ export default function ArchivedMonthPage({
                   <button
                     key={section}
                     onClick={() => setActiveSection(section)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
-                      isActive
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${isActive
                         ? "text-bg"
                         : "text-text-muted hover:text-text border-transparent hover:border-border/40"
-                    }`}
+                      }`}
                     style={
                       isActive
                         ? { backgroundColor: color, borderColor: color }
@@ -779,11 +732,10 @@ export default function ArchivedMonthPage({
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setPdfTheme("dark")}
-                      className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${
-                        pdfTheme === "dark"
+                      className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${pdfTheme === "dark"
                           ? "border-accent bg-accent/5"
                           : "border-border/40 hover:border-border"
-                      }`}
+                        }`}
                     >
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0D1824] border border-[rgba(0,232,162,0.15)]">
                         <Moon size={16} className="text-[#00E8A2]" />
@@ -802,11 +754,10 @@ export default function ArchivedMonthPage({
                     </button>
                     <button
                       onClick={() => setPdfTheme("light")}
-                      className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${
-                        pdfTheme === "light"
+                      className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${pdfTheme === "light"
                           ? "border-accent bg-accent/5"
                           : "border-border/40 hover:border-border"
-                      }`}
+                        }`}
                     >
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F0F6FF] border border-[rgba(0,196,122,0.3)]">
                         <Sun size={16} className="text-[#00C47A]" />
@@ -863,139 +814,6 @@ export default function ArchivedMonthPage({
           </div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-/* ─── Section Detail Sub-component ──────────────────────────────────────── */
-function SectionDetail({
-  section,
-  goals,
-  stats,
-  isAdmin,
-  user,
-}: {
-  section: string;
-  goals: GoalData[];
-  stats: ReturnType<typeof calcSectionStats>;
-  isAdmin: boolean;
-  user: { id: string; sections: string[] } | null;
-}) {
-  const color = (SECTION_COLORS as Record<string, string>)[section] || "#00E8A2";
-  const label = (SECTION_LABELS as Record<string, string>)[section] || section;
-
-  return (
-    <div className="space-y-4">
-      {/* Section header card */}
-      <div
-        className="glass rounded-2xl overflow-hidden"
-        style={{ borderColor: `${color}25` }}
-      >
-        <div className="h-1 w-full" style={{ backgroundColor: color, opacity: 0.6 }} />
-        <div className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
-            <div className="text-center sm:text-right order-2 sm:order-1">
-              <p className="text-[10px] sm:text-xs uppercase tracking-wider text-text-muted font-semibold mb-1">
-                Remaining
-              </p>
-              <p className="text-3xl sm:text-5xl font-black leading-none text-text-muted">
-                {(100 - stats.percentage).toFixed(1)}
-                <span className="text-2xl">%</span>
-              </p>
-              <p className="text-sm text-text-muted mt-1">
-                {stats.remaining} goal{stats.remaining !== 1 ? "s" : ""} left
-              </p>
-            </div>
-            <div className="relative order-1 sm:order-2 shrink-0 w-[160px] h-[160px] sm:w-[200px] sm:h-[200px]">
-              <svg viewBox="0 0 232 232" className="w-full h-full transform -rotate-90" style={{ overflow: "visible" }}>
-                <circle cx="116" cy="116" r="86" fill="none" stroke="var(--surface-2)" strokeWidth="18" />
-                {stats.remaining > 0 && (
-                  <circle
-                    cx="116" cy="116" r="86" fill="none" stroke="var(--text-muted)"
-                    strokeWidth="18"
-                    strokeDasharray={`${((100 - stats.percentage) / 100) * 2 * Math.PI * 86} ${2 * Math.PI * 86}`}
-                    strokeDashoffset={`${-(stats.percentage / 100) * 2 * Math.PI * 86}`}
-                  />
-                )}
-                {stats.done > 0 && (
-                  <circle
-                    cx="116" cy="116" r="86" fill="none" stroke={color}
-                    strokeWidth="18" strokeLinecap="round"
-                    strokeDasharray={`${(stats.percentage / 100) * 2 * Math.PI * 86} ${2 * Math.PI * 86}`}
-                    strokeDashoffset="0"
-                    style={{ filter: `drop-shadow(0 0 8px ${color}80)` }}
-                  />
-                )}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl sm:text-3xl font-black leading-none" style={{ color }}>
-                  {stats.percentage.toFixed(1)}%
-                </span>
-                <span className="text-xs text-text-muted mt-0.5 font-medium">done</span>
-              </div>
-            </div>
-            <div className="text-center sm:text-left order-3">
-              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold mb-1" style={{ color }}>
-                Done
-              </p>
-              <p className="text-3xl sm:text-5xl font-black leading-none" style={{ color }}>
-                {stats.percentage.toFixed(1)}
-                <span className="text-2xl">%</span>
-              </p>
-              <p className="text-sm mt-1" style={{ color: `${color}bb` }}>
-                {stats.done} goal{stats.done !== 1 ? "s" : ""} done
-              </p>
-            </div>
-          </div>
-        </div>
-        <div
-          className="border-t px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1.5"
-          style={{ borderColor: `${color}20`, backgroundColor: `${color}06` }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-muted">Done</span>
-            <span className="text-sm font-bold text-text">{stats.done}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-muted">Remaining</span>
-            <span className="text-sm font-bold text-text">{stats.remaining}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-muted">Total</span>
-            <span className="text-sm font-bold text-text">{stats.total}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Goals */}
-      {goals.length === 0 ? (
-        <div className="glass rounded-2xl text-center py-16 text-text-muted">
-          <Image src="/rina/think.webp" alt="Catarina thinking" width={120} height={120} className="mx-auto mb-3 rounded-2xl" />
-          <p className="text-sm font-semibold">No goals in this section</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-          {goals.map((goal) => (
-            <GoalCard
-              key={goal.id}
-              goal={goal}
-              userId={user?.id || ""}
-              isAdmin={isAdmin}
-              permissions={{
-                canEditGoals: isAdmin,
-                canDeleteGoals: isAdmin,
-              }}
-              color={color}
-              onToggle={() => {}}
-              onEdit={() => {}}
-              onDelete={() => {}}
-              onComment={() => {}}
-              onProgressChange={() => {}}
-              onAutoComplete={() => {}}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

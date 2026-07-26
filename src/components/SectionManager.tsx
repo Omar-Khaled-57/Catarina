@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ColorPicker from "@/components/ColorPicker";
-import { Plus, Pencil, Trash2, GripVertical, Palette } from "lucide-react";
+import { Plus, Pencil, Trash2, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -50,6 +50,7 @@ export default function SectionManager() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch sections on mount
     fetchSections();
   }, []);
 
@@ -214,7 +215,7 @@ export default function SectionManager() {
       >
         <p className="text-sm text-text-muted mb-4">
           Are you sure you want to remove <strong className="text-text">{deletingSection?.label}</strong>?
-          Goals in this section will still exist but the section won't appear in new goal creation.
+          Goals in this section will still exist but the section won&apos;t appear in new goal creation.
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setDeletingSection(null)}>

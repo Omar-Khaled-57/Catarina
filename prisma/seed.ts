@@ -30,10 +30,10 @@ async function main() {
 
   /* ─── Seed Default Sections ─────────────────────────────────────────────── */
   const defaultSections = [
-    { key: "MARKETING", label: "Marketing", prefix: "MRK", color: "#00E8A2", sortOrder: 0 },
-    { key: "ART", label: "Art", prefix: "ART", color: "#FF3CAC", sortOrder: 1 },
-    { key: "TECHNICAL", label: "Technical", prefix: "TEC", color: "#3B82F6", sortOrder: 2 },
-    { key: "MANAGEMENT", label: "Management", prefix: "MGT", color: "#A855F7", sortOrder: 3 },
+    { key: "MARKETING", label: "Marketing", prefix: "MRK-", color: "#FF4D6A", sortOrder: 0 },
+    { key: "ART", label: "Art", prefix: "ART-", color: "#7C3AED", sortOrder: 1 },
+    { key: "TECHNICAL", label: "Technical", prefix: "TEC-", color: "#3B82F6", sortOrder: 2 },
+    { key: "MANAGEMENT", label: "Management", prefix: "MNG-", color: "#F59E0B", sortOrder: 3 },
   ];
   for (const section of defaultSections) {
     await prisma.sectionConfig.create({ data: section });
@@ -237,7 +237,7 @@ async function main() {
       message: "هو كده يكتفمك",
       pinned: true,
       refType: "audio",
-      refId: "/fun.mp3",
+      refId: "/media/fun.mp3",
     })),
   });
   console.log(`  Pinned 'Why Catarina?' notification sent to ${allUsers.length} users`);

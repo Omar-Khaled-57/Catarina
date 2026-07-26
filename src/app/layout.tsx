@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "sonner";
+import Image from "next/image";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const inter = Inter({
@@ -33,8 +34,8 @@ export const metadata: Metadata = {
     canonical: "https://catarina-devora.vercel.app",
   },
   icons: {
-    icon: "/icon-192.png",
-    apple: "/apple-touch-icon.png",
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
   },
   openGraph: {
     title: "Catarina",
@@ -43,8 +44,8 @@ export const metadata: Metadata = {
     siteName: "Catarina",
     images: [
       {
-        url: "https://catarina-devora.vercel.app/og-image.png",
-        secureUrl: "https://catarina-devora.vercel.app/og-image.png",
+        url: "https://catarina-devora.vercel.app/media/og-image.png",
+        secureUrl: "https://catarina-devora.vercel.app/media/og-image.png",
         type: "image/png",
         width: 580,
         height: 386,
@@ -58,14 +59,14 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Catarina",
     description: "Team planning and progress tracking for Devora.",
-    images: ["https://catarina-devora.vercel.app/og-image.png"],
+    images: ["https://catarina-devora.vercel.app/media/og-image.png"],
     creator: "@omar_khaled",
   },
   other: {
     "og:image:width": "1200",
     "og:image:height": "630",
     "og:image:type": "image/png",
-    "og:image:secure_url": "https://catarina-devora.vercel.app/og-image.png",
+    "og:image:secure_url": "https://catarina-devora.vercel.app/media/og-image.png",
   },
   robots: {
     index: true,
@@ -111,6 +112,22 @@ export default function RootLayout({
               position="bottom-right"
               richColors
               closeButton
+              toastOptions={{
+                classNames: {
+                  toast: "!items-center !gap-3 sm:!gap-4 !px-4 !py-2.5 sm:!px-5 sm:!py-3.5 !w-[calc(100vw-2rem)] sm:!w-[420px] !max-w-full !rounded-2xl !shadow-2xl",
+                  icon: "!w-[64px] !h-[64px] sm:!w-[80px] sm:!h-[80px] !min-w-[64px] sm:!min-w-[80px] !m-0 !p-0 shrink-0",
+                  content: "!flex-1 !ml-1 sm:!ml-2",
+                  title: "!text-base sm:!text-lg !font-bold tracking-tight",
+                  description: "!text-xs sm:!text-sm opacity-90 mt-0.5",
+                  closeButton: "!bg-surface-elevated !border-border",
+                },
+              }}
+              icons={{
+                success: <Image src="/rina/happy.webp" alt="Success" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
+                error: <Image src="/rina/bug-fix.webp" alt="Error" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
+                info: <Image src="/rina/think.webp" alt="Info" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
+                warning: <Image src="/rina/cry.webp" alt="Warning" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
+              }}
             />
           </AuthProvider>
         </ThemeProvider>

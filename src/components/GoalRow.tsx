@@ -9,40 +9,13 @@ import { useState } from "react";
 import Badge from "@/components/ui/Badge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { deadlineStatus, formatDateShort, calcPercentage, getDefaultPfp } from "@/lib/utils";
+import { type GoalData } from "@/types";
 import { Check, Pencil, Trash2, MessageSquare } from "lucide-react";
 
-export interface GoalData {
-  id: string;
-  name: string;
-  description: string;
-  goalNumber: number;
-  current: number;
-  target: number;
-  done: boolean;
-  deadline: string;
-  carriedOver: boolean;
-  section: string;
-  completedAt: string | null;
-  createdAt: string;
-  comments: { id: string }[];
-  assignments: {
-    userId: string;
-    name: string;
-    pfp: string | null;
-    canCheck: boolean;
-    canEdit: boolean;
-  }[];
-  steps: {
-    id: string;
-    text: string;
-    done: boolean;
-    order: number;
-  }[];
-}
+export type { GoalData } from "@/types";
 
 interface GoalRowProps {
   goal: GoalData;
-  section: string;
   isAdmin: boolean;
   onToggle: (id: string, done: boolean) => void;
   onEdit: (goal: GoalData) => void;
@@ -52,7 +25,6 @@ interface GoalRowProps {
 
 export default function GoalRow({
   goal,
-  section,
   isAdmin,
   onToggle,
   onEdit,
@@ -194,8 +166,10 @@ export default function GoalRow({
                     title={`${a.name}${a.canCheck ? " (check)" : ""}${a.canEdit ? " (edit)" : ""}`}
                   >
                     {a.pfp ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={a.pfp} alt={a.name} className="h-full w-full object-cover" />
                     ) : getDefaultPfp(goal.section) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={getDefaultPfp(goal.section)!} alt={a.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full w-full bg-surface-2 flex items-center justify-center text-[8px] font-bold text-text-muted">

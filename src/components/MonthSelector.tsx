@@ -12,7 +12,6 @@ import { monthNameLine1, monthNameLine2 } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import Image from "next/image";
 
 interface MonthData {
   id: string;

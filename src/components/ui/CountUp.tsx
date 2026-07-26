@@ -43,6 +43,28 @@ export default function CountUp({
     const el = wrapperRef.current;
     if (!el) return;
 
+    function startAnimation() {
+      const from = fromRef.current;
+      const to = value;
+
+      setTimeout(() => {
+        const startTime = performance.now();
+        const tick = (now: number) => {
+          const t = Math.min((now - startTime) / duration, 1);
+          setDisplay((from + (to - from) * swingOut(t)).toFixed(decimals));
+          if (t < 1) {
+            rafRef.current = requestAnimationFrame(tick);
+          } else {
+            fromRef.current = to;
+            setDisplay(to.toFixed(decimals));
+          }
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      }, delay);
+
+      return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !hasAnimated.current) {
@@ -80,28 +102,6 @@ export default function CountUp({
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [value, duration, decimals]);
-
-  function startAnimation() {
-    const from = fromRef.current;
-    const to = value;
-
-    setTimeout(() => {
-      const startTime = performance.now();
-      const tick = (now: number) => {
-        const t = Math.min((now - startTime) / duration, 1);
-        setDisplay((from + (to - from) * swingOut(t)).toFixed(decimals));
-        if (t < 1) {
-          rafRef.current = requestAnimationFrame(tick);
-        } else {
-          fromRef.current = to;
-          setDisplay(to.toFixed(decimals));
-        }
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    }, delay);
-
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }
 
   return (
     <span ref={wrapperRef} className={className} style={style}>

@@ -5,123 +5,25 @@
  * Card-based layout with editable progress, steps, and colorful notes.
  */
 
-import { useState, useEffect, useCallback, useMemo, use, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
 import { notFound } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import GoalForm, { type GoalAssignmentData } from "@/components/GoalForm";
 import GoalCard from "@/components/GoalCard";
+import DonutChart from "@/components/DonutChart";
 import CommentSection from "@/components/CommentSection";
 import MonthSelector from "@/components/MonthSelector";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { calcSectionStats } from "@/lib/utils";
+import useCountUp from "@/lib/useCountUp";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { useGoalMerge } from "@/hooks/useGoalMerge";
+import { suppressNextToast } from "@/lib/toastSuppress";
 import { toast } from "sonner";
-import { type GoalData } from "@/components/GoalRow";
-import { Plus, ListChecks, ArrowDownAZ, ArrowDownWideNarrow, CalendarDays, Users, Hash, ArrowUpDown, Search } from "lucide-react";
-
-/* ─── Custom Hook: useCountUp ────────────────────────────────────────────── */
-function useCountUp(target: number, duration: number = 1000) {
-  const [value, setValue] = useState(0);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const start = performance.now();
-    const startValue = 0;
-    const update = (now: number) => {
-      const elapsed = now - start;
-      const t = Math.min(elapsed / duration, 1);
-      /* ease-out-expo with slight overshoot feel */
-      const ease = t < 1
-        ? 1 - Math.pow(2, -10 * t)
-        : 1;
-      setValue(startValue + (target - startValue) * ease);
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(update);
-      } else {
-        setValue(target);
-      }
-    };
-    rafRef.current = requestAnimationFrame(update);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [target, duration]);
-
-  return value;
-}
-
-/* ─── Inline Donut Chart ─────────────────────────────────────────────────── */
-function DonutChart({
-  donePercent,
-  remainingPercent,
-  color,
-  size = 180,
-  strokeWidth = 22,
-}: {
-  donePercent: number;
-  remainingPercent: number;
-  color: string;
-  size?: number;
-  strokeWidth?: number;
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const doneLen = (donePercent / 100) * circumference;
-
-  const pad = 16;
-  const outer = size + pad * 2;
-
-  /* Animate from 0 on mount */
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  const animatedDone = mounted ? doneLen : 0;
-  const animatedOffset = mounted ? 0 : circumference;
-
-  return (
-    <svg
-      viewBox={`0 0 ${outer} ${outer}`}
-      className="w-full h-full transform -rotate-90"
-      style={{ overflow: "visible" }}
-    >
-      <circle
-        cx={outer / 2}
-        cy={outer / 2}
-        r={radius}
-        fill="none"
-        stroke="var(--surface-2)"
-        strokeWidth={strokeWidth}
-      />
-      <circle
-        cx={outer / 2}
-        cy={outer / 2}
-        r={radius}
-        fill="none"
-        stroke="var(--text-muted)"
-        strokeWidth={strokeWidth}
-      />
-      <circle
-        cx={outer / 2}
-        cy={outer / 2}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={`${animatedDone} ${circumference - animatedDone}`}
-        strokeDashoffset={animatedOffset}
-        style={{
-          transition: "stroke-dasharray 1.2s cubic-bezier(0.22, 1, 0.36, 1), stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)",
-          filter: `drop-shadow(0 0 10px ${color}90)`,
-        }}
-      />
-    </svg>
-  );
-}
+import { type GoalData } from "@/types";
+import { Plus, ArrowDownAZ, ArrowDownWideNarrow, CalendarDays, Users, Hash, ArrowUpDown, Search } from "lucide-react";
 
 /* ─── Main Section Page ──────────────────────────────────────────────────── */
 export default function SectionPage({
@@ -135,7 +37,6 @@ export default function SectionPage({
   const permissions = user?.permissions || { canEditGoals: false, canDeleteGoals: false, canCreateGoals: true, canManageMembers: false, canCreateMonths: false };
 
   const [sectionColor, setSectionColor] = useState("var(--accent)");
-  const [validSections, setValidSections] = useState<string[]>([]);
 
   /* Fetch sections and validate */
   useEffect(() => {
@@ -143,9 +44,6 @@ export default function SectionPage({
       .then((res) => res.json())
       .then((data) => {
         const secs = data.sections || [];
-        const keys = secs.map((s: { key: string }) => s.key);
-        setValidSections(keys);
-
         const found = secs.find((s: { key: string }) => s.key === section);
         if (found) {
           setSectionColor(found.color);
@@ -211,6 +109,31 @@ export default function SectionPage({
       .catch(() => setIsLoading(false));
   }, [fetchGoals]);
 
+  /* ─── Realtime Sync ──────────────────────────────────────────────────────── */
+  /* ─── Realtime Sync ───────────────────────────────────────────────── */
+  const { generation, snapshotRef } = useRealtimeSync({
+    monthId: monthId || undefined,
+    section,
+    enabled: !!monthId,
+  });
+
+  const fetchSectionConfig = useCallback(() => {
+    fetch("/api/sections")
+      .then((res) => res.json())
+      .then((data) => {
+        const secs = data.sections || [];
+        const found = secs.find((s: { key: string }) => s.key === section);
+        if (found) setSectionColor(found.color);
+      });
+  }, [section]);
+
+  const { getIsNewGoalIds } = useGoalMerge({
+    generation,
+    snapshotRef,
+    setGoals,
+    onSectionChanged: fetchSectionConfig,
+  });
+
   const handleSelectMonth = (mId: string) => {
     setMonthId(mId);
     fetchGoals(mId);
@@ -225,15 +148,51 @@ export default function SectionPage({
     deadline: string;
     monthId: string;
   }) => {
-    const res = await fetch("/api/goals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, section }),
-    });
-    if (!res.ok) throw new Error("Failed to create goal");
-    const { goal } = await res.json();
-    fetchGoals(data.monthId);
-    return goal?.id || null;
+    /* Optimistic: create a temp goal and insert it */
+    const tempId = `temp-${crypto.randomUUID().slice(0, 8)}`;
+    const maxGoalNum = goals.reduce((max, g) => Math.max(max, g.goalNumber), 0);
+    const optimisticGoal: GoalData = {
+      id: tempId,
+      name: data.name,
+      description: data.description || "",
+      goalNumber: maxGoalNum + 1,
+      current: data.current || 0,
+      target: data.target || 1,
+      done: false,
+      deadline: data.deadline,
+      carriedOver: false,
+      section,
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      monthId: data.monthId,
+      authorId: user?.id || "",
+      deadlineSetByAdmin: false,
+      comments: [],
+      assignments: [],
+      steps: [],
+    };
+    setGoals((prev) => [...prev, optimisticGoal]);
+
+    try {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, section }),
+      });
+      if (!res.ok) throw new Error("Failed to create goal");
+      const { goal } = await res.json();
+      /* Replace temp with real goal */
+      setGoals((prev) =>
+        prev.map((g) => (g.id === tempId ? { ...goal, assignments: goal.assignments || [] } : g))
+      );
+      suppressNextToast();
+      return goal?.id || null;
+    } catch {
+      /* Rollback: remove temp goal */
+      setGoals((prev) => prev.filter((g) => g.id !== tempId));
+      throw new Error("Failed to create goal");
+    }
   };
 
   const handleUpdateGoal = async (data: {
@@ -245,31 +204,91 @@ export default function SectionPage({
     monthId: string;
   }) => {
     if (!editingGoal) return;
-    const res = await fetch(`/api/goals/${editingGoal.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("Failed to update goal");
-    fetchGoals(data.monthId);
+    /* Optimistic: update in place */
+    const prevGoal = goals.find((g) => g.id === editingGoal.id);
+    setGoals((prev) =>
+      prev.map((g) =>
+        g.id === editingGoal.id
+          ? { ...g, name: data.name, description: data.description, current: data.current, target: data.target, deadline: data.deadline }
+          : g
+      )
+    );
+    try {
+      const res = await fetch(`/api/goals/${editingGoal.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update goal");
+      suppressNextToast();
+    } catch {
+      /* Rollback */
+      if (prevGoal) {
+        setGoals((prev) =>
+          prev.map((g) => (g.id === editingGoal.id ? prevGoal : g))
+        );
+      }
+      throw new Error("Failed to update goal");
+    }
   };
 
   const handleSaveAssignments = async (goalId: string, assignments: GoalAssignmentData[]) => {
-    await fetch(`/api/goals/${goalId}/assignments`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assignments }),
-    });
-    fetchGoals(monthId!);
+    /* Optimistic: update assignment names/pfps immediately */
+    const prevGoal = goals.find((g) => g.id === goalId);
+    setGoals((prev) =>
+      prev.map((g) =>
+        g.id === goalId
+          ? {
+              ...g,
+              assignments: assignments.map((a) => ({
+                ...a,
+                name: g.assignments.find((ga) => ga.userId === a.userId)?.name || "",
+                pfp: g.assignments.find((ga) => ga.userId === a.userId)?.pfp || null,
+              })),
+            }
+          : g
+      )
+    );
+    try {
+      const res = await fetch(`/api/goals/${goalId}/assignments`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignments }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      suppressNextToast();
+    } catch {
+      /* Rollback */
+      if (prevGoal) {
+        setGoals((prev) =>
+          prev.map((g) => (g.id === goalId ? prevGoal : g))
+        );
+      }
+    }
   };
 
   const handleDeleteGoal = async (goalId: string) => {
     if (!confirm("Delete this goal?")) return;
-    const res = await fetch(`/api/goals/${goalId}`, { method: "DELETE" });
-    if (res.ok) {
+    /* Optimistic: remove immediately — rollback via functional updater avoids stale closure */
+    let removedGoal: GoalData | undefined;
+    setGoals((prev) => {
+      removedGoal = prev.find((g) => g.id === goalId);
+      return prev.filter((g) => g.id !== goalId);
+    });
+    try {
+      const res = await fetch(`/api/goals/${goalId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete goal");
+      suppressNextToast();
       toast.success("Goal deleted");
-      fetchGoals(monthId!);
-    } else {
+    } catch {
+      /* Rollback: re-insert the removed goal at its original position */
+      if (removedGoal) {
+        setGoals((prev) => {
+          const next = [...prev, removedGoal!];
+          next.sort((a, b) => a.goalNumber - b.goalNumber);
+          return next;
+        });
+      }
       toast.error("Failed to delete goal");
     }
   };
@@ -289,6 +308,8 @@ export default function SectionPage({
           prev.map((g) => (g.id === goalId ? { ...g, done: !done } : g))
         );
         toast.error("Failed to update goal");
+      } else {
+        suppressNextToast();
       }
     } catch {
       setGoals((prev) =>
@@ -312,6 +333,8 @@ export default function SectionPage({
       if (!res.ok) {
         fetchGoals(monthId!);
         toast.error("Failed to update progress");
+      } else {
+        suppressNextToast();
       }
     } catch {
       fetchGoals(monthId!);
@@ -446,7 +469,6 @@ export default function SectionPage({
             <div className="relative order-1 sm:order-2 flex-shrink-0 w-[180px] h-[180px] sm:w-[232px] sm:h-[232px]">
               <DonutChart
                 donePercent={stats.percentage}
-                remainingPercent={100 - stats.percentage}
                 color={color}
                 size={164}
                 strokeWidth={20}
@@ -567,7 +589,7 @@ export default function SectionPage({
         </div>
       ) : goals.length === 0 ? (
         <div className="glass rounded-2xl text-center py-20 text-text-muted">
-          <Image src="/rina/think.webp" alt="Catarina thinking" width={120} height={120} className="mx-auto mb-3 rounded-2xl" />
+          <Image src="/rina/think.webp" alt="Catarina thinking" width={160} height={160} className="w-24 sm:w-40 h-auto mx-auto mb-5 drop-shadow-sm rounded-2xl" />
           <p className="text-lg font-semibold">No goals in this section yet</p>
           <p className="text-sm mt-1 opacity-60">
             {canCreate ? 'Click "New Goal" to add one.' : "Ask an admin to create goals."}
@@ -601,6 +623,7 @@ export default function SectionPage({
                 onComment={openComment}
                 onProgressChange={handleProgressChange}
                 onAutoComplete={handleAutoComplete}
+                isNew={getIsNewGoalIds().has(goal.id)}
               />
             ))}
           </AnimatePresence>

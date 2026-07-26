@@ -53,7 +53,7 @@ export async function getSections(): Promise<SectionData[]> {
   }
 
   // Fallback to default sections
-  cachedSections = DEFAULT_SECTIONS.map((s, i) => ({
+  cachedSections = DEFAULT_SECTIONS.map((s) => ({
     ...s,
     id: `default-${s.key.toLowerCase()}`,
     isActive: true,

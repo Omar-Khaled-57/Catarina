@@ -1,5 +1,5 @@
 <div>
-  <img src="public/logo.webp" alt="Catarina Logo" width="140" />
+  <img src="public/rina/logo.webp" alt="Catarina Logo" width="160" />
   <h1>Catarina</h1>
   <p><strong>A private team planning & tracking system.</strong></p>
   <p>
@@ -13,13 +13,13 @@
 
 ---
 
-## What is Catarina?
+## <img src="public/rina/wave.webp" width="36" align="center" /> What is Catarina?
 
 **Catarina** is an internal planning and progress tracking app for small teams. Each team section has its own private space with goals, progress counters, step checklists, and comments. Sections are dynamic — admins can add, rename, recolor, or remove them from the Admin Panel. Members are scoped to their section(s), while admins have global visibility.
 
 ---
 
-## Deploy Your Own
+## <img src="public/rina/thumb.webp" width="36" align="center" /> Deploy Your Own
 
 ### Prerequisites
 - Node.js 20+
@@ -51,13 +51,14 @@ TURSO_AUTH_TOKEN="your_turso_auth_token"
 JWT_SECRET="any_random_string_here"
 ```
 
-### 4. Seed the Database
+### 4. Push Schema & Seed
 
 ```bash
+npx prisma db push --env-file=.env
 npm run db:seed
 ```
 
-This creates the default admin account and sample data in your Turso database.
+The first command pushes the database schema to your Turso database. The second creates the default admin account and sample data.
 
 ### 5. Run Locally
 
@@ -77,7 +78,7 @@ Set the same three environment variables in the Vercel dashboard under **Setting
 
 ---
 
-## Default Admin Credentials
+## <img src="public/rina/happy.webp" width="36" align="center" /> Default Admin Credentials
 
 | Role | Email | Password |
 |---|---|---|
@@ -87,14 +88,14 @@ Set the same three environment variables in the Vercel dashboard under **Setting
 
 ---
 
-## Profile Customization
+## <img src="public/rina/excited.webp" width="36" align="center" /> Profile Customization
 
 Every user can edit their own profile after login:
 
 - **Name** — your display name
 - **Email** — your login email
 - **Password** — change with current password confirmation
-- **Profile Photo** — upload JPG, PNG, GIF, or WebP (max 5 MB)
+- **Profile Photo** — upload JPG, PNG, GIF, or WebP (max 2 MB)
 - **Bio** — short description shown on your profile
 
 **How to access:**
@@ -105,14 +106,14 @@ Each section also has default profile pictures (visible when no custom photo is 
 
 | Section | Default PFP |
 |---|---|
-| Marketing | `public/pfps/mrk.gif` |
+| Marketing | *None* (colored initial fallback) |
 | Art | `public/pfps/art.png` |
 | Technical | `public/pfps/tec.gif` |
 | Management | `public/pfps/mng.gif` |
 
 ---
 
-## Features
+## <img src="public/rina/update.webp" width="36" align="center" /> Features
 
 ### Multi-Section Goal Tracking
 Each section has its own private space with goals, progress counters, step checklists, and comments. Sections are dynamic — admins can add, rename, recolor, or remove them from the Admin Panel.
@@ -137,7 +138,7 @@ Installable on any device — Android, iOS, or desktop — directly from the bro
 
 ---
 
-## Tech Stack
+## <img src="public/rina/think.webp" width="36" align="center" /> Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -155,19 +156,21 @@ Installable on any device — Android, iOS, or desktop — directly from the bro
 
 ---
 
-## Available Scripts
+## <img src="public/rina/celebration.webp" width="36" align="center" /> Available Scripts
 
 | Script | Description |
 |---|---|
 | `npm run dev` | Start the local development server |
 | `npm run build` | Build the production bundle |
+| `npm run lint` | Run ESLint |
 | `npm run db:seed` | Seed the database with default admin + sample data |
 | `npm run db:reset` | Reset the database and re-seed |
-| `npm run db:studio` | Open Prisma Studio (local SQLite only) |
+| `npm run db:studio` | Open Prisma Studio |
+| `postinstall` | Runs `prisma generate` after `npm install` |
 
 ---
 
-## Sections
+## <img src="public/rina/bug-fix.webp" width="36" align="center" /> Sections
 
 Default sections (configurable by admins via Section Manager):
 
@@ -189,5 +192,6 @@ Private — internal use only.
 ---
 
 <div align="center">
-  <sub>Built with care by <strong>Omar Khaled</strong> · Named for <em>Catarina</em></sub>
+  <img src="public/rina/sleeping.webp" width="64" alt="Catarina sleeping" /><br/>
+  <sub>Made with care for <strong>{TEAM_NAME}</strong> · Named for <em>Catarina</em> · © Devora</sub>
 </div>

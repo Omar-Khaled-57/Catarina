@@ -18,7 +18,8 @@ type NotificationType =
   | "MEMBER_DELETED"
   | "MONTH_CREATED"
   | "GOALS_CARRIED_OVER"
-  | "ROLE_CHANGED";
+  | "ROLE_CHANGED"
+  | "VERSION_UPDATE";
 
 /**
  * Create a notification for a single user.

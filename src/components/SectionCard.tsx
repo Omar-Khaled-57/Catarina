@@ -12,24 +12,19 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Badge from "@/components/ui/Badge";
 import CountUp from "@/components/ui/CountUp";
 import { calcSectionStats } from "@/lib/utils";
+import { type DashboardGoal } from "@/types";
 import { Activity, Palette, Code2, Users } from "lucide-react";
-
-interface Goal {
-  id: string;
-  done: boolean;
-  current: number;
-  target: number;
-}
 
 interface SectionCardProps {
   section: string;
-  goals: Goal[];
+  goals: Pick<DashboardGoal, "id" | "done" | "current" | "target">[];
   highlight?: boolean;
   color?: string;
   label?: string;
+  hasNewActivity?: boolean;
 }
 
-export default function SectionCard({ section, goals, highlight, color: colorProp, label: labelProp }: SectionCardProps) {
+export default function SectionCard({ section, goals, highlight, color: colorProp, label: labelProp, hasNewActivity }: SectionCardProps) {
   const stats = calcSectionStats(goals);
   const color = colorProp || "#00E8A2";
   const label = labelProp || section;
@@ -40,8 +35,12 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
         hover
         className={`h-full transition-shadow duration-500 ${
           highlight ? "ring-2 shadow-lg" : ""
-        }`}
-        style={highlight ? { boxShadow: `0 0 28px ${color}40`, borderColor: `${color}60`, "--tw-ring-color": `${color}50` } as React.CSSProperties : undefined}
+        } ${hasNewActivity ? "animate-section-pulse" : ""}`}
+        aria-label={`${label}${hasNewActivity ? " — new activity" : ""}`}
+        style={{
+          ...(highlight ? { boxShadow: `0 0 28px ${color}40`, borderColor: `${color}60`, "--tw-ring-color": `${color}50` } as React.CSSProperties : {}),
+          ...(hasNewActivity ? { borderColor: `${color}60`, "--pulse-color": `${color}80` } as React.CSSProperties : {}),
+        }}
       >
         {/* Section Header */}
         <div className="flex items-center justify-between mb-4">

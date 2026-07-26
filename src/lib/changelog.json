@@ -1,0 +1,62 @@
+{
+  "0.4.0": {
+    "type": "minor",
+    "title": "Realtime Sync — Live Collaboration",
+    "entries": [
+      { "icon": "🔄", "text": "Real-time change detection — changes from other users appear within 5s without page reload" },
+      { "icon": "⚡", "text": "Delta fetching — only modified data is transferred, not full page reloads" },
+      { "icon": "🧠", "text": "Smart polling — adjusts interval based on tab visibility and user activity" },
+      { "icon": "✨", "text": "Optimistic mutations — your actions appear instantly, with rollback on failure" },
+      { "icon": "💫", "text": "Goal glow animation — new goals from other users shimmer with a subtle teal glow" },
+      { "icon": "🔔", "text": "Section pulse — dashboard cards pulse when goals change in that section" },
+      { "icon": "⚡", "text": "Toast notifications — incoming changes trigger a brief toast in the navbar" },
+      { "icon": "📦", "text": "Static asset caching — rina images, pfps, and fonts now have infinite browser cache" },
+      { "icon": "🛡️", "text": "Service worker v3 — precaches static assets, network-first for dashboard pages" }
+    ]
+  },
+  "0.3.2": {
+    "type": "patch",
+    "title": "Code Quality & Modularization",
+    "entries": [
+      { "icon": "🧩", "text": "Component extraction — DonutChart, SectionDetail, EditUserModal, CreateUserModal, PfpUpload split from monolithic files" },
+      { "icon": "🪝", "text": "Custom hooks — useCountUp, useFileUpload for shared logic" },
+      { "icon": "📦", "text": "Shared type system — GoalData, SectionData, UserData centralized in src/types" },
+      { "icon": "⏳", "text": "Loading skeleton states for dashboard, section, and admin pages" },
+      { "icon": "♿", "text": "Accessibility — checkbox roles, aria-checked, prefers-reduced-motion" },
+      { "icon": "🧹", "text": "Lint cleanup — 39 issues resolved (39 → 1, remaining is dev script only)" },
+      { "icon": "🗺️", "text": "SEO sitemap generation via src/app/sitemap.ts" }
+    ]
+  },
+  "0.3.0": {
+    "type": "minor",
+    "title": "Catarina got an upgrade!",
+    "entries": [
+      { "icon": "🎉", "text": "Update celebration system — you'll now see what's new after each release" },
+      { "icon": "✨", "text": "Tiered celebration modals for major, minor, and patch updates" },
+      { "icon": "📋", "text": "In-app changelog — tap the notification to see what changed" }
+    ]
+  },
+  "0.2.0": {
+    "type": "minor",
+    "title": "Profile System & Catarina Expressions",
+    "entries": [
+      { "icon": "👤", "text": "Edit your name, email, bio, profile photo, and password" },
+      { "icon": "🎨", "text": "Catarina character expressions throughout the app" },
+      { "icon": "🎊", "text": "Welcome celebration modal for first-time users" },
+      { "icon": "💬", "text": "Comment notifications — section members are now notified" },
+      { "icon": "🔧", "text": "Bug fixes and UI polish across the board" }
+    ]
+  },
+  "0.1.0": {
+    "type": "major",
+    "title": "Catarina is live!",
+    "entries": [
+      { "icon": "🚀", "text": "Initial release — full team planning and tracking system" },
+      { "icon": "📊", "text": "Monthly goal tracking with sections, steps, and comments" },
+      { "icon": "📈", "text": "Live performance dashboard with animated charts" },
+      { "icon": "🔔", "text": "In-app notification system with pinning and audio" },
+      { "icon": "📄", "text": "Archive & PDF export for completed months" },
+      { "icon": "📱", "text": "Progressive Web App — installable on any device" }
+    ]
+  }
+}

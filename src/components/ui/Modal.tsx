@@ -41,6 +41,7 @@ export default function Modal({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount tracking for SSR hydration safety
     setMounted(true);
   }, []);
 
@@ -129,14 +130,14 @@ export default function Modal({
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
               {title && (
-                <h2 className="text-lg font-bold text-text truncate">{title}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-text truncate">{title}</h2>
               )}
               <button
                 onClick={onClose}
                 className="rounded-lg p-1.5 text-text-muted hover:bg-surface-2 hover:text-text transition-colors shrink-0 ms-2"
                 aria-label="Close"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 

@@ -18,6 +18,15 @@ interface MonthCelebrationModalProps {
   monthName?: string;
 }
 
+/** Simple deterministic PRNG — seedable, no Math.random() at render time */
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
 /* Confetti particle — purely CSS-animated via framer-motion */
 function ConfettiParticle({
   x,
@@ -34,6 +43,10 @@ function ConfettiParticle({
   size: number;
   rotation: number;
 }) {
+  /* Deterministic duration per particle based on index-derived seed */
+  const rand = seededRandom(rotation);
+  const duration = 2.8 + rand() * 1.2;
+
   return (
     <motion.div
       className="absolute pointer-events-none"
@@ -52,7 +65,7 @@ function ConfettiParticle({
         rotate: rotation + 720,
       }}
       transition={{
-        duration: 2.8 + Math.random() * 1.2,
+        duration,
         delay,
         ease: "easeIn",
         repeat: Infinity,
@@ -81,6 +94,7 @@ export default function MonthCelebrationModal({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount tracking for SSR hydration safety
     setMounted(true);
   }, []);
 
@@ -104,15 +118,16 @@ export default function MonthCelebrationModal({
 
   if (!mounted) return null;
 
-  /* Generate 32 confetti pieces */
+  /* Generate 32 confetti pieces (deterministic — no Math.random at render) */
+  const rng = seededRandom(42);
   const confetti = Array.from({ length: 32 }, (_, i) => ({
     id: i,
-    x: Math.random() * 100,
-    y: 90 + Math.random() * 40,
+    x: rng() * 100,
+    y: 90 + rng() * 40,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    delay: Math.random() * 2,
-    size: 8 + Math.random() * 10,
-    rotation: Math.random() * 360,
+    delay: rng() * 2,
+    size: 8 + rng() * 10,
+    rotation: rng() * 360,
   }));
 
   return createPortal(

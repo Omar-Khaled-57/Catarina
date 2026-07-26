@@ -1,12 +1,14 @@
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from "next";
+
+const BASE_URL = "https://catarina-devora.vercel.app";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: 'https://catarina-devora.vercel.app',
+      url: BASE_URL,
       lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
+      changeFrequency: "monthly",
+      priority: 1.0,
     },
   ];
 }

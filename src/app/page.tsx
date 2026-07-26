@@ -7,13 +7,14 @@
  * Custom stylized team section dropdown with section colors.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
+import SectionDropdown from "@/components/SectionDropdown";
+import { FALLBACK_SECTIONS } from "@/types";
 import { toast } from "sonner";
-import { LayoutList, ChevronDown, Check, Activity, Palette, Code2, Users, ArrowRight, UserPlus, LogIn } from "lucide-react";
 import Image from "next/image";
 
 interface DynamicSection {
@@ -22,20 +23,6 @@ interface DynamicSection {
   color: string;
   prefix: string;
 }
-
-const FALLBACK_SECTIONS: DynamicSection[] = [
-  { key: "MARKETING", label: "Marketing", color: "#FF4D6A", prefix: "MRK-" },
-  { key: "ART", label: "Art", color: "#7C3AED", prefix: "ART-" },
-  { key: "TECHNICAL", label: "Technical", color: "#3B82F6", prefix: "TEC-" },
-  { key: "MANAGEMENT", label: "Management", color: "#F59E0B", prefix: "MNG-" },
-];
-
-const SECTION_ICONS: Record<string, React.ReactNode> = {
-  MARKETING: <Activity size={16} />,
-  ART: <Palette size={16} />,
-  TECHNICAL: <Code2 size={16} />,
-  MANAGEMENT: <Users size={16} />,
-};
 
 /* Shared field transition config */
 const FIELD_TRANSITION = {
@@ -61,7 +48,7 @@ export default function LoginPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.sections?.length) {
-          setSections(data.sections.map((s: any) => ({
+          setSections(data.sections.map((s: DynamicSection) => ({
             key: s.key,
             label: s.label,
             color: s.color,
@@ -125,7 +112,7 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Image src="/logo.webp" alt="Catarina Logo" width={100} height={100} className="h-25 w-25 mx-auto object-contain mb-4" />
+          <Image src="/icons/logo.webp" alt="Catarina Logo" width={120} height={120} className="w-[80px] min-w-[80px] sm:w-[120px] sm:min-w-[120px] h-[80px] sm:h-[120px] mx-auto object-contain mb-4 drop-shadow-lg" />
           <h1 className="text-3xl font-black text-text tracking-tight">Catarina</h1>
           <p className="text-text-muted mt-1">Devora Team Planner</p>
         </motion.div>
@@ -285,172 +272,6 @@ export default function LoginPage() {
           </motion.div>
         </motion.div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Custom Section Dropdown ─────────────────────────────────────────────── */
-function SectionDropdown({
-  value,
-  onChange,
-  sections,
-}: {
-  value: string;
-  onChange: (section: string) => void;
-  sections: DynamicSection[];
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const ref = useRef<HTMLDivElement>(null);
-  const listboxRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  /* Close on outside click */
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
-
-  /* Keyboard navigation */
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen) {
-      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openMenu();
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = prev < sections.length - 1 ? prev + 1 : 0;
-          return next;
-        });
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = prev > 0 ? prev - 1 : sections.length - 1;
-          return next;
-        });
-        break;
-      case "Enter":
-      case " ":
-        e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < sections.length) {
-          onChange(sections[focusedIndex].key);
-          setIsOpen(false);
-        }
-        break;
-      case "Escape":
-        e.preventDefault();
-        setIsOpen(false);
-        triggerRef.current?.focus();
-        break;
-      case "Tab":
-        setIsOpen(false);
-        break;
-    }
-  };
-
-  const openMenu = () => {
-    setIsOpen(true);
-    setFocusedIndex(sections.findIndex((s) => s.key === value));
-  };
-
-  const currentSection = sections.find((s) => s.key === value) || sections[0];
-  const color = currentSection.color;
-
-  return (
-    <div ref={ref} className="relative">
-      <label htmlFor="login-section" className="block text-sm font-medium text-text-muted mb-1.5">
-        Team Section
-      </label>
-      {/* Trigger */}
-      <button
-        id="login-section"
-        ref={triggerRef}
-        type="button"
-        onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
-        onKeyDown={handleKeyDown}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text flex items-center gap-3 focus:outline-none focus:border-accent transition-colors"
-      >
-        <span
-          className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
-          style={{ backgroundColor: `${color}20`, color }}
-        >
-          {SECTION_ICONS[value]}
-        </span>
-        <span className="flex-1 text-left font-medium">
-          {currentSection.label}
-        </span>
-        <ChevronDown
-          size={16}
-          className={`text-text-muted transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
-          aria-hidden="true"
-        />
-      </button>
-
-      {/* Dropdown — absolute so it pushes page height, no clipping */}
-      {isOpen && (
-        <motion.div
-          ref={listboxRef}
-          role="listbox"
-          aria-label="Team sections"
-          initial={{ opacity: 0, y: -8, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -8, scale: 0.96 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute left-0 right-0 mt-2 rounded-xl bg-surface border border-border shadow-[0_12px_40px_rgba(0,0,0,0.4)] overflow-hidden"
-          style={{ zIndex: 50 }}
-        >
-          {sections.map((s, index) => {
-            const c = s.color;
-            const isSelected = s.key === value;
-            const isFocused = index === focusedIndex;
-            return (
-              <button
-                key={s.key}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => {
-                  onChange(s.key);
-                  setIsOpen(false);
-                }}
-                onMouseEnter={() => setFocusedIndex(index)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                  isSelected ? "bg-accent/5" : isFocused ? "bg-surface-2" : "hover:bg-surface-2"
-                }`}
-              >
-                <span
-                  className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
-                  style={{ backgroundColor: `${c}20`, color: c }}
-                >
-                  {SECTION_ICONS[s.key]}
-                </span>
-                <span className="flex-1 text-left font-medium text-text">
-                  {s.label}
-                </span>
-                {isSelected && (
-                  <Check size={16} className="text-accent shrink-0" aria-hidden="true" />
-                )}
-              </button>
-            );
-          })}
-        </motion.div>
-      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@
  * Features: create, edit, delete users; assign sections; edit permissions; PFP upload.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Card from "@/components/ui/Card";
@@ -13,21 +13,16 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import MonthSelector from "@/components/MonthSelector";
 import SectionManager from "@/components/SectionManager";
+import EditUserModal from "@/components/admin/EditUserModal";
+import CreateUserModal from "@/components/admin/CreateUserModal";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import {
   type MemberPermissions,
-  DEFAULT_PERMISSIONS,
   PERMISSION_LABELS,
 } from "@/lib/permissions";
+import { type SectionDataFull } from "@/types";
 import { toast } from "sonner";
-import { User, Pencil, Trash2, Plus, Shield, ShieldOff, Upload, Check, UserCheck, UserX } from "lucide-react";
-
-/** Section data from the API */
-interface SectionData {
-  key: string;
-  label: string;
-  prefix: string;
-  color: string;
-}
+import { User, Pencil, Trash2, Plus, Shield, ShieldOff, UserCheck, UserX } from "lucide-react";
 
 interface UserData {
   id: string;
@@ -46,7 +41,7 @@ export default function AdminPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
-  const [sections, setSections] = useState<SectionData[]>([]);
+  const [sections, setSections] = useState<SectionDataFull[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [monthId, setMonthId] = useState<string | null>(null);
 
@@ -74,6 +69,7 @@ export default function AdminPage() {
         }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount to auto-select latest month
   }, []);
 
   /* Section lookup helpers */
@@ -84,7 +80,7 @@ export default function AdminPage() {
     if (!authLoading && !isAdmin) router.push("/dashboard");
   }, [isAdmin, authLoading, router]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
     try {
       const res = await fetch("/api/admin/users");
@@ -93,9 +89,13 @@ export default function AdminPage() {
     } catch { /* silent */ } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAdmin]);
 
-  useEffect(() => { fetchUsers(); }, [isAdmin]);
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- fetch on admin mount */
+  useEffect(() => {
+    fetchUsers();
+  }, [isAdmin]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   const fetchApprovals = async () => {
     if (!isAdmin) return;
@@ -106,7 +106,33 @@ export default function AdminPage() {
     } catch { /* silent */ }
   };
 
-  useEffect(() => { fetchApprovals(); }, [isAdmin]);
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- fetch on admin mount */
+  useEffect(() => {
+    fetchApprovals();
+  }, [isAdmin]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+
+  /* ─── Realtime Sync — refetch users/approvals when things change ──────────── */
+  const { generation, snapshotRef } = useRealtimeSync({
+    enabled: !!isAdmin,
+  });
+  const usersTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (generation === 0) return;
+    const { goals: deltaGoals, sectionChanged } = snapshotRef.current;
+
+    if (deltaGoals.length > 0) {
+      if (usersTimerRef.current) clearTimeout(usersTimerRef.current);
+      usersTimerRef.current = setTimeout(() => fetchUsers(), 500);
+    }
+
+    if (sectionChanged) {
+      fetch("/api/sections")
+        .then((res) => res.json())
+        .then((data) => setSections(data.sections || []));
+    }
+  }, [generation, snapshotRef, fetchUsers]);
 
   const handleApproval = async (id: string, action: "approve" | "reject") => {
     const res = await fetch("/api/admin/approvals", {
@@ -224,6 +250,7 @@ export default function AdminPage() {
               <div className="flex items-start gap-3 mb-3">
                 <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-border shrink-0">
                   {u.pfp ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={u.pfp} alt={u.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-surface-2">
@@ -317,351 +344,5 @@ export default function AdminPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ─── File Upload Hook ───────────────────────────────────────────────────── */
-function useFileUpload() {
-  const [uploading, setUploading] = useState(false);
-
-  const upload = async (file: File): Promise<string | null> => {
-    setUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "Upload failed, try again");
-        return null;
-      }
-      const data = await res.json();
-      toast.success("Profile picture updated");
-      return data.url;
-    } catch {
-      toast.error("Upload failed, try again");
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return { upload, uploading };
-}
-
-/* ─── PFP Upload Button ──────────────────────────────────────────────────── */
-function PfpUpload({
-  currentPfp,
-  onUpload,
-  uploading,
-}: {
-  currentPfp: string | null;
-  onUpload: (file: File) => void;
-  uploading: boolean;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-border shrink-0">
-        {currentPfp ? (
-          <img src={currentPfp} alt="PFP" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-surface-2">
-            <User size={24} className="text-text-muted" />
-          </div>
-        )}
-      </div>
-      <div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-          }}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => inputRef.current?.click()}
-          isLoading={uploading}
-          className="text-xs"
-        >
-          <Upload size={12} /> Upload Photo
-        </Button>
-        <p className="text-[10px] text-text-muted mt-1">JPG, PNG, GIF, WebP (max 2 MB)</p>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Edit User Modal ────────────────────────────────────────────────────── */
-function EditUserModal({ user, onClose, onSaved, sections }: { user: UserData; onClose: () => void; onSaved: () => void; sections: SectionData[] }) {
-  const { upload, uploading } = useFileUpload();
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [bio, setBio] = useState(user.bio || "");
-  const [pfp, setPfp] = useState(user.pfp || "");
-  const [userSections, setUserSections] = useState<string[]>(user.sections);
-  const [permissions, setPermissions] = useState<MemberPermissions>(user.permissions);
-  const [newPassword, setNewPassword] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-
-  const toggleSection = (s: string) => setUserSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
-  const togglePerm = (key: keyof MemberPermissions) => setPermissions((p) => ({ ...p, [key]: !p[key] }));
-
-  const handleUpload = async (file: File) => {
-    const url = await upload(file);
-    if (url) setPfp(url);
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const body: Record<string, any> = { name, email, bio, pfp, permissions };
-      if (newPassword && newPassword.length >= 6) {
-        body.newPassword = newPassword;
-      }
-      const res = await fetch(`/api/admin/users/${user.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) { toast.error("Failed to update user"); return; }
-
-      const secRes = await fetch(`/api/admin/users/${user.id}/sections`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections: userSections }),
-      });
-      if (!secRes.ok) { toast.error("Failed to update sections"); return; }
-
-      toast.success("User updated");
-      onSaved();
-    } catch { toast.error("Something went wrong"); } finally { setIsSaving(false); }
-  };
-
-  return (
-    <Modal isOpen onClose={onClose} title={`Edit ${user.name}`}>
-      <div className="space-y-4">
-        {/* PFP Upload */}
-        <PfpUpload currentPfp={pfp} onUpload={handleUpload} uploading={uploading} />
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Bio</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={2}
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
-            placeholder="Short bio..." />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Reset Password <span className="normal-case font-normal opacity-60">(leave blank to keep current)</span></label>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={6} placeholder="New password (min 6 chars)"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
-        </div>
-
-        {/* Sections */}
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Sections</label>
-          <div className="flex flex-wrap gap-2">
-            {sections.map((s) => {
-              const c = s.color;
-              const on = userSections.includes(s.key);
-              return (
-                <button key={s.key} type="button" onClick={() => toggleSection(s.key)}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
-                  style={{ backgroundColor: on ? `${c}20` : "transparent", color: on ? c : "var(--text-muted)", borderColor: on ? `${c}50` : "var(--border)" }}>
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Permissions */}
-        {user.role === "MEMBER" && (
-          <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Permissions</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(PERMISSION_LABELS) as (keyof MemberPermissions)[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => togglePerm(key)}
-                  className={`flex items-center gap-2 text-xs p-2.5 rounded-lg border transition-all ${
-                    permissions[key] ? "bg-accent/5 border-accent/30" : "border-border/60"
-                  }`}
-                >
-                  <div
-                    className={`h-4 w-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-all shrink-0 ${
-                      permissions[key]
-                        ? "border-transparent bg-accent"
-                        : "border-text-muted/30"
-                    }`}
-                  >
-                    {permissions[key] && <Check size={10} strokeWidth={3} className="text-bg" />}
-                  </div>
-                  <span className={permissions[key] ? "text-accent font-semibold" : "text-text-muted"}>
-                    {PERMISSION_LABELS[key]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 pt-2 border-t border-border/30">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} isLoading={isSaving}>Save Changes</Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* ─── Create User Modal ──────────────────────────────────────────────────── */
-function CreateUserModal({ onClose, onSaved, sections }: { onClose: () => void; onSaved: () => void; sections: SectionData[] }) {
-  const { upload, uploading } = useFileUpload();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("MEMBER");
-  const [pfp, setPfp] = useState("");
-  const [bio, setBio] = useState("");
-  const [selectedSections, setSelectedSections] = useState<string[]>([]);
-  const [permissions, setPermissions] = useState<MemberPermissions>(DEFAULT_PERMISSIONS);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const toggleSection = (s: string) => setSelectedSections((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
-  const togglePerm = (key: keyof MemberPermissions) => setPermissions((p) => ({ ...p, [key]: !p[key] }));
-
-  const handleUpload = async (file: File) => {
-    const url = await upload(file);
-    if (url) setPfp(url);
-  };
-
-  const handleCreate = async () => {
-    if (!name || !email || !password) { toast.error("Name, email, and password required"); return; }
-    setIsSaving(true);
-    try {
-      const res = await fetch("/api/admin/users/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role, sections: selectedSections, pfp, bio, permissions }),
-      });
-      if (res.ok) { toast.success("User created"); onSaved(); }
-      else { const d = await res.json(); toast.error(d.error || "Failed"); }
-    } catch { toast.error("Something went wrong"); } finally { setIsSaving(false); }
-  };
-
-  return (
-    <Modal isOpen onClose={onClose} title="Create User">
-      <div className="space-y-4">
-        <PfpUpload currentPfp={pfp} onUpload={handleUpload} uploading={uploading} />
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Full Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@devora.com"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} placeholder="Min 6 characters"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all" />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Bio</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={2} placeholder="Short bio..."
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none" />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Role</label>
-          <div className="flex gap-2">
-            {["MEMBER", "ADMIN"].map((r) => (
-              <button key={r} type="button" onClick={() => setRole(r)}
-                className={`text-xs font-bold px-4 py-2 rounded-lg border transition-all ${
-                  role === r ? "bg-accent/15 text-accent border-accent/40" : "text-text-muted border-border/60 hover:border-accent/30"
-                }`}>{r}</button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Sections</label>
-          <div className="flex flex-wrap gap-2">
-            {sections.map((s) => {
-              const c = s.color; const on = selectedSections.includes(s.key);
-              return (
-                <button key={s.key} type="button" onClick={() => toggleSection(s.key)}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
-                  style={{ backgroundColor: on ? `${c}20` : "transparent", color: on ? c : "var(--text-muted)", borderColor: on ? `${c}50` : "var(--border)" }}>
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {role === "MEMBER" && (
-          <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Permissions</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(PERMISSION_LABELS) as (keyof MemberPermissions)[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => togglePerm(key)}
-                  className={`flex items-center gap-2 text-xs p-2.5 rounded-lg border transition-all ${
-                    permissions[key] ? "bg-accent/5 border-accent/30" : "border-border/60"
-                  }`}
-                >
-                  <div
-                    className={`h-4 w-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-all shrink-0 ${
-                      permissions[key]
-                        ? "border-transparent bg-accent"
-                        : "border-text-muted/30"
-                    }`}
-                  >
-                    {permissions[key] && <Check size={10} strokeWidth={3} className="text-bg" />}
-                  </div>
-                  <span className={permissions[key] ? "text-accent font-semibold" : "text-text-muted"}>
-                    {PERMISSION_LABELS[key]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 pt-2 border-t border-border/30">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleCreate} isLoading={isSaving}>Create User</Button>
-        </div>
-      </div>
-    </Modal>
   );
 }

@@ -61,6 +61,7 @@ const TYPE_ICON: Record<string, typeof Bell> = {
   MONTH_CREATED: CalendarPlus,
   GOALS_CARRIED_OVER: ArrowRightLeft,
   ROLE_CHANGED: Shield,
+  VERSION_UPDATE: Info,
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -80,6 +81,7 @@ const TYPE_COLOR: Record<string, string> = {
   GOALS_CARRIED_OVER: "text-warning",
   ROLE_CHANGED: "text-art",
   SIGNUP_REJECTED: "text-danger",
+  VERSION_UPDATE: "text-accent",
 };
 
 /**
@@ -96,6 +98,7 @@ const TYPE_IMAGE: Record<string, string> = {
   SIGNUP_REJECTED:       "/rina/cry.webp",
   MEMBER_LEFT_SECTION:   "/rina/cry.webp",
   MEMBER_DELETED:        "/rina/bye.webp",
+  VERSION_UPDATE:        "/rina/update.webp",
 };
 
 /** Types that skip the inline image and instead open the big celebration modal */
@@ -107,11 +110,12 @@ const CELEBRATION_TYPES = new Set(["MONTH_CREATED", "GOALS_CARRIED_OVER"]);
  * excited / cry / happy / thumb / sleeping → head-only sticker, roughly square
  */
 const IMAGE_SIZES: Record<string, { width: number; height: number; className: string }> = {
-  "/rina/bye.webp":     { width: 72, height: 88,  className: "rounded-xl object-contain" },
-  "/rina/excited.webp": { width: 48, height: 48,  className: "rounded-xl" },
-  "/rina/cry.webp":     { width: 48, height: 48,  className: "rounded-xl" },
-  "/rina/thumb.webp":   { width: 48, height: 48,  className: "rounded-xl" },
-  "/rina/happy.webp":   { width: 48, height: 48,  className: "rounded-xl" },
+  "/rina/bye.webp":     { width: 128, height: 156,  className: "w-[100px] sm:w-[128px] min-w-[100px] sm:min-w-[128px] h-auto rounded-xl object-contain drop-shadow-sm" },
+  "/rina/excited.webp": { width: 100, height: 100,  className: "w-[80px] sm:w-[100px] min-w-[80px] sm:min-w-[100px] h-[80px] sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/cry.webp":     { width: 100, height: 100,  className: "w-[80px] sm:w-[100px] min-w-[80px] sm:min-w-[100px] h-[80px] sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/thumb.webp":   { width: 100, height: 100,  className: "w-[80px] sm:w-[100px] min-w-[80px] sm:min-w-[100px] h-[80px] sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/happy.webp":   { width: 100, height: 100,  className: "w-[80px] sm:w-[100px] min-w-[80px] sm:min-w-[100px] h-[80px] sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/update.webp":  { width: 100, height: 100,  className: "w-[80px] sm:w-[100px] min-w-[80px] sm:min-w-[100px] h-[80px] sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
 };
 
 function timeAgo(dateStr: string): string {
@@ -159,9 +163,9 @@ export function AudioPlayer({ src }: { src: string }) {
     <span className="inline-flex flex-col gap-0.5 mt-2">
       <button
         onClick={toggle}
-        className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all"
+        className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all"
       >
-        {error ? <AlertTriangle size={10} /> : playing ? <Pause size={10} /> : <Play size={10} />}
+        {error ? <AlertTriangle size={14} /> : playing ? <Pause size={14} /> : <Play size={14} />}
         {error ? "Error" : playing ? "Pause" : "Play"}
       </button>
       <audio
@@ -204,6 +208,7 @@ export default function NotificationPanel({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch notifications on panel open
       fetchNotifications();
     }
   }, [isOpen, fetchNotifications]);
@@ -263,25 +268,25 @@ export default function NotificationPanel({
 
   return (
     <>
-    <Modal isOpen={isOpen} onClose={onClose} title="Notifications" maxWidth="max-w-md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Notifications" maxWidth="max-w-xl sm:max-w-2xl">
       {/* Actions bar */}
       {notifications.length > 0 && (
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-3 mb-4">
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:text-accent-2 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-accent hover:text-accent-2 transition-colors"
             >
-              <CheckCheck size={12} />
+              <CheckCheck size={16} />
               Mark all read
             </button>
           )}
           {notifications.some((n) => n.read) && (
             <button
               onClick={clearRead}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-danger transition-colors ms-auto"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-text-muted hover:text-danger transition-colors ms-auto"
             >
-              <Trash2 size={11} />
+              <Trash2 size={14} />
               Clear read
             </button>
           )}
@@ -290,16 +295,16 @@ export default function NotificationPanel({
 
       {/* Notification list */}
       {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        <div className="flex items-center justify-center py-12">
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : notifications.length === 0 ? (
-        <div className="text-center py-10 text-text-muted">
-          <Image src="/rina/sleeping.webp" alt="Catarina sleeping" width={96} height={96} className="mx-auto mb-3 rounded-2xl" />
-          <p className="text-sm font-medium">No notifications yet</p>
+        <div className="text-center py-12 text-text-muted">
+          <Image src="/rina/sleeping.webp" alt="Catarina sleeping" width={160} height={160} className="w-32 sm:w-40 h-auto mx-auto mb-4 drop-shadow-sm rounded-2xl" />
+          <p className="text-base sm:text-lg font-semibold">No notifications yet</p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {notifications.map((n) => {
             const Icon = TYPE_ICON[n.type] || Bell;
             const iconColor = TYPE_COLOR[n.type] || "text-text-muted";
@@ -315,7 +320,7 @@ export default function NotificationPanel({
                   setCelebrationOpen(true);
                   if (!n.read) markRead(n.id);
                 } : undefined}
-                className={`flex items-start gap-3 p-2.5 rounded-lg transition-colors group/n ${
+                className={`flex items-start gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl transition-colors group/n ${
                   n.read ? "opacity-60" : "bg-surface-2/40"
                 } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""} ${
                   isCelebration ? "cursor-pointer hover:bg-surface-2/60 ring-1 ring-amber-500/20" : ""
@@ -328,7 +333,7 @@ export default function NotificationPanel({
                 } ${!imageSrc && !isCelebration ? iconColor : ""}`}>
                   {isCelebration ? (
                     /* Celebration types show a sparkle emoji badge instead of an image inline */
-                    <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-400/10 text-xl select-none">
+                    <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-amber-400/10 text-2xl select-none">
                       🎉
                     </span>
                   ) : imageSrc ? (
@@ -338,51 +343,50 @@ export default function NotificationPanel({
                       width={imgSize!.width}
                       height={imgSize!.height}
                       className={imgSize!.className}
-                      style={{ width: imgSize!.width, height: "auto" }}
                     />
                   ) : (
-                    <Icon size={15} />
+                    <Icon size={20} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className={`text-xs font-semibold truncate ${n.read ? "text-text-muted" : "text-text"}`}>
+                    <p className={`text-sm sm:text-base font-bold ${n.read ? "text-text-muted" : "text-text"}`}>
                       {n.title}
                     </p>
-                    {n.pinned && <Pin size={10} className="text-accent shrink-0" />}
+                    {n.pinned && <Pin size={14} className="text-accent shrink-0" />}
                   </div>
-                  <p className="text-[11px] text-text-muted mt-0.5 leading-relaxed line-clamp-2">
+                  <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3">
                     {n.message}
                   </p>
                   {n.refType === "audio" && n.refId && (
                     <AudioPlayer src={n.refId} />
                   )}
-                  <p className="text-[10px] text-text-muted/60 mt-1">{timeAgo(n.createdAt)}</p>
+                  <p className="text-xs font-medium text-text-muted/70 mt-1.5">{timeAgo(n.createdAt)}</p>
                 </div>
                 {/* Actions */}
-                <div className="flex items-center gap-0.5 opacity-0 group-hover/n:opacity-100 transition-opacity shrink-0">
+                <div className="flex items-center gap-1 opacity-0 group-hover/n:opacity-100 transition-opacity shrink-0">
                   {!n.read && (
                     <button
                       onClick={() => markRead(n.id)}
-                      className="p-1 rounded text-text-muted hover:text-accent transition-colors"
+                      className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
                       title="Mark as read"
                     >
-                      <Check size={12} />
+                      <Check size={16} />
                     </button>
                   )}
                   <button
                     onClick={() => togglePin(n.id, n.pinned)}
-                    className="p-1 rounded text-text-muted hover:text-accent transition-colors"
+                    className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
                     title={n.pinned ? "Unpin" : "Pin"}
                   >
-                    {n.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+                    {n.pinned ? <PinOff size={16} /> : <Pin size={16} />}
                   </button>
                   <button
                     onClick={() => deleteNotification(n.id)}
-                    className="p-1 rounded text-text-muted hover:text-danger transition-colors"
+                    className="p-1.5 rounded-lg text-text-muted hover:text-danger transition-colors"
                     title="Delete"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>

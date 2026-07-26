@@ -18,11 +18,11 @@ export default function Footer() {
           {/* Left: Logo + Branding */}
           <div className="flex items-center gap-2.5">
             <Image
-              src="/logo.webp"
+              src="/icons/logo.webp"
               alt="Catarina"
-              width={24}
-              height={24}
-              className="h-6 w-6 rounded-lg object-contain"
+              width={40}
+              height={40}
+              className="w-8 h-8 sm:w-10 sm:h-10 min-w-8 sm:min-w-10 rounded-lg object-contain"
             />
             <span className="text-sm font-bold text-text tracking-tight">
               Catarina
@@ -31,7 +31,7 @@ export default function Footer() {
               &copy; {year} Devora
             </span>
             <span className="text-[10px] font-bold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded-md font-mono">
-              v0.2.0
+              v0.4.0
             </span>
           </div>
 

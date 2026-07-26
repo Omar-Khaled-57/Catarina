@@ -16,7 +16,7 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   const { id } = await params;
-  const { name, description, current, target, deadline, monthId } = await req.json();
+  const { name, description, current, target, deadline } = await req.json();
 
   /* Fetch the existing goal to check permissions */
   const existing = await prisma.goal.findUnique({ where: { id } }) as {

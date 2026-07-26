@@ -12,13 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WelcomeModal from "@/components/WelcomeModal";
+import UpdateModal from "@/components/UpdateModal";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, updateData, markUpdateSeen } = useAuth();
   const router = useRouter();
 
   /* Redirect to login if not authenticated */
@@ -46,6 +47,15 @@ export default function DashboardLayout({
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <WelcomeModal />
+      {updateData?.hasUpdate && updateData.updateVersion && updateData.updateType && updateData.updateTitle && updateData.updateEntries && (
+        <UpdateModal
+          version={updateData.updateVersion}
+          type={updateData.updateType}
+          title={updateData.updateTitle}
+          entries={updateData.updateEntries}
+          onDismiss={markUpdateSeen}
+        />
+      )}
       <main id="main-content" className="flex-1 px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
         {children}
       </main>

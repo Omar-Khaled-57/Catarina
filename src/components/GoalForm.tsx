@@ -9,7 +9,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Check, ChevronDown, ChevronUp, Loader2, Search, Shield, ShieldCheck, UserPlus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Loader2, Search, UserPlus } from "lucide-react";
 
 export interface GoalAssignmentData {
   userId: string;
@@ -68,7 +68,7 @@ export default function GoalForm({
   section,
   goalId,
 }: GoalFormProps) {
-  const { user } = useAuth();
+  useAuth();
   const prefix = SECTION_PREFIX[section] || section.slice(0, 3).toUpperCase();
 
   const [name, setName] = useState("");
@@ -88,6 +88,7 @@ export default function GoalForm({
   const [assignments, setAssignments] = useState<GoalAssignmentData[]>([]);
   const [showAssignments, setShowAssignments] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- reset form fields when modal opens */
   useEffect(() => {
     if (!isOpen) return;
 
@@ -110,6 +111,7 @@ export default function GoalForm({
     setShowAssignments(false);
     setUserSearch("");
   }, [isOpen, initialData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!isOpen) return;
@@ -119,6 +121,7 @@ export default function GoalForm({
       .catch(() => {});
   }, [isOpen]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- fetch users when assignments panel opens */
   useEffect(() => {
     if (!isOpen || !showAssignments) return;
     setLoadingUsers(true);
@@ -128,6 +131,7 @@ export default function GoalForm({
       .catch(() => setUsers([]))
       .finally(() => setLoadingUsers(false));
   }, [isOpen, showAssignments, section]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -368,6 +372,7 @@ export default function GoalForm({
 
                         <div className="h-6 w-6 rounded-full overflow-hidden border border-border shrink-0">
                           {u.pfp ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={u.pfp} alt={u.name} className="h-full w-full object-cover" />
                           ) : (
                             <div className="h-full w-full bg-surface-2 flex items-center justify-center text-[9px] font-bold text-text-muted">

@@ -14,17 +14,19 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const unreadOnly = searchParams.get("unread") === "true";
+  const since = searchParams.get("since");
 
   const notifications = await prisma.notification.findMany({
     where: {
       userId: payload.userId,
       ...(unreadOnly ? { read: false } : {}),
+      ...(since ? { createdAt: { gt: new Date(since) } } : {}),
     },
     orderBy: [
       { pinned: "desc" },
       { createdAt: "desc" },
     ],
-    take: 100,
+    take: since ? 50 : 100,
   }) as Array<{
     id: string;
     userId: string;

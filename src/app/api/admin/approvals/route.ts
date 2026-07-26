@@ -6,7 +6,7 @@ import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { notify, notifyAdmins } from "@/lib/notify";
 import { getDefaultPfp } from "@/lib/utils";
-import bcrypt from "bcryptjs";
+
 
 export async function GET() {
   const payload = await verifyToken();

@@ -6,7 +6,7 @@
  * Includes section completion bar chart for at-a-glance performance.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Image from "next/image";
 import SectionCard from "@/components/SectionCard";
 import SectionChart from "@/components/SectionChart";
@@ -14,33 +14,14 @@ import MonthSelector from "@/components/MonthSelector";
 import CountUp from "@/components/ui/CountUp";
 import InView from "@/components/ui/InView";
 import { useAuth } from "@/contexts/AuthContext";
-import { calcSectionStats } from "@/lib/utils";
-import { LayoutList, Target, CheckCircle2, Clock, TrendingUp } from "lucide-react";
-
-/** Section data from the API */
-interface SectionData {
-  key: string;
-  label: string;
-  color: string;
-}
-
-/** Goal data structure from the API */
-interface Goal {
-  id: string;
-  name: string;
-  description: string;
-  current: number;
-  target: number;
-  done: boolean;
-  deadline: string;
-  carriedOver: boolean;
-  section: string;
-}
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { type SectionData, type DashboardGoal } from "@/types";
+import { Target, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
   const [monthId, setMonthId] = useState<string | null>(null);
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goals, setGoals] = useState<DashboardGoal[]>([]);
   const [sections, setSections] = useState<SectionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -87,9 +68,45 @@ export default function DashboardPage() {
     fetchGoals(mId);
   };
 
+  /* ─── Realtime Sync ──────────────────────────────────────────────────────── */
+  const { generation, snapshotRef } = useRealtimeSync({
+    monthId: monthId || undefined,
+    enabled: !!monthId,
+  });
+  const [changedSections, setChangedSections] = useState<Set<string>>(new Set());
+  const clearPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* Merge delta goals + track section pulse */
+  useEffect(() => {
+    if (generation === 0) return;
+    const { goals: deltaGoals, sectionChanged } = snapshotRef.current;
+
+    if (deltaGoals.length > 0) {
+      setGoals((prev) => {
+        const deltaIds = new Set(deltaGoals.map((g) => g.id));
+        const hasExisting = prev.some((g) => deltaIds.has(g.id));
+        if (!hasExisting) return [...prev, ...deltaGoals];
+        return prev.map((g) =>
+          deltaIds.has(g.id) ? deltaGoals.find((d) => d.id === g.id)! : g
+        );
+      });
+
+      const affected = new Set(deltaGoals.map((g) => g.section));
+      setChangedSections(affected);
+      if (clearPulseTimerRef.current) clearTimeout(clearPulseTimerRef.current);
+      clearPulseTimerRef.current = setTimeout(() => setChangedSections(new Set()), 3000);
+    }
+
+    if (sectionChanged) {
+      fetch("/api/sections")
+        .then((res) => res.json())
+        .then((data) => setSections(data.sections || []));
+    }
+  }, [generation, snapshotRef]);
+
   /* Group goals by section */
   const goalsBySection = useMemo(() => {
-    const acc: Record<string, Goal[]> = {};
+    const acc: Record<string, DashboardGoal[]> = {};
     for (const s of sections) {
       acc[s.key] = goals.filter((g) => g.section === s.key);
     }
@@ -119,7 +136,7 @@ export default function DashboardPage() {
         </div>
       ) : goals.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Image src="/rina/think.webp" alt="Catarina thinking" width={120} height={120} className="mb-4 rounded-2xl" />
+          <Image src="/rina/think.webp" alt="Catarina thinking" width={160} height={160} className="w-24 sm:w-40 h-auto mb-6 drop-shadow-sm rounded-2xl" />
           <h3 className="text-lg font-bold text-text">No Goals Yet</h3>
           <p className="mt-1 text-sm text-text-muted max-w-sm">
             No goals have been created for this month yet. Create a new month or
@@ -208,6 +225,7 @@ export default function DashboardPage() {
                   }
                   color={section.color}
                   label={section.label}
+                  hasNewActivity={changedSections.has(section.key)}
                 />
               </InView>
             ))}

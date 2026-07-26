@@ -5,290 +5,24 @@
  * and colorful notes area. Replaces the old table row.
  */
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { type GoalData } from "@/components/GoalRow";
-import { deadlineStatus, formatDateShort, calcPercentage, getDefaultPfp } from "@/lib/utils";
+import { useState } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { type GoalData } from "@/types";
+import EditableProgress from "@/components/EditableProgress";
+import StepsChecklist from "@/components/StepsChecklist";
+import { deadlineStatus, formatDateShort, getDefaultPfp } from "@/lib/utils";
 import {
   Check,
   Pencil,
   Trash2,
   MessageSquare,
-  Plus,
-  GripVertical,
-  ListChecks,
-  ChevronDown,
-  ChevronRight,
   Calendar,
-  ArrowUpRight,
 } from "lucide-react";
 
 /* ─── Section Prefix Map (fallback) ────────────────────────────────────────── */
 function getSectionPrefix(section: string, prefixMap?: Record<string, string>): string {
   if (prefixMap?.[section]) return prefixMap[section];
   return section.slice(0, 3).toUpperCase();
-}
-function EditableProgress({
-  current,
-  target,
-  color,
-  canEdit,
-  onSave,
-}: {
-  current: number;
-  target: number;
-  color: string;
-  canEdit: boolean;
-  onSave: (current: number, target: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draftCurrent, setDraftCurrent] = useState(String(current));
-  const [draftTarget, setDraftTarget] = useState(String(target));
-  const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing) ref.current?.focus();
-  }, [editing]);
-
-  const save = () => {
-    const c = Math.max(0, parseInt(draftCurrent) || 0);
-    const t = Math.max(1, parseInt(draftTarget) || 1);
-    if (c !== current || t !== target) onSave(c, t);
-    setEditing(false);
-  };
-
-  const percentage = calcPercentage(current, target);
-
-  if (!canEdit) {
-    return (
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
-          <motion.div
-            className="h-full rounded-full"
-            animate={{ width: `${percentage}%` }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            style={{ backgroundColor: color }}
-          />
-        </div>
-        <span className="text-xs text-text-muted whitespace-nowrap">{current}/{target}</span>
-      </div>
-    );
-  }
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <input
-          ref={ref}
-          type="number"
-          min={0}
-          value={draftCurrent}
-          onChange={(e) => setDraftCurrent(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-          className="w-14 text-center text-sm font-bold rounded-lg bg-surface-2 border border-accent px-2 py-1 text-text focus:outline-none"
-        />
-        <span className="text-xs text-text-muted">/</span>
-        <input
-          type="number"
-          min={1}
-          value={draftTarget}
-          onChange={(e) => setDraftTarget(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-          className="w-14 text-center text-sm rounded-lg bg-surface-2 border border-accent px-2 py-1 text-text focus:outline-none"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => { setDraftCurrent(String(current)); setDraftTarget(String(target)); setEditing(true); }}
-      className="group/prog flex items-center gap-3 cursor-pointer"
-    >
-      <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
-        <motion.div
-          className="h-full rounded-full"
-          animate={{ width: `${percentage}%` }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          style={{ backgroundColor: color }}
-        />
-      </div>
-      <span className="text-xs text-text-muted whitespace-nowrap group-hover/prog:text-text transition-colors">
-        {current}/{target}
-        <ArrowUpRight size={10} className="inline ml-0.5 opacity-0 group-hover/prog:opacity-100 transition-opacity" />
-      </span>
-    </button>
-  );
-}
-
-/* ─── Steps Checklist ────────────────────────────────────────────────────── */
-function StepsChecklist({
-  goalId,
-  steps,
-  color,
-  canToggle,
-  onStepsChange,
-  onAllDone,
-}: {
-  goalId: string;
-  steps: GoalData["steps"];
-  color: string;
-  canToggle: boolean;
-  onStepsChange: (steps: GoalData["steps"]) => void;
-  onAllDone: () => void;
-}) {
-  const [isOpen, setIsOpen] = useState(steps.length > 0);
-  const [newText, setNewText] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isAdding) inputRef.current?.focus();
-  }, [isAdding]);
-
-  const doneCount = steps.filter((s) => s.done).length;
-
-  const toggleStep = async (stepId: string, done: boolean) => {
-    const updated = steps.map((s) => (s.id === stepId ? { ...s, done: !done } : s));
-    onStepsChange(updated);
-    await fetch(`/api/steps/${stepId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done: !done }),
-    });
-    /* Auto-complete goal if all steps are now done */
-    if (updated.length > 0 && updated.every((s) => s.done)) {
-      onAllDone();
-    }
-  };
-
-  const addStep = async () => {
-    if (!newText.trim()) return;
-    const res = await fetch(`/api/goals/${goalId}/steps`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: newText.trim(), order: steps.length }),
-    });
-    const { step } = await res.json();
-    onStepsChange([...steps, step]);
-    setNewText("");
-    setIsAdding(false);
-  };
-
-  const deleteStep = async (stepId: string) => {
-    onStepsChange(steps.filter((s) => s.id !== stepId));
-    await fetch(`/api/steps/${stepId}`, { method: "DELETE" });
-  };
-
-  return (
-    <div className="mt-3">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-xs font-semibold text-text-muted hover:text-text transition-colors mb-2"
-      >
-        {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        <ListChecks size={13} />
-        <span>Steps</span>
-        {steps.length > 0 && (
-          <span
-            className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-            style={{ backgroundColor: `${color}15`, color }}
-          >
-            {doneCount}/{steps.length}
-          </span>
-        )}
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-1 pl-1">
-              {steps.map((step) => (
-                <div
-                  key={step.id}
-                  className="flex items-center gap-2 group/step rounded-lg px-2 py-1.5 hover:bg-surface-2/50 transition-colors"
-                >
-                  {canToggle ? (
-                    <button
-                      onClick={() => toggleStep(step.id, step.done)}
-                      className="shrink-0"
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-md border-2 flex items-center justify-center transition-all ${
-                          step.done
-                            ? "border-transparent"
-                            : "border-text-muted/30 hover:border-accent"
-                        }`}
-                        style={step.done ? { backgroundColor: color, borderColor: color } : {}}
-                      >
-                        {step.done && <Check size={10} strokeWidth={3} className="text-bg" />}
-                      </div>
-                    </button>
-                  ) : (
-                    <div
-                      className={`h-4 w-4 rounded-md border-2 flex items-center justify-center ${
-                        step.done ? "" : "border-text-muted/30"
-                      }`}
-                      style={step.done ? { backgroundColor: color, borderColor: color } : {}}
-                    >
-                      {step.done && <Check size={10} strokeWidth={3} className="text-bg" />}
-                    </div>
-                  )}
-                  <span
-                    className={`text-xs flex-1 ${
-                      step.done ? "line-through text-text-muted" : "text-text"
-                    }`}
-                  >
-                    {step.text}
-                  </span>
-                  {canToggle && (
-                    <button
-                      onClick={() => deleteStep(step.id)}
-                      className="opacity-0 group-hover/step:opacity-100 text-text-muted hover:text-danger transition-all text-[10px]"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              {isAdding ? (
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <div className="h-4 w-4 rounded-md border-2 border-text-muted/30 shrink-0" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={newText}
-                    onChange={(e) => setNewText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addStep(); if (e.key === "Escape") { setIsAdding(false); setNewText(""); } }}
-                    onBlur={() => { if (!newText.trim()) setIsAdding(false); }}
-                    placeholder="Step description..."
-                    className="flex-1 text-xs bg-transparent border-b border-accent/50 text-text placeholder:text-text-muted/40 focus:outline-none py-0.5"
-                  />
-                </div>
-              ) : canToggle ? (
-                <button
-                  onClick={() => setIsAdding(true)}
-                  className="flex items-center gap-2 text-[11px] text-text-muted hover:text-text px-2 py-1.5 rounded-lg hover:bg-surface-2/50 transition-colors"
-                >
-                  <Plus size={12} />
-                  Add step
-                </button>
-              ) : null}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
 }
 
 /* ─── GoalCard ───────────────────────────────────────────────────────────── */
@@ -305,6 +39,7 @@ export default function GoalCard({
   onComment,
   onProgressChange,
   onAutoComplete,
+  isNew = false,
 }: {
   goal: GoalData;
   userId: string;
@@ -318,9 +53,11 @@ export default function GoalCard({
   onComment: (goalId: string) => void;
   onProgressChange: (goalId: string, current: number, target: number) => void;
   onAutoComplete: (goalId: string) => void;
+  isNew?: boolean;
 }) {
   const [isPulsing, setIsPulsing] = useState(false);
   const [localSteps, setLocalSteps] = useState(goal.steps);
+  const prefersReducedMotion = useReducedMotion();
   const deadline = deadlineStatus(goal.deadline, goal.done);
 
   /* Permission check */
@@ -355,9 +92,19 @@ export default function GoalCard({
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        boxShadow: isNew && !prefersReducedMotion
+          ? [`0 0 0px ${color}00`, `0 0 24px ${color}35`, `0 0 0px ${color}00`]
+          : `0 0 0px ${color}00`,
+      }}
       exit={{ opacity: 0, scale: 0.95, y: -8 }}
-      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+      transition={
+        isNew && !prefersReducedMotion
+          ? { boxShadow: { duration: 2, ease: "easeOut" }, default: { type: "spring", stiffness: 350, damping: 30 } }
+          : { type: "spring", stiffness: 350, damping: 30 }
+      }
       className={`glass rounded-2xl overflow-hidden transition-all relative ${
         deadline === "overdue" && !goal.done ? "ring-1 ring-danger/30" : ""
       }`}
@@ -408,6 +155,8 @@ export default function GoalCard({
           <button
             onClick={handleToggle}
             disabled={!canToggle}
+            role="checkbox"
+            aria-checked={goal.done}
             aria-label={goal.done ? "Mark as incomplete" : "Mark as done"}
             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
               goal.done
@@ -535,8 +284,10 @@ export default function GoalCard({
                   style={{ borderColor: `${color}40` }}
                 >
                   {a.pfp ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={a.pfp} alt={a.name} className="h-full w-full object-cover" />
                   ) : getDefaultPfp(goal.section) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={getDefaultPfp(goal.section)!} alt={a.name} className="h-full w-full object-cover" />
                   ) : (
                     <div

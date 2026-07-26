@@ -49,7 +49,7 @@ export default function NotFound() {
           alt="404"
           width={280}
           height={280}
-          className="mx-auto mb-8 object-contain"
+          className="w-[200px] sm:w-[280px] h-auto mx-auto drop-shadow-xl -mb-6 object-contain"
           priority
         />
         <h1 className="text-4xl font-black text-text mb-3 tracking-tight">

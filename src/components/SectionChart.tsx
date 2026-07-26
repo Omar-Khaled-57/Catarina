@@ -14,21 +14,10 @@
 import { useEffect, useRef, useState } from "react";
 import { calcSectionStats } from "@/lib/utils";
 import Card from "@/components/ui/Card";
-
-interface Goal {
-  done: boolean;
-  current: number;
-  target: number;
-}
-
-interface SectionData {
-  key: string;
-  label: string;
-  color: string;
-}
+import { type SectionData, type DashboardGoal, FALLBACK_SECTIONS } from "@/types";
 
 interface SectionChartProps {
-  data: Record<string, Goal[]>;
+  data: Record<string, Pick<DashboardGoal, "done" | "current" | "target">[]>;
   sections?: SectionData[];
 }
 
@@ -53,14 +42,7 @@ const pts = (coords: [number, number][]) =>
 const swingOut = (t: number) => 1 - Math.cos((t * Math.PI) / 2);
 
 export default function SectionChart({ data, sections: sectionsProp }: SectionChartProps) {
-  /* Fallback section data if not provided */
-  const fallbackSections = [
-    { key: "MARKETING", label: "Marketing", color: "#FF4D6A" },
-    { key: "ART", label: "Art", color: "#7C3AED" },
-    { key: "TECHNICAL", label: "Technical", color: "#3B82F6" },
-    { key: "MANAGEMENT", label: "Management", color: "#F59E0B" },
-  ];
-  const sectionDefs = sectionsProp || fallbackSections;
+  const sectionDefs = sectionsProp || FALLBACK_SECTIONS;
 
   const sections = sectionDefs.map((s) => {
     const stats = calcSectionStats(data[s.key] || []);
@@ -89,6 +71,28 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
+
+    function runBarAnimation() {
+      const from = fromPctsRef.current;
+      const to = targetPcts;
+
+      setTimeout(() => {
+        const startTime = performance.now();
+        const tick = (now: number) => {
+          const t = Math.min((now - startTime) / DURATION, 1);
+          setAnimPcts(to.map((v, i) => from[i] + (v - from[i]) * swingOut(t)));
+          if (t < 1) {
+            rafRef.current = requestAnimationFrame(tick);
+          } else {
+            fromPctsRef.current = to;
+            setAnimPcts(to);
+          }
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      }, DELAY);
+
+      return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -128,28 +132,6 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [targetPcts.join(",")]);
-
-  function runBarAnimation() {
-    const from = fromPctsRef.current;
-    const to = targetPcts;
-
-    setTimeout(() => {
-      const startTime = performance.now();
-      const tick = (now: number) => {
-        const t = Math.min((now - startTime) / DURATION, 1);
-        setAnimPcts(to.map((v, i) => from[i] + (v - from[i]) * swingOut(t)));
-        if (t < 1) {
-          rafRef.current = requestAnimationFrame(tick);
-        } else {
-          fromPctsRef.current = to;
-          setAnimPcts(to);
-        }
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    }, DELAY);
-
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }
 
   const slotW  = BAR_AREA_W / sections.length;
   const barW   = slotW * 0.52;

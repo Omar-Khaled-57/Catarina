@@ -5,17 +5,19 @@ import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { parsePermissions } from "@/lib/permissions";
-import { notifySection, notifyAdmins, notifyMany } from "@/lib/notify";
+import { notifySection, notifyMany } from "@/lib/notify";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const monthId = searchParams.get("monthId");
   const section = searchParams.get("section");
+  const since = searchParams.get("since");
 
   /* Build filter object */
-  const where: Record<string, string> = {};
+  const where: Record<string, unknown> = {};
   if (monthId) where.monthId = monthId;
   if (section) where.section = section;
+  if (since) where.updatedAt = { gt: new Date(since) };
 
   const goals = await prisma.goal.findMany({
     where,
