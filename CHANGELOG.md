@@ -142,7 +142,7 @@ Integrated 13 pixel-art expression stickers across application states:
 
 ---
 
-## <img src="public/rina/backup/sleepy.png.webp" width="100" align="center" /> [0.1.0] — 2026-07-23 · *Initial Release*
+## <img src="public/rina/backup/sleepy.png" width="100" align="center" /> [0.1.0] — 2026-07-23 · *Initial Release*
 
 > **Release Highlight:** First public release of Catarina — complete private team goal tracking platform backed by Turso DB, Prisma 7, and Next.js 16.
 
