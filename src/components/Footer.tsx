@@ -32,7 +32,7 @@ export default function Footer() {
               &copy; {year} {teamName}
             </span>
             <span className="text-[10px] font-bold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded-md font-mono">
-              v0.4.0
+              v0.4.1
             </span>
           </div>
 
