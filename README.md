@@ -46,10 +46,13 @@ npx turso db tokens create catarina
 Create a `.env` file in the project root:
 
 ```env
+NEXT_PUBLIC_TEAM_NAME=Devora
 DATABASE_URL="libsql://your-db-name-your-org.turso.io"
 TURSO_AUTH_TOKEN="your_turso_auth_token"
 JWT_SECRET="any_random_string_here"
 ```
+
+Set `NEXT_PUBLIC_TEAM_NAME` to your team name — it updates the footer, page titles, and PDF exports automatically.
 
 ### 4. Push Schema & Seed
 
@@ -193,5 +196,7 @@ Private — internal use only.
 
 <div align="center">
   <img src="public/rina/sleeping.webp" width="64" alt="Catarina sleeping" /><br/>
-  <sub>Made with care for <strong>{TEAM_NAME}</strong> · Named for <em>Catarina</em> · © Devora</sub>
+  <sub>Made with care for <strong>Devora</strong> · &copy; Devora</sub>
 </div>
+
+> **Note for clients:** Set `NEXT_PUBLIC_TEAM_NAME` in your `.env` to customize the team name throughout the app (footer, page titles, PDF exports).

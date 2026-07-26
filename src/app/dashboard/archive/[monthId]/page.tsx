@@ -40,6 +40,7 @@ export default function ArchivedMonthPage({
   params: Promise<{ monthId: string }>;
 }) {
   const { monthId } = use(params);
+  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
   const { user, isAdmin } = useAuth();
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [monthInfo, setMonthInfo] = useState<{
@@ -369,10 +370,10 @@ export default function ArchivedMonthPage({
     </svg>
   </div>
 
-  <div class="footer">
-    <div class="footer-brand">CATARINA · by Devora</div>
-    <div class="footer-time">Generated ${new Date().toLocaleString("en-GB")}</div>
-  </div>
+    <div class="footer">
+      <div class="footer-brand">CATARINA · by ${teamName}</div>
+      <div class="footer-time">Generated ${new Date().toLocaleString("en-GB")}</div>
+    </div>
 </body>
 </html>`;
 

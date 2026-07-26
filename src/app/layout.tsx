@@ -19,6 +19,8 @@ const cairo = Cairo({
   display: "swap",
 });
 
+const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://catarina-devora.vercel.app"),
   title: {
@@ -26,9 +28,9 @@ export const metadata: Metadata = {
     template: "%s | Catarina",
   },
   description:
-    "Team planning and progress tracking for Devora.",
+    `Team planning and progress tracking for ${teamName}.`,
   keywords: ["planning", "team", "goals", "devora", "project management"],
-  authors: [{ name: "Devora" }],
+  authors: [{ name: teamName }],
   manifest: "/manifest.json",
   alternates: {
     canonical: "https://catarina-devora.vercel.app",
@@ -39,7 +41,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Catarina",
-    description: "Team planning and progress tracking for Devora.",
+    description: `Team planning and progress tracking for ${teamName}.`,
     url: "https://catarina-devora.vercel.app",
     siteName: "Catarina",
     images: [
@@ -58,7 +60,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Catarina",
-    description: "Team planning and progress tracking for Devora.",
+    description: `Team planning and progress tracking for ${teamName}.`,
     images: ["https://catarina-devora.vercel.app/media/og-image.png"],
     creator: "@omar_khaled",
   },

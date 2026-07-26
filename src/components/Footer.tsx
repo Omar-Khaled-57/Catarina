@@ -10,6 +10,7 @@ import Image from "next/image";
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
 
   return (
     <footer className="border-t border-border bg-surface/50 mt-auto">
@@ -28,7 +29,7 @@ export default function Footer() {
               Catarina
             </span>
             <span className="text-xs text-text-muted">
-              &copy; {year} Devora
+              &copy; {year} {teamName}
             </span>
             <span className="text-[10px] font-bold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded-md font-mono">
               v0.4.0
@@ -53,7 +54,7 @@ export default function Footer() {
 
           {/* Right: Tagline */}
           <p className="text-[11px] text-text-muted/60">
-            Built with care for the Devora team
+            Built with care for {teamName}
           </p>
         </div>
       </div>

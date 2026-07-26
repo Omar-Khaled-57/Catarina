@@ -36,6 +36,7 @@ const CARD_MORPH = {
 };
 
 export default function LoginPage() {
+  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
   const router = useRouter();
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
@@ -114,7 +115,7 @@ export default function LoginPage() {
         >
           <Image src="/icons/logo.webp" alt="Catarina Logo" width={120} height={120} className="w-[80px] min-w-[80px] sm:w-[120px] sm:min-w-[120px] h-[80px] sm:h-[120px] mx-auto object-contain mb-4 drop-shadow-lg" />
           <h1 className="text-3xl font-black text-text tracking-tight">Catarina</h1>
-          <p className="text-text-muted mt-1">Devora Team Planner</p>
+          <p className="text-text-muted mt-1">{teamName} Team Planner</p>
         </motion.div>
 
         {/* Form Card */}
