@@ -14,11 +14,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
-## <img src="public/rina/excited.webp" width="100" align="center" /> [0.4.0] — 2026-07-26 · *Realtime Sync & Live Collaboration*
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.0] — 2026-07-26 · *Realtime Sync & Live Collaboration*
 
 > **Release Highlight:** Minor release introducing low-latency real-time change detection, delta fetching, adaptive smart polling, and optimistic UI mutations. Team changes across goals, sections, and notifications sync seamlessly within 5 seconds without full page refreshes.
 
-### <img src="public/rina/update.webp" width="124" align="center" /> ✦ Real-Time Change Detection Engine
+### <img src="public/rina/update.webp" width="100" align="center" /> ✦ Real-Time Change Detection Engine
 
 - **Lightweight Delta Endpoint (`GET /api/changes`)**:
   - Implemented high-efficiency telemetry endpoint returning `MAX(updatedAt)` timestamps for goals, section configuration versions, and unread notification counts (~3 row reads per check).
@@ -133,7 +133,7 @@ Integrated 13 pixel-art expression stickers across application states:
 
 ## <img src="public/rina/sleeping.webp" width="100" align="center" /> [0.1.5] — 2026-07-23 · *Stability & UX Polish*
 
-### <img src="public/rina/bug-fix.webp" width="80" align="center" /> ✦ Improvements & Fixes
+### <img src="public/rina/bug-fix.webp" width="100" align="center" /> ✦ Improvements & Fixes
 
 - **Pinned Welcome Audio Notification**: Ensured pinned "Why Catarina? 🌸" welcome message with `/media/fun.mp3` audio playback is delivered to all users upon seeding.
 - **Registration PFP Upload**: Added optional profile picture upload during registration flow with automatic section fallback.
@@ -142,7 +142,7 @@ Integrated 13 pixel-art expression stickers across application states:
 
 ---
 
-## <img src="public/rina/sleeping.webp" width="100" align="center" /> [0.1.0] — 2026-07-23 · *Initial Release*
+## <img src="public/rina/backup/sleepy.png.webp" width="100" align="center" /> [0.1.0] — 2026-07-23 · *Initial Release*
 
 > **Release Highlight:** First public release of Catarina — complete private team goal tracking platform backed by Turso DB, Prisma 7, and Next.js 16.
 
