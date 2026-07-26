@@ -94,7 +94,7 @@ const TYPE_IMAGE: Record<string, string> = {
   GOAL_CREATED:         "/rina/edit.webp",
   STEP_ADDED:           "/rina/edit.webp",
   DEADLINE_APPROACHING: "/rina/dealine.webp",
-  DEADLINE_MISSED:     "/rina/deadline.webp",
+  DEADLINE_MISSED:      "/rina/deadline.webp",
   SYSTEM:               "/rina/thumb.webp",
   COMMENT_ADDED:        "/rina/note.webp",
   ROLE_CHANGED:         "/rina/role-changed.webp",
@@ -117,12 +117,17 @@ const CELEBRATION_TYPES = new Set(["MONTH_CREATED", "GOALS_CARRIED_OVER"]);
  * excited / cry / happy / thumb / sleeping → head-only sticker, roughly square
  */
 const IMAGE_SIZES: Record<string, { width: number; height: number; className: string }> = {
-  "/rina/bye.webp":     { width: 128, height: 156,  className: "w-[72px] sm:w-[128px] min-w-[72px] sm:min-w-[128px] h-auto rounded-xl object-contain drop-shadow-sm" },
-  "/rina/excited.webp": { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
-  "/rina/cry.webp":     { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
-  "/rina/thumb.webp":   { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
-  "/rina/happy.webp":   { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
-  "/rina/update.webp":  { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/bye.webp":           { width: 128, height: 156,  className: "w-[72px] sm:w-[128px] min-w-[72px] sm:min-w-[128px] h-auto rounded-xl object-contain drop-shadow-sm" },
+  "/rina/excited.webp":       { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/cry.webp":           { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/thumb.webp":         { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/happy.webp":         { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/update.webp":        { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/edit.webp":          { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/dealine.webp":       { width: 100, height: 100, className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/deadline.webp":      { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/note.webp":          { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
+  "/rina/role-changed.webp": { width: 100, height: 100,  className: "w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain" },
 };
 
 function timeAgo(dateStr: string): string {
