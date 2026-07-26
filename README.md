@@ -1,8 +1,8 @@
 <div align="center">
-  <img src="public/rina/logo.webp" alt="Catarina Logo" width="160" />
-  <h1>Catarina</h1>
-  <p><strong>A private team planning & progress tracking system.</strong></p>
-  <p>
+  <img src="public/media/banner.png" alt="Catarina Hero Banner" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);" />
+</div>
+<br />
+<div>
     <a href="https://catarina-devora.vercel.app"><img src="https://img.shields.io/badge/live-catarina--devora.vercel.app-00E8A2?style=flat-square" alt="Live Demo" /></a>
     <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
@@ -12,15 +12,9 @@
   </p>
 </div>
 
-<br />
-
-<div align="center">
-  <img src="public/media/banner.png" alt="Catarina Hero Banner" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);" />
-</div>
-
 ---
 
-## <img src="public/rina/wave.webp" width="36" align="center" /> What is Catarina?
+## <img src="public/rina/wave.webp" width="100" align="center" /> What is Catarina?
 
 **Catarina** is a private, multi-section team planning and progress tracking application built for agile design, engineering, marketing, and management teams. Each department gets its own dedicated workspace equipped with goal boards, interactive progress counters, sub-item checklists, and inline team discussions. 
 
