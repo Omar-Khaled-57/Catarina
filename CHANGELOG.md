@@ -45,7 +45,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 - **Instant Section Assignment**:
   - Member assignment changes apply instantly on UI before network resolution.
 
-### <img src="public/rina/celebration.webp" width="80" align="center" /> ✦ UX Shimmer & Visual Cues
+### <img src="public/rina/celebration.webp" width="130" align="center" /> ✦ UX Shimmer & Visual Cues
 
 - **`GoalCard` Shimmer Glow**:
   - Incoming external goal changes shimmer with a subtle 2-second Neon Teal (`#00E8A2`) glow animation.
