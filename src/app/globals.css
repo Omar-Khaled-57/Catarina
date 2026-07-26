@@ -135,7 +135,7 @@ nav.glass {
   }
 
   @page {
-    margin: 1.5cm 2cm;
+    margin: 0;
     size: A4 portrait;
   }
 }
@@ -273,6 +273,40 @@ html.dark [data-sonner-toast] [data-title] {
 .in-view-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Dashboard accent strip animation */
+@keyframes dashboard-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.dashboard-gradient-bar {
+  background-size: 220% 100%;
+  animation: dashboard-gradient-shift 7s ease-in-out infinite alternate;
+}
+
+/* Mobile navbar menu */
+@keyframes mobile-menu-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-mobile-menu-item {
+  animation: mobile-menu-item-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
 }
 
 /* ─── Section Pulse Animation ─────────────────────────────────────────────── */

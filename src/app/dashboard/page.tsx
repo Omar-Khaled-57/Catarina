@@ -148,7 +148,7 @@ export default function DashboardPage() {
           {/* ── Global Summary Stats Bar ─────────────────────────────── */}
           <InView>
           <div className="glass rounded-2xl overflow-hidden">
-            <div className="h-1 w-full bg-gradient-to-r from-marketing via-art to-management opacity-60" />
+            <div className="dashboard-gradient-bar h-1 w-full bg-gradient-to-r from-marketing via-art to-management opacity-70" />
             <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 border border-accent/20">

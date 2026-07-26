@@ -195,29 +195,35 @@ export default function ArchivedMonthPage({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    html, body { width: 100%; min-height: 100vh; margin: 0; padding: 0; background-color: ${p.bg} !important; }
-    body { font-family: 'Inter', sans-serif; color: ${p.text}; font-size: 14px; }
-    .page { padding: 32px 40px; width: 100%; box-sizing: border-box; }
-    @page { size: A4 portrait; margin: 0; padding: 0; }
+    html, body { width: 210mm; height: 297mm; margin: 0; padding: 0; background-color: ${p.bg} !important; color: ${p.text} !important; }
+    body { font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.55; }
+    .page { width: 210mm; min-height: 297mm; margin: 0; padding: 18mm 16mm 18mm; box-sizing: border-box; background-color: ${p.bg} !important; }
+    @page { size: 210mm 297mm; margin: 0mm; background: ${p.bg}; }
 
-    .header { background: linear-gradient(135deg, ${p.accent2} 0%, ${p.accent} 100%); padding: 28px 40px; border-radius: 14px; margin-bottom: 28px; }
-    .header-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(6,11,20,0.5); margin-bottom: 6px; }
-    .header-title { font-size: 28px; font-weight: 900; color: #060b14; }
+    @media print {
+      html, body { background-color: ${p.bg} !important; }
+      .page { background-color: ${p.bg} !important; }
+    }
+
+    .header { background: linear-gradient(135deg, ${p.accent2} 0%, ${p.accent} 100%); padding: 30px 26px; border-radius: 14px; margin-bottom: 28px; }
+    .header-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(6,11,20,0.6); margin-bottom: 8px; }
+    .header-title { font-size: 30px; font-weight: 900; color: #060b14; line-height: 1.05; }
     .header-sub { font-size: 13px; color: rgba(6,11,20,0.5); margin-top: 4px; }
 
-    .stats-row { display: flex; gap: 14px; margin-bottom: 28px; }
-    .stat { flex: 1; border-radius: 12px; padding: 18px; text-align: center; }
-    .stat-num { font-size: 30px; font-weight: 900; }
-    .stat-label { font-size: 11px; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+    .stats-row { display: flex; gap: 14px; margin-bottom: 24px; }
+    .stat { flex: 1; border-radius: 14px; padding: 20px 16px; text-align: center; }
+    .stat-num { font-size: 32px; font-weight: 900; }
+    .stat-label { font-size: 11px; font-weight: 700; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
 
-    .donut-wrap { display: flex; justify-content: center; margin-bottom: 28px; }
+    .donut-wrap { display: flex; justify-content: center; margin-bottom: 30px; }
 
-    .section-title { font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid; }
+    .section-title { font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid; }
 
-    table { width: 100%; border-collapse: collapse; }
-    th { padding: 8px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: left; }
+    table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    th { padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: left; }
+    td { padding: 12px 14px; font-size: 12px; color: ${p.text}; }
 
-    .footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid ${p.border}; display: flex; justify-content: space-between; align-items: center; }
+    .footer { margin-top: 38px; padding-top: 20px; border-top: 1px solid ${p.border}; display: flex; justify-content: space-between; align-items: center; }
     .footer-brand { font-size: 12px; font-weight: 800; color: ${p.accent}; letter-spacing: 1px; }
     .footer-time { font-size: 11px; color: ${p.textMuted}; }
   </style>
@@ -438,7 +444,7 @@ export default function ArchivedMonthPage({
       </div>
 
       {/* ── Tabs ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 rounded-xl bg-surface border border-border p-1">
+      <div className="grid w-full grid-cols-3 gap-1 rounded-xl bg-surface border border-border p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -448,13 +454,13 @@ export default function ArchivedMonthPage({
                 setActiveSection(SECTIONS[0]);
               }
             }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === tab.id
+            className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-4 py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${activeTab === tab.id
                 ? "bg-accent text-bg shadow-md"
                 : "text-text-muted hover:text-text hover:bg-surface-2"
               }`}
           >
             {tab.icon}
-            {tab.label}
+            <span className="max-w-full truncate">{tab.label}</span>
           </button>
         ))}
       </div>

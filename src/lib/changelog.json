@@ -1,4 +1,14 @@
 {
+  "0.4.1": {
+    "type": "patch",
+    "title": "PDF Export & UI Refinements",
+    "entries": [
+      { "icon": "🖨️", "text": "Fixed PDF export print styling so page background and inner padding render consistently." },
+      { "icon": "🎨", "text": "Added new Catarina notification stickers for goal creation, deadline alerts, comments, system updates, and role changes." },
+      { "icon": "📱", "text": "Polished responsive dashboard and mobile navbar/report UI behavior." },
+      { "icon": "🧹", "text": "Bumped version to 0.4.1 and synchronized release notes." }
+    ]
+  },
   "0.4.0": {
     "type": "minor",
     "title": "Realtime Sync — Live Collaboration",

@@ -8,9 +8,16 @@
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
     <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
+    <img src="https://img.shields.io/badge/version-0.4.1-blue?style=flat-square" alt="Version 0.4.1" />
     <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
 </div>
+
+## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.4.1
+
+**Patch release:** PDF export and print styling were improved, responsive dashboard/mobile UI behavior was polished, and the release notes were synced across changelog files.
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
 
 ---
 
@@ -243,6 +250,12 @@ Catarina features 13 context-aware pixel art expression stickers throughout the 
 | <img src="public/rina/sleeping.webp" width="60" /> | `public/rina/sleeping.webp` | Empty notification panel state, footer mascot |
 | <img src="public/rina/cry.webp" width="60" /> | `public/rina/cry.webp` | Rejected sign-up requests, user left section alerts |
 | <img src="public/rina/bye.webp" width="60" /> | `public/rina/bye.webp` | Account deletion modals, sign-out prompts |
+| <img src="public/rina/edit.webp" width="60" /> | `public/rina/edit.webp` | Goal creation and step update notifications |
+| <img src="public/rina/dealine.webp" width="60" /> | `public/rina/dealine.webp` | Deadline approaching alerts |
+| <img src="public/rina/deadline.webp" width="60" /> | `public/rina/deadline.webp` | Missed deadline alerts |
+| <img src="public/rina/thumb.webp" width="60" /> | `public/rina/thumb.webp` | System notifications |
+| <img src="public/rina/note.webp" width="60" /> | `public/rina/note.webp` | Comment added notifications |
+| <img src="public/rina/role-changed.webp" width="60" /> | `public/rina/role-changed.webp` | Role change notifications |
 | <img src="public/rina/404.webp" width="60" /> | `public/rina/404.webp` | Custom 404 page illustration |
 
 ---
@@ -302,5 +315,5 @@ Private repository — designed for internal team deployment.
 
 <div align="center">
   <img src="public/rina/sleeping.webp" width="120" alt="Catarina Sleeping" /><br/>
-  <sub>Made with care for <strong>Devora</strong> · &copy; Devora</sub>
+  <sub>Made with care for <strong>Devora</strong> · &copy; Omar-Khaled-57</sub>
 </div>

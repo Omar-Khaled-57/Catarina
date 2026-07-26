@@ -14,6 +14,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.1] — 2026-07-26 · *PDF Export & UI Refinements*
+
+> **Release Highlight:** Patch release fixing PDF export layout, reinforcing print styling, and polishing responsive dashboard/report UI behavior.
+
+### <img src="public/rina/bug-fix.webp" width="130" align="center" /> ✦ Patch Fixes
+
+- **PDF export background and page sizing**: corrected A4 print styling to preserve report colors and inner padding.
+- **Notification sticker refresh**: added new Catarina sticker assets for notification types like goal creation, deadline alerts, comments, and role changes.
+- **Responsive dashboard and mobile menu polish**: verified notification/menu layout and section card spacing for smaller screens.
+- **Changelog sync**: version bump and release notes updated.
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.0] — 2026-07-26 · *Realtime Sync & Live Collaboration*
 
 > **Release Highlight:** Minor release introducing low-latency real-time change detection, delta fetching, adaptive smart polling, and optimistic UI mutations. Team changes across goals, sections, and notifications sync seamlessly within 5 seconds without full page refreshes.

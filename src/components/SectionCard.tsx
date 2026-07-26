@@ -43,21 +43,21 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
         }}
       >
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex min-w-0 items-center gap-3">
             <SectionIcon section={section} color={color} />
-            <h3 className="text-lg font-bold text-text">{label}</h3>
+            <h3 className="min-w-0 text-lg font-bold text-text break-words">{label}</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-col-reverse items-end gap-1.5 sm:flex-row sm:items-center sm:gap-2">
             {highlight && (
               <span
-                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                 style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}40` }}
               >
                 Your Section
               </span>
             )}
-            <Badge variant="section" section={section}>
+            <Badge variant="section" section={section} className="whitespace-nowrap">
               {stats.total} goals
             </Badge>
           </div>
@@ -78,7 +78,14 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
         </div>
 
         {/* Progress Bar */}
-        <ProgressBar value={stats.percentage} color={color} className="mb-4" />
+        <ProgressBar
+          value={stats.percentage}
+          color={color}
+          className="mb-4"
+          animateOnMount
+          delay={300}
+          duration={2200}
+        />
 
         {/* Stats Row */}
         <div className="flex items-center gap-4">
