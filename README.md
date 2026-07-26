@@ -1,202 +1,312 @@
-<div>
+<div align="center">
   <img src="public/rina/logo.webp" alt="Catarina Logo" width="160" />
   <h1>Catarina</h1>
-  <p><strong>A private team planning & tracking system.</strong></p>
+  <p><strong>A private team planning & progress tracking system.</strong></p>
   <p>
-    <a href="https://catarina-devora.vercel.app"><img src="https://img.shields.io/badge/live-catarina--devora.vercel.app-00E8A2?style=flat-square" /></a>
-    <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" />
-    <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" />
-    <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" />
-    <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" />
+    <a href="https://catarina-devora.vercel.app"><img src="https://img.shields.io/badge/live-catarina--devora.vercel.app-00E8A2?style=flat-square" alt="Live Demo" /></a>
+    <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
+    <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
+    <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
+    <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
+</div>
+
+<br />
+
+<div align="center">
+  <img src="public/media/banner.png" alt="Catarina Hero Banner" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);" />
 </div>
 
 ---
 
 ## <img src="public/rina/wave.webp" width="36" align="center" /> What is Catarina?
 
-**Catarina** is an internal planning and progress tracking app for small teams. Each team section has its own private space with goals, progress counters, step checklists, and comments. Sections are dynamic — admins can add, rename, recolor, or remove them from the Admin Panel. Members are scoped to their section(s), while admins have global visibility.
+**Catarina** is a private, multi-section team planning and progress tracking application built for agile design, engineering, marketing, and management teams. Each department gets its own dedicated workspace equipped with goal boards, interactive progress counters, sub-item checklists, and inline team discussions. 
+
+Administrators have global visibility across all sections, while members work within their assigned department spaces. Catarina features real-time synchronization, month-by-month planning cycles with multi-page PDF exports, custom profile avatars, audio-enabled notifications, and installable PWA capabilities.
+
+<br />
+
+<div align="center">
+  <img src="public/media/work.png" alt="Catarina Workspace" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);" />
+</div>
 
 ---
 
-## <img src="public/rina/thumb.webp" width="36" align="center" /> Deploy Your Own
+## <img src="public/rina/thumb.webp" width="36" align="center" /> Deploy Your Own Catarina
+
+Follow this step-by-step guide to deploy your own instance of Catarina on local development hardware or hosting platforms like Vercel with a Turso cloud database.
 
 ### Prerequisites
-- Node.js 20+
-- A [Turso](https://turso.tech) account and database (free tier works)
 
-### 1. Fork & Install
+Before starting, ensure you have the following tools and accounts:
+
+- **Node.js**: v20.0.0 or higher
+- **Package Manager**: `npm` (comes with Node.js)
+- **Database**: A free account on [Turso](https://turso.tech) (libSQL / distributed SQLite edge database)
+- **Deployment Platform** *(Optional)*: A free account on [Vercel](https://vercel.com)
+
+---
+
+### Step 1: Clone & Install
+
+Clone the repository to your local machine and install all dependencies:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Catarina.git
+git clone https://github.com/Omar-Khaled-57/Catarina.git
 cd Catarina
 npm install
 ```
 
-### 2. Create a Turso Database
+---
 
-```bash
-npx turso auth login
-npx turso db create catarina
-npx turso db tokens create catarina
-```
+### Step 2: Provision a Turso Database
 
-### 3. Configure Environment
+1. Install the Turso CLI:
+   - **macOS / Linux**: `curl -sSfL https://get.tur.so/install.sh | bash`
+   - **Windows (PowerShell)**: `winget install tursodatabase.turso`
+2. Authenticate with Turso:
+   ```bash
+   turso auth login
+   ```
+3. Create a new Turso database named `catarina`:
+   ```bash
+   turso db create catarina
+   ```
+4. Retrieve your database URL and generate an authentication token:
+   ```bash
+   # Show database URL (e.g., libsql://catarina-youruser.turso.io)
+   turso db show catarina --url
 
-Create a `.env` file in the project root:
+   # Create a persistent authentication token
+   turso db tokens create catarina
+   ```
+
+---
+
+### Step 3: Configure Environment Variables
+
+Create a `.env` file in the root directory of your project (you can copy `.env.example`):
 
 ```env
-NEXT_PUBLIC_TEAM_NAME=Devora
-DATABASE_URL="libsql://your-db-name-your-org.turso.io"
-TURSO_AUTH_TOKEN="your_turso_auth_token"
-JWT_SECRET="any_random_string_here"
+# Team Branding (White-Labeling)
+NEXT_PUBLIC_TEAM_NAME="Devora"
+
+# Turso Cloud Database Credentials
+DATABASE_URL="libsql://catarina-youruser.turso.io"
+TURSO_AUTH_TOKEN="your_turso_auth_token_here"
+
+# Authentication Security
+JWT_SECRET="your_custom_secure_random_string_here"
 ```
 
-Set `NEXT_PUBLIC_TEAM_NAME` to your team name — it updates the footer, page titles, and PDF exports automatically.
+#### Environment Variable Breakdown:
 
-### 4. Push Schema & Seed
+| Variable | Description | Example |
+|---|---|---|
+| `NEXT_PUBLIC_TEAM_NAME` | The brand name shown across navigation, footers, page titles, and PDF report exports | `"Devora"` or `"Acme Corp"` |
+| `DATABASE_URL` | Your Turso database `libsql://` connection string | `"libsql://catarina-user.turso.io"` |
+| `TURSO_AUTH_TOKEN` | Authentication token created via `turso db tokens create` | `"eyJhbG...` |
+| `JWT_SECRET` | Secret key used for signing session JWT tokens | `"super-secret-key-123"` |
+
+---
+
+### Step 4: Push Schema & Seed Initial Data
+
+Push the database schema to your remote Turso database and run the seeder script to initialize default sections, admin credentials, and sample goals:
 
 ```bash
+# Push SQL schema directly to Turso cloud
 npx prisma db push --env-file=.env
+
+# Seed initial sections, admin account, and sample data
 npm run db:seed
 ```
 
-The first command pushes the database schema to your Turso database. The second creates the default admin account and sample data.
+> **Note:** The seeder creates 4 default department sections (**Marketing**, **Art**, **Technical**, **Management**), creates default planning months (**July 2026** active, **June 2026** archived), and sets up the default admin login.
 
-### 5. Run Locally
+---
+
+### Step 5: Run Locally & Verify Setup
+
+Start the local Next.js development server:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-### 6. Deploy to Vercel (Optional)
-
-```bash
-npx vercel --prod
-```
-
-Set the same three environment variables in the Vercel dashboard under **Settings > Environment Variables**.
-
----
-
-## <img src="public/rina/happy.webp" width="36" align="center" /> Default Admin Credentials
+Sign in using the **Default Admin Credentials**:
 
 | Role | Email | Password |
 |---|---|---|
 | **Admin** | `admin@team.com` | `admin123` |
 
-> **Change these immediately after first login.** Click your profile picture in the navbar to update your name, email, password, and profile photo.
+> <img src="public/rina/excited.webp" width="24" align="center" /> **Important Security Action:** After logging in for the first time, click your profile picture in the navbar to change your email, password, and upload your custom profile photo!
+
+---
+
+### Step 6: Deploy to Vercel (Production)
+
+Deploying Catarina to production on Vercel takes less than 2 minutes:
+
+1. Push your repository to GitHub, GitLab, or Bitbucket.
+2. Log in to [Vercel](https://vercel.com) and click **Add New Project**.
+3. Import your Catarina repository.
+4. In the **Environment Variables** section, add the 4 environment variables configured in Step 3:
+   - `NEXT_PUBLIC_TEAM_NAME`
+   - `DATABASE_URL`
+   - `TURSO_AUTH_TOKEN`
+   - `JWT_SECRET`
+5. Click **Deploy**. Vercel will build and publish your app with full PWA and real-time sync support.
+
+---
+
+### Step 7: White-Labeling & Team Customization
+
+You can fully customize Catarina for your own team:
+
+- **Team Name**: Change `NEXT_PUBLIC_TEAM_NAME` in `.env` (or Vercel settings) to automatically rebrand all headers, footers, page titles, and exported PDF reports.
+- **Section Management**: Navigate to **Admin Panel > Section Manager** to add new department sections, customize color themes, edit prefixes, or reorder cards.
+- **Member Management**: Approve new user signups, assign members to multiple sections, or reset passwords directly from the Admin Panel.
+
+---
+
+## <img src="public/rina/happy.webp" width="36" align="center" /> Default Credentials
+
+| Role | Email | Password | Assigned Sections |
+|---|---|---|---|
+| **Admin** | `admin@team.com` | `admin123` | All Sections (Global Access) |
+| **Marketing Member** | `marketing@devora.com` | `member123` | Marketing |
+| **Art Member** | `art@devora.com` | `member123` | Art, Marketing |
+| **Technical Member** | `technical@devora.com` | `member123` | Technical |
+| **Management Member** | `management@devora.com` | `member123` | Management |
 
 ---
 
 ## <img src="public/rina/excited.webp" width="36" align="center" /> Profile Customization
 
-Every user can edit their own profile after login:
+Every user can customize their personal profile from the Navbar modal:
 
-- **Name** — your display name
-- **Email** — your login email
-- **Password** — change with current password confirmation
-- **Profile Photo** — upload JPG, PNG, GIF, or WebP (max 2 MB)
-- **Bio** — short description shown on your profile
+- **Display Name** — Your public team display name
+- **Email Address** — Account login email
+- **Password Update** — Self-service password change (requires current password validation)
+- **Profile Photo** — Upload custom avatars (JPG, PNG, GIF, WebP — max 2 MB)
+- **Bio** — Personal role bio displayed in user cards
 
-**How to access:**
-- **Members:** Click your **profile picture** in the top-right navbar to open the Profile modal
-- **Admins:** Can edit any member's full profile (including password reset) from the **Admin Panel** > click **Edit** on any user card
+### Default Section Profile Avatars
 
-Each section also has default profile pictures (visible when no custom photo is uploaded):
+When a user has not uploaded a custom avatar, section-themed default avatars are assigned automatically:
 
-| Section | Default PFP |
-|---|---|
-| Marketing | *None* (colored initial fallback) |
-| Art | `public/pfps/art.png` |
-| Technical | `public/pfps/tec.gif` |
-| Management | `public/pfps/mng.gif` |
+| Section | Default PFP | Asset Path |
+|---|---|---|
+| **Marketing** | Initial Fallback | Colored text initial avatar |
+| **Art** | Art Mascot | `public/pfps/art.png` |
+| **Technical** | Tech Animated GIF | `public/pfps/tec.gif` |
+| **Management** | Manager Animated GIF | `public/pfps/mng.gif` |
 
 ---
 
-## <img src="public/rina/update.webp" width="36" align="center" /> Features
+## <img src="public/rina/update.webp" width="36" align="center" /> Core Features
 
-### Multi-Section Goal Tracking
-Each section has its own private space with goals, progress counters, step checklists, and comments. Sections are dynamic — admins can add, rename, recolor, or remove them from the Admin Panel.
+### ✦ Real-Time Collaboration & Sync
+Changes made by team members (goal updates, step completions, new comments) sync automatically across active clients within 5 seconds without requiring page reloads. Includes optimistic UI updates, background delta fetching, and subtle shimmer animations on incoming changes.
 
-### Monthly Planning Cycles
-Goals are organized by month. Admins can create new months, archive old ones, and generate PDF reports from the archive — complete with per-section breakdowns and a performance chart.
+### ✦ Multi-Section Goal Boards
+Dynamic, customizable department sections (Marketing, Art, Technical, Management, or custom admin-created sections). Goals support target counters (`current / target`), deadlines, lockable admin controls, member assignments, and drag-free step checklists.
 
-### Live Performance Dashboard
-Real-time stats: total goals, completed goals, remaining goals, and overall completion percentage with count-up animations and section bar charts.
+### ✦ Monthly Planning & Archiving
+Organize goal progress into monthly cycles. Past months can be archived and browsed anytime. Generate multi-page, dark-themed PDF reports complete with overview donut metrics, goal breakdown tables, and section completion bar charts.
 
-### In-App Notifications
-Rich notification system with pinning, marking as read, and audio playback. 15+ notification types cover every team event.
+### ✦ Interactive Performance Dashboard
+Live telemetry showing total goals, completed count, remaining tasks, and global completion percentage with animated counter transitions and responsive section status cards.
 
-### Role-Based Access Control
-Two roles: **Admin** (full control, member management, month creation) and **Member** (scoped to their section with per-goal permissions). An approval flow gates new sign-ups.
+### ✦ Audio-Enabled Notification Center
+In-app notification drawer with category tagging, pinning, read management, and inline audio playback support (includes pinned "Why Catarina? 🌸" audio message).
 
-### Archive & PDF Export
-Archived months are browsable, searchable, and fully exportable as styled multi-page PDFs.
-
-### Progressive Web App (PWA)
-Installable on any device — Android, iOS, or desktop — directly from the browser.
+### ✦ Installable Progressive Web App (PWA)
+Built with an offline-capable Service Worker (v3) and Web Manifest — installable natively on iOS, Android, macOS, and Windows desktop devices.
 
 ---
 
-## <img src="public/rina/think.webp" width="36" align="center" /> Tech Stack
+## <img src="public/rina/think.webp" width="36" align="center" /> Catarina Expression Stickers
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS 4 |
-| Animation | Framer Motion 12 |
-| Database ORM | Prisma 7 |
-| Database | Turso (libSQL / SQLite) |
-| Auth | JWT (jose) + bcrypt |
-| Charts | Recharts |
-| Notifications | Sonner |
-| Icons | Lucide React |
-| PWA | Service Worker + Web Manifest |
+Catarina features 13 context-aware pixel art expression stickers throughout the user interface:
 
----
-
-## <img src="public/rina/celebration.webp" width="36" align="center" /> Available Scripts
-
-| Script | Description |
-|---|---|
-| `npm run dev` | Start the local development server |
-| `npm run build` | Build the production bundle |
-| `npm run lint` | Run ESLint |
-| `npm run db:seed` | Seed the database with default admin + sample data |
-| `npm run db:reset` | Reset the database and re-seed |
-| `npm run db:studio` | Open Prisma Studio |
-| `postinstall` | Runs `prisma generate` after `npm install` |
+| Sticker | Asset Path | In-App Context & Expression |
+|---|---|---|
+| <img src="public/rina/logo.webp" width="40" /> | `public/rina/logo.webp` | Header logo, brand emblem, and application favicon |
+| <img src="public/rina/happy.webp" width="40" /> | `public/rina/happy.webp` | Welcome notifications, positive status alerts, success states |
+| <img src="public/rina/wave.webp" width="40" /> | `public/rina/wave.webp` | General intro sections, welcome messages |
+| <img src="public/rina/thumb.webp" width="40" /> | `public/rina/thumb.webp` | Deployment section headers, admin approval approvals |
+| <img src="public/rina/excited.webp" width="40" /> | `public/rina/excited.webp` | Goal completion popups, member joined notifications |
+| <img src="public/rina/celebration.webp" width="40" /> | `public/rina/celebration.webp` | First-time welcome celebration modal, month completion modal |
+| <img src="public/rina/bug-fix.webp" width="40" /> | `public/rina/bug-fix.webp` | Patch releases, bug fix notifications |
+| <img src="public/rina/update.webp" width="40" /> | `public/rina/update.webp` | Realtime sync notifications, feature updates |
+| <img src="public/rina/think.webp" width="40" /> | `public/rina/think.webp` | Empty goal state illustrations, search empty states |
+| <img src="public/rina/sleeping.webp" width="40" /> | `public/rina/sleeping.webp` | Empty notification panel state, footer mascot |
+| <img src="public/rina/cry.webp" width="40" /> | `public/rina/cry.webp` | Rejected sign-up requests, user left section alerts |
+| <img src="public/rina/bye.webp" width="40" /> | `public/rina/bye.webp` | Account deletion modals, sign-out prompts |
+| <img src="public/rina/404.webp" width="40" /> | `public/rina/404.webp` | Custom 404 page illustration |
 
 ---
 
-## <img src="public/rina/bug-fix.webp" width="36" align="center" /> Sections
+## <img src="public/rina/celebration.webp" width="36" align="center" /> Tech Stack
 
-Default sections (configurable by admins via Section Manager):
-
-| Section | Color | Hex | Focus |
+| Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| Marketing | Red / Pink | `#FF4D6A` | Brand identity, content planning, social strategy |
-| Art | Purple | `#7C3AED` | UI/UX design, graphic design, visual production |
-| Technical | Blue | `#3B82F6` | Development, system design, infrastructure |
-| Management | Amber / Gold | `#F59E0B` | Project coordination, client relations, team tracking |
+| **Framework** | Next.js (App Router) | `16.2` | Full-stack React framework |
+| **Language** | TypeScript | `5.x` | Type safety and autocompletion |
+| **Styling** | Tailwind CSS | `4.x` | Modern utility-first CSS |
+| **Database** | Turso (libSQL) | Edge | Global distributed SQLite database |
+| **ORM** | Prisma | `7.9` | Type-safe database client & schema migrations |
+| **Authentication** | JWT (`jose`) + `bcryptjs` | `6.x` | Stateless sessions & hashed credentials |
+| **Realtime Sync** | Delta Polling Hook | Custom | Light 5s change polling & optimistic state |
+| **Animations** | Framer Motion | `12.x` | Smooth route transitions & UI animations |
+| **Charts** | Recharts | `3.x` | Responsive performance visualizations |
+| **PDF Generation** | jsPDF + AutoTable | `4.x` | Multi-page report PDF rendering |
+| **Notifications** | Sonner | `2.x` | Toast notifications & floating alerts |
+| **PWA** | Service Worker + Web Manifest | SW v3 | Offline caching & installability |
 
-The app accent color is **Neon Teal** (`#00E8A2`).
+---
+
+## Available Scripts
+
+| Script | Command | Description |
+|---|---|---|
+| **Development** | `npm run dev` | Starts local Next.js dev server at `localhost:3000` |
+| **Build** | `npm run build` | Builds production optimized web bundle |
+| **Start** | `npm run start` | Starts production server |
+| **Lint** | `npm run lint` | Runs ESLint checks across codebase |
+| **Seed DB** | `npm run db:seed` | Seeds Turso database with default admin & sections |
+| **Reset DB** | `npm run db:reset` | Resets local database and runs seed |
+| **Prisma Studio** | `npm run db:studio` | Opens interactive database web inspector |
+| **Postinstall** | `npm run postinstall` | Generates Prisma client after `npm install` |
+
+---
+
+## Default Sections Reference
+
+Default sections created upon database seeding (fully editable by admins):
+
+| Section | Key | Accent Color | Color Code | Scope / Focus |
+|---|---|---|---|---|
+| **Marketing** | `MARKETING` | Red / Pink | `#FF4D6A` | Brand strategy, social campaigns, content planning |
+| **Art** | `ART` | Purple | `#7C3AED` | Graphic design, UI/UX design, visual assets |
+| **Technical** | `TECHNICAL` | Blue | `#3B82F6` | System architecture, web engineering, DevOps |
+| **Management** | `MANAGEMENT` | Amber / Gold | `#F59E0B` | Team coordination, project planning, deliverables |
 
 ---
 
 ## License
 
-Private — internal use only.
+Private repository — designed for internal team deployment.
 
 ---
 
 <div align="center">
-  <img src="public/rina/sleeping.webp" width="64" alt="Catarina sleeping" /><br/>
+  <img src="public/rina/sleeping.webp" width="64" alt="Catarina Sleeping" /><br/>
   <sub>Made with care for <strong>Devora</strong> · &copy; Devora</sub>
 </div>
-
-> **Note for clients:** Set `NEXT_PUBLIC_TEAM_NAME` in your `.env` to customize the team name throughout the app (footer, page titles, PDF exports).
