@@ -1,5 +1,5 @@
 /**
- * Middleware — Auth protection for dashboard routes.
+ * Proxy — Auth protection for dashboard routes.
  * Verifies JWT token from cookies and redirects to login if missing/invalid.
  * Runs on the edge for fast response times.
  */
@@ -14,10 +14,10 @@ const SECRET = process.env.JWT_SECRET
   : null;
 
 if (!SECRET) {
-  console.error("[middleware] JWT_SECRET env var is missing — dashboard routes will redirect to login");
+  console.error("[proxy] JWT_SECRET env var is missing — dashboard routes will redirect to login");
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
 
   if (!token) {
