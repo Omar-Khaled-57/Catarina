@@ -1,4 +1,3 @@
-// GET /api/auth/me — Return the currently authenticated user
 // Returns 401 if no valid token is present
 
 import { NextResponse } from "next/server";
