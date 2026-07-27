@@ -140,7 +140,7 @@ export default function Navbar() {
             >
               <Bell size={18} />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg bg-danger flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg bg-danger flex items-center justify-center" aria-live="polite">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
@@ -286,7 +286,7 @@ export default function Navbar() {
                     <Bell size={16} />
                     Notifications
                     {unreadCount > 0 && (
-                      <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full text-[10px] font-bold text-bg bg-danger flex items-center justify-center">
+                      <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full text-[10px] font-bold text-bg bg-danger flex items-center justify-center" aria-live="polite">
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}

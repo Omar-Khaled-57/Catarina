@@ -40,6 +40,7 @@ export default function GoalCard({
   onProgressChange,
   onAutoComplete,
   isNew = false,
+  highlight = false,
 }: {
   goal: GoalData;
   userId: string;
@@ -54,6 +55,7 @@ export default function GoalCard({
   onProgressChange: (goalId: string, current: number, target: number) => void;
   onAutoComplete: (goalId: string) => void;
   isNew?: boolean;
+  highlight?: boolean;
 }) {
   const [isPulsing, setIsPulsing] = useState(false);
   const [localSteps, setLocalSteps] = useState(goal.steps);
@@ -91,6 +93,7 @@ export default function GoalCard({
 
   return (
     <motion.div
+      id={`goal-${goal.id}`}
       initial={{ opacity: 0, y: 12 }}
       animate={{
         opacity: 1,
@@ -105,9 +108,10 @@ export default function GoalCard({
           ? { boxShadow: { duration: 2, ease: "easeOut" }, default: { type: "spring", stiffness: 350, damping: 30 } }
           : { type: "spring", stiffness: 350, damping: 30 }
       }
+      style={highlight ? { "--section-color": deadline === "overdue" && !goal.done ? "rgba(255,77,106,0.55)" : deadline === "urgent" && !goal.done ? "rgba(255,184,48,0.55)" : `${color}80` } as React.CSSProperties : undefined}
       className={`glass rounded-2xl overflow-hidden transition-all relative ${
         deadline === "overdue" && !goal.done ? "ring-1 ring-danger/30" : ""
-      }`}
+      } ${highlight ? "goal-highlight" : ""}`}
     >
       {/* ── Color Accent Bar ──────────────────────────────────────────── */}
       <div className="h-1 w-full" style={{ backgroundColor: color, opacity: 0.7 }} />

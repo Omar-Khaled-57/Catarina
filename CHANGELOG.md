@@ -14,6 +14,66 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.2] — 2026-07-27 · *Notification Modal & Goal Highlighting*
+
+> **Release Highlight:** Patch release adding a full notification detail modal, section-colored goal highlight deep-links, styled form controls, security hardening, and accessibility improvements.
+
+### <img src="public/rina/update.webp" width="80" align="center" /> ✦ Notification Modal & Deep Links
+
+- **`NotificationModal` Component**:
+  - Tap any notification to expand full details — type badge, image, full message, timestamp, and type-specific actions.
+  - Goal notifications fetch and display complete goal data: name, description, progress bar, deadline, section, steps checklist, assignees, and goal ID.
+  - VERSION_UPDATE notifications render the full changelog from `changelog.json` as inline lines.
+  - "View Goal" button deep-links to the goal's section page with auto-scroll and colored pulse highlight.
+- **Panel Integration**:
+  - Added Eye "View" button to every notification item (mobile + desktop).
+  - "View Goal" now closes both the modal and the notification panel before navigating.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Goal Highlight System
+
+- **Section-Colored Pulse**:
+  - Deep-linked goals pulse with the section's accent color (6 pulses × 0.85s = 5.1s).
+  - Overdue goals pulse red, urgent/deadline-approaching goals pulse amber.
+- **Scroll-to-Goal**:
+  - Section page reads `?goalId=` URL param, smooth-scrolls to the goal element, and auto-clears the param after the highlight ends.
+
+### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Form UI Polish
+
+- **Assignee Checkboxes**:
+  - Replaced raw `<input type="checkbox">` with styled pill-button toggles for "Check" and "Edit" permissions.
+  - Main assignee toggle uses `checkbox-pulse` animation and larger hit target.
+- **Select Dropdowns**:
+  - Custom `.select-glass` class with accent-colored dropdown arrow on focus.
+  - Month selector no longer prepends section prefix (e.g. "July 2026" instead of "ART-July-2026").
+
+### <img src="public/rina/bug-fix.webp" width="130" align="center" /> ✦ Security & Stability
+
+- **JWT Secret Hardening**:
+  - Removed hardcoded fallback secret from `auth.server.ts`; rotated to secure 128-char hex in `.env`.
+- **Rate Limiting**:
+  - Added sliding-window rate limiter — 10 attempts/min for login, 3 attempts/5min for register.
+- **Auth Middleware**:
+  - Added `src/middleware.ts` for edge-based JWT guard on `/dashboard/*`, removing client-side `useEffect` redirect flash.
+- **Goal Create Fix**:
+  - `POST /api/goals` now returns `comments`, `assignments`, and `steps` in the response, preventing runtime crash on new goal creation.
+- **GoalForm Month Binding**:
+  - GoalForm now pre-selects the currently viewed month, preventing goals created for a different month from vanishing on refresh.
+
+### <img src="public/rina/thumb.webp" width="80" align="center" /> ✦ Cleanup & Performance
+
+- **Dead Dependency Removal**:
+  - Removed `recharts`, `jspdf`, `jspdf-autotable` (~350KB saved, 41 packages removed).
+- **Dead Code Removal**:
+  - Deleted `GoalRow.tsx`, `oldNavbar.txt`, `oldNavbar-preview.txt`.
+- **Server Components**:
+  - Converted login page and 404 to Server Components; extracted `LoginForm.tsx` and `NotFoundContent.tsx` as client components.
+- **Accessibility**:
+  - Added `aria-live="polite"` to stats bar, section cards grid, goal cards grid, and notification badges.
+- **Modularity**:
+  - `FALLBACK_SECTIONS` in `types/index.ts` is now the single source of truth for section definitions.
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.1] — 2026-07-26 · *PDF Export & UI Refinements*
 
 > **Release Highlight:** Patch release fixing PDF export layout, reinforcing print styling, and polishing responsive dashboard/report UI behavior.

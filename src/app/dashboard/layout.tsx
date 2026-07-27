@@ -2,12 +2,10 @@
 
 /**
  * Dashboard Layout — Shared layout for all dashboard pages.
- * Wraps pages with Navbar and auth protection.
- * Redirects to login if user is not authenticated.
+ * Wraps pages with Navbar and auth context.
+ * Auth protection is handled by middleware.ts (JWT cookie check).
  */
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -19,17 +17,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading, updateData, markUpdateSeen } = useAuth();
-  const router = useRouter();
+  const { isLoading, updateData, markUpdateSeen } = useAuth();
 
-  /* Redirect to login if not authenticated */
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/");
-    }
-  }, [user, isLoading, router]);
-
-  /* Show loading state while checking auth */
+  /* Show loading state while auth context initializes */
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -40,8 +30,6 @@ export default function DashboardLayout({
       </div>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="flex min-h-screen flex-col">

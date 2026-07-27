@@ -51,13 +51,6 @@ interface UserOption {
   sections: string[];
 }
 
-const SECTION_PREFIX: Record<string, string> = {
-  MANAGEMENT: "MNG",
-  ART: "ART",
-  MARKETING: "MRK",
-  TECHNICAL: "TEC",
-};
-
 export default function GoalForm({
   isOpen,
   onClose,
@@ -69,7 +62,6 @@ export default function GoalForm({
   goalId,
 }: GoalFormProps) {
   useAuth();
-  const prefix = SECTION_PREFIX[section] || section.slice(0, 3).toUpperCase();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -293,13 +285,13 @@ export default function GoalForm({
               id="goal-month"
               value={monthId}
               onChange={(e) => setMonthId(e.target.value)}
-              className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text focus:outline-none focus:border-accent"
+              className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text focus:outline-none focus:border-accent select-glass"
               required
             >
               <option value="">Select month</option>
               {months.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {prefix}-{m.name}
+                  {m.name}
                 </option>
               ))}
             </select>
@@ -361,13 +353,15 @@ export default function GoalForm({
                         <button
                           type="button"
                           onClick={() => toggleAssignment(u.id)}
-                          className={`shrink-0 flex h-4 w-4 items-center justify-center rounded-md border-2 transition-all ${
-                            assigned ? "border-accent bg-accent text-bg" : "border-text-muted/40"
+                          className={`shrink-0 flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-all ${
+                            assigned
+                              ? "border-accent bg-accent text-bg checkbox-pulse"
+                              : "border-text-muted/30 hover:border-accent/50"
                           }`}
                           aria-label={`Assign ${u.name}`}
                           aria-pressed={assigned}
                         >
-                          {assigned && <Check size={10} strokeWidth={3} />}
+                          {assigned && <Check size={11} strokeWidth={3} />}
                         </button>
 
                         <div className="h-6 w-6 rounded-full overflow-hidden border border-border shrink-0">
@@ -384,25 +378,29 @@ export default function GoalForm({
                         <span className="text-xs flex-1 truncate">{u.name}</span>
 
                         {assigned && isAdmin && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <label className="flex items-center gap-1 text-[10px] text-text-muted cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={assignment?.canCheck ?? false}
-                                onChange={(e) => updateAssignment(u.id, "canCheck", e.target.checked)}
-                                className="h-3 w-3 rounded border-border accent-accent"
-                              />
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => updateAssignment(u.id, "canCheck", !assignment?.canCheck)}
+                              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-all ${
+                                assignment?.canCheck
+                                  ? "border-accent bg-accent/15 text-accent"
+                                  : "border-border text-text-muted hover:border-accent/40"
+                              }`}
+                            >
                               Check
-                            </label>
-                            <label className="flex items-center gap-1 text-[10px] text-text-muted cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={assignment?.canEdit ?? false}
-                                onChange={(e) => updateAssignment(u.id, "canEdit", e.target.checked)}
-                                className="h-3 w-3 rounded border-border accent-accent"
-                              />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateAssignment(u.id, "canEdit", !assignment?.canEdit)}
+                              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-all ${
+                                assignment?.canEdit
+                                  ? "border-art bg-art/15 text-art"
+                                  : "border-border text-text-muted hover:border-art/40"
+                              }`}
+                            >
                               Edit
-                            </label>
+                            </button>
                           </div>
                         )}
                       </div>

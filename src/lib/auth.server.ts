@@ -16,7 +16,7 @@ export interface JWTPayload {
 }
 
 const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-change-me"
+  process.env.JWT_SECRET
 );
 
 const COOKIE_NAME = "catarina-token";

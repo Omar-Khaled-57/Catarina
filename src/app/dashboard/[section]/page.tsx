@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, use } from "react";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import GoalForm, { type GoalAssignmentData } from "@/components/GoalForm";
@@ -15,6 +15,7 @@ import DonutChart from "@/components/DonutChart";
 import CommentSection from "@/components/CommentSection";
 import MonthSelector from "@/components/MonthSelector";
 import Button from "@/components/ui/Button";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { calcSectionStats } from "@/lib/utils";
 import useCountUp from "@/lib/useCountUp";
@@ -33,10 +34,14 @@ export default function SectionPage({
 }) {
   const { section: sectionParam } = use(params);
   const section = sectionParam.toUpperCase();
+  const searchParams = useSearchParams();
   const { user, isAdmin } = useAuth();
   const permissions = user?.permissions || { canEditGoals: false, canDeleteGoals: false, canCreateGoals: true, canManageMembers: false, canCreateMonths: false };
 
   const [sectionColor, setSectionColor] = useState("var(--accent)");
+
+  /* Goal highlight from notification deep link */
+  const [highlightGoalId, setHighlightGoalId] = useState<string | null>(null);
 
   /* Fetch sections and validate */
   useEffect(() => {
@@ -65,6 +70,9 @@ export default function SectionPage({
   /* Comment state */
   const [commentGoalId, setCommentGoalId] = useState<string | null>(null);
   const [commentGoalName, setCommentGoalName] = useState("");
+
+  /* Delete confirmation state */
+  const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null);
 
   /* Sort state */
   type SortMode = "id" | "name" | "assignee" | "deadline";
@@ -108,6 +116,32 @@ export default function SectionPage({
       })
       .catch(() => setIsLoading(false));
   }, [fetchGoals]);
+
+  /* ─── Goal Highlight from Deep Link ─────────────────────────────────────── */
+  useEffect(() => {
+    const goalId = searchParams.get("goalId");
+    if (!goalId || goals.length === 0) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggered by URL-driven deep link, not cascading render
+    setHighlightGoalId(goalId);
+
+    /* Scroll to the goal element */
+    const el = document.getElementById(`goal-${goalId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    /* Clear highlight after 5.1s (6 pulses × 0.85s) */
+    const t = setTimeout(() => {
+      setHighlightGoalId(null);
+      /* Remove goalId from URL without reload */
+      const url = new URL(window.location.href);
+      url.searchParams.delete("goalId");
+      window.history.replaceState({}, "", url.toString());
+    }, 5100);
+
+    return () => clearTimeout(t);
+  }, [searchParams, goals]);
 
   /* ─── Realtime Sync ──────────────────────────────────────────────────────── */
   /* ─── Realtime Sync ───────────────────────────────────────────────── */
@@ -268,7 +302,13 @@ export default function SectionPage({
   };
 
   const handleDeleteGoal = async (goalId: string) => {
-    if (!confirm("Delete this goal?")) return;
+    setDeleteGoalId(goalId);
+  };
+
+  const confirmDeleteGoal = async () => {
+    if (!deleteGoalId) return;
+    const goalId = deleteGoalId;
+    setDeleteGoalId(null);
     /* Optimistic: remove immediately — rollback via functional updater avoids stale closure */
     let removedGoal: GoalData | undefined;
     setGoals((prev) => {
@@ -607,6 +647,8 @@ export default function SectionPage({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
           className="grid gap-4 grid-cols-1 sm:grid-cols-2"
+          aria-live="polite"
+          aria-label="Goal cards"
         >
           <AnimatePresence initial={false}>
             {filteredGoals.map((goal) => (
@@ -624,6 +666,7 @@ export default function SectionPage({
                 onProgressChange={handleProgressChange}
                 onAutoComplete={handleAutoComplete}
                 isNew={getIsNewGoalIds().has(goal.id)}
+                highlight={highlightGoalId === goal.id}
               />
             ))}
           </AnimatePresence>
@@ -639,7 +682,7 @@ export default function SectionPage({
         }}
         onSave={editingGoal ? handleUpdateGoal : handleCreateGoal}
         onSaveAssignments={handleSaveAssignments}
-        initialData={editingGoal ? { ...editingGoal, assignments: editingGoal.assignments.map((a) => ({ userId: a.userId, canCheck: a.canCheck, canEdit: a.canEdit })) } : null}
+        initialData={editingGoal ? { ...editingGoal, assignments: editingGoal.assignments.map((a) => ({ userId: a.userId, canCheck: a.canCheck, canEdit: a.canEdit })) } : { monthId: monthId || "" }}
         isAdmin={isAdmin}
         section={section}
         goalId={editingGoal?.id}
@@ -651,6 +694,16 @@ export default function SectionPage({
         onClose={() => setCommentGoalId(null)}
         goalId={commentGoalId || ""}
         goalName={commentGoalName}
+      />
+
+      {/* ── Delete Goal Confirmation ───────────────────────────────────────── */}
+      <ConfirmModal
+        isOpen={!!deleteGoalId}
+        onClose={() => setDeleteGoalId(null)}
+        onConfirm={confirmDeleteGoal}
+        title="Delete Goal"
+        message="Are you sure you want to delete this goal? This action cannot be undone."
+        confirmLabel="Delete"
       />
     </div>
   );

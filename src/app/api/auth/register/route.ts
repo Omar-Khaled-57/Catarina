@@ -1,14 +1,25 @@
 // POST /api/auth/register — Request a new account (creates pending approval)
 // Account is NOT active until an admin approves it in the admin panel
+// Rate limited: 3 attempts per 5 minutes per IP
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSectionKeys } from "@/lib/sections";
 import { notifyAdmins } from "@/lib/notify";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   try {
+    /* Rate limit: 3 registration attempts per 5 minutes */
+    const ip = getClientIp(req);
+    const rateLimit = checkRateLimit(`register:${ip}`, 3, 5 * 60_000);
+    if (rateLimit.limited) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
     const formData = await req.formData();
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;

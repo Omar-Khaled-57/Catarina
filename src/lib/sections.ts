@@ -2,6 +2,7 @@
 // Used throughout the app to replace hardcoded SECTIONS/SECTION_COLORS/SECTION_LABELS
 
 import { prisma } from "@/lib/prisma";
+import { FALLBACK_SECTIONS } from "@/types";
 
 /** Section data structure from DB */
 export interface SectionData {
@@ -13,14 +14,6 @@ export interface SectionData {
   sortOrder: number;
   isActive: boolean;
 }
-
-/** Default sections seeded in DB — used as fallback */
-const DEFAULT_SECTIONS: Omit<SectionData, "id" | "isActive">[] = [
-  { key: "MARKETING", label: "Marketing", prefix: "MRK-", color: "#FF4D6A", sortOrder: 0 },
-  { key: "ART", label: "Art", prefix: "ART-", color: "#7C3AED", sortOrder: 1 },
-  { key: "TECHNICAL", label: "Technical", prefix: "TEC-", color: "#3B82F6", sortOrder: 2 },
-  { key: "MANAGEMENT", label: "Management", prefix: "MNG-", color: "#F59E0B", sortOrder: 3 },
-];
 
 /** Cache key and TTL for section data */
 let cachedSections: SectionData[] | null = null;
@@ -52,11 +45,10 @@ export async function getSections(): Promise<SectionData[]> {
     // DB might not have the table yet — fall back to defaults
   }
 
-  // Fallback to default sections
-  cachedSections = DEFAULT_SECTIONS.map((s) => ({
+  // Fallback to default sections from types (single source of truth)
+  cachedSections = FALLBACK_SECTIONS.map((s) => ({
     ...s,
     id: `default-${s.key.toLowerCase()}`,
-    isActive: true,
   }));
   cacheTimestamp = now;
   return cachedSections;

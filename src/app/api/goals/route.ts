@@ -189,6 +189,13 @@ export async function POST(req: Request) {
         authorId: payload.userId,
         deadlineSetByAdmin: payload.role === "ADMIN",
       },
+      include: {
+        comments: { select: { id: true } },
+        assignments: {
+          include: { user: { select: { id: true, name: true, pfp: true } } },
+        },
+        steps: { orderBy: { order: "asc" } },
+      },
     });
 
     /* Notify section members and admins about the new goal */
@@ -205,7 +212,18 @@ export async function POST(req: Request) {
       refType: "goal",
     });
 
-    return NextResponse.json({ goal }, { status: 201 });
+    return NextResponse.json({
+      goal: {
+        ...goal,
+        assignments: goal.assignments.map((a: { userId: string; canCheck: boolean; canEdit: boolean; user: { id: string; name: string; pfp: string | null } }) => ({
+          userId: a.userId,
+          name: a.user.name,
+          pfp: a.user.pfp,
+          canCheck: a.canCheck,
+          canEdit: a.canEdit,
+        })),
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error("[GOALS_POST]", error);
     return NextResponse.json(

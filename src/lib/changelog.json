@@ -1,4 +1,16 @@
 {
+  "0.4.2": {
+    "type": "patch",
+    "title": "Notification Modal & Goal Highlighting",
+    "entries": [
+      { "icon": "🔔", "text": "New NotificationModal — tap any notification to see full details, goal data, changelog entries, and deep-link to goals." },
+      { "icon": "🎯", "text": "Goal highlight on deep link — navigating from a notification scrolls to the goal and pulses it with the section color." },
+      { "icon": "🎨", "text": "Styled assignee checkboxes as toggle pills, custom select dropdowns, and section-colored month picker." },
+      { "icon": "🔒", "text": "Security hardening — removed hardcoded JWT fallback secret, added rate limiting on auth endpoints." },
+      { "icon": "🧹", "text": "Removed dead dependencies (recharts, jspdf) and dead components. Converted login/404 to Server Components." },
+      { "icon": "♿", "text": "Added aria-live regions to stats bar, goal cards, and notification badges for screen reader updates." }
+    ]
+  },
   "0.4.1": {
     "type": "patch",
     "title": "PDF Export & UI Refinements",

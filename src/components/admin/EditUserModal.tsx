@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import PfpUpload from "@/components/PfpUpload";
-import useFileUpload from "@/lib/useFileUpload";
+import useFileUpload from "@/hooks/useFileUpload";
 import {
   type MemberPermissions,
   PERMISSION_LABELS,

@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Modal from "@/components/ui/Modal";
+import NotificationModal from "@/components/NotificationModal";
 import MonthCelebrationModal from "@/components/MonthCelebrationModal";
 import Image from "next/image";
 import {
@@ -31,6 +32,7 @@ import {
   CalendarPlus,
   ArrowRightLeft,
   Shield,
+  Eye,
 } from "lucide-react";
 
 interface Notification {
@@ -95,7 +97,7 @@ const TYPE_IMAGE: Record<string, string> = {
   STEP_ADDED:           "/rina/edit.webp",
   DEADLINE_APPROACHING: "/rina/dealine.webp",
   DEADLINE_MISSED:      "/rina/deadline.webp",
-  SYSTEM:               "/rina/thumb.webp",
+  SYSTEM:               "/rina/happy.webp",
   COMMENT_ADDED:        "/rina/note.webp",
   ROLE_CHANGED:         "/rina/role-changed.webp",
   GOAL_REACHED:         "/rina/excited.webp",
@@ -106,6 +108,7 @@ const TYPE_IMAGE: Record<string, string> = {
   MEMBER_LEFT_SECTION:  "/rina/cry.webp",
   MEMBER_DELETED:       "/rina/bye.webp",
   VERSION_UPDATE:       "/rina/update.webp",
+  GOALS_CARRIED_OVER:   "/rina/cry.webp",
 };
 
 /** Types that skip the inline image and instead open the big celebration modal */
@@ -204,6 +207,7 @@ export default function NotificationPanel({
   const [loading, setLoading] = useState(true);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [celebrationMonth, setCelebrationMonth] = useState<string | undefined>();
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -367,7 +371,7 @@ export default function NotificationPanel({
                     </p>
                     {n.pinned && <Pin size={14} className="text-accent shrink-0" />}
                   </div>
-                  <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3 break-words">
+                  <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3 break-words whitespace-pre-wrap">
                     {n.message}
                   </p>
                   {n.refType === "audio" && n.refId && (
@@ -376,6 +380,18 @@ export default function NotificationPanel({
                   <div className="mt-1.5 flex items-center justify-between gap-2">
                     <p className="text-xs font-medium text-text-muted/70">{timeAgo(n.createdAt)}</p>
                     <div className="flex items-center gap-1 sm:hidden">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedNotification(n);
+                          if (!n.read) markRead(n.id);
+                        }}
+                        className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
+                        title="View"
+                        aria-label="View notification"
+                      >
+                        <Eye size={15} />
+                      </button>
                       {!n.read && (
                         <button
                           onClick={(e) => {
@@ -416,6 +432,18 @@ export default function NotificationPanel({
                 </div>
                 {/* Actions */}
                 <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover/n:opacity-100 transition-opacity shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedNotification(n);
+                      if (!n.read) markRead(n.id);
+                    }}
+                    className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
+                    title="View"
+                    aria-label="View notification"
+                  >
+                    <Eye size={16} />
+                  </button>
                   {!n.read && (
                     <button
                       onClick={(e) => {
@@ -461,6 +489,14 @@ export default function NotificationPanel({
       isOpen={celebrationOpen}
       onClose={() => setCelebrationOpen(false)}
       monthName={celebrationMonth}
+    />
+
+    {/* Notification detail modal — expanded view with actions */}
+    <NotificationModal
+      notification={selectedNotification}
+      isOpen={!!selectedNotification}
+      onClose={() => setSelectedNotification(null)}
+      onPanelClose={onClose}
     />
     </>
   );

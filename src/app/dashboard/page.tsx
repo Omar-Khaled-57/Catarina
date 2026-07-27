@@ -147,7 +147,7 @@ export default function DashboardPage() {
         <>
           {/* ── Global Summary Stats Bar ─────────────────────────────── */}
           <InView>
-          <div className="glass rounded-2xl overflow-hidden">
+          <div className="glass rounded-2xl overflow-hidden" aria-live="polite" aria-label="Goal statistics">
             <div className="dashboard-gradient-bar h-1 w-full bg-gradient-to-r from-marketing via-art to-management opacity-70" />
             <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -212,7 +212,7 @@ export default function DashboardPage() {
           </InView>
 
           {/* Section Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4" aria-live="polite" aria-label="Section cards">
             {sections.map((section, i) => (
               <InView key={section.key} delay={150 * (i + 1)}>
                 <SectionCard

@@ -1,4 +1,5 @@
-// PUT /api/goals/[id] — Update a goal (admin only for deadline changes)
+// GET    /api/goals/[id] — Fetch a single goal by ID (for notification deep links)
+// PUT    /api/goals/[id] — Update a goal (admin only for deadline changes)
 // DELETE /api/goals/[id] — Delete a goal (admin only)
 
 import { NextResponse } from "next/server";
@@ -7,6 +8,46 @@ import { prisma } from "@/lib/prisma";
 
 interface Params {
   params: Promise<{ id: string }>;
+}
+
+export async function GET(_req: Request, { params }: Params) {
+  const payload = await verifyToken();
+  if (!payload) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const goal = await prisma.goal.findUnique({
+    where: { id },
+    include: {
+      comments: { select: { id: true } },
+      assignments: {
+        include: { user: { select: { id: true, name: true, pfp: true } } },
+      },
+      steps: { orderBy: { order: "asc" } },
+    },
+  });
+
+  if (!goal) {
+    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  }
+
+  const formatted = {
+    ...goal,
+    deadline: goal.deadline.toISOString(),
+    completedAt: goal.completedAt?.toISOString() ?? null,
+    createdAt: goal.createdAt.toISOString(),
+    updatedAt: goal.updatedAt.toISOString(),
+    assignments: goal.assignments.map((a) => ({
+      userId: a.userId,
+      name: a.user.name,
+      pfp: a.user.pfp,
+      canCheck: a.canCheck,
+      canEdit: a.canEdit,
+    })),
+  };
+
+  return NextResponse.json({ goal: formatted });
 }
 
 export async function PUT(req: Request, { params }: Params) {

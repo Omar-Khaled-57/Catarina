@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { monthNameLine1, monthNameLine2, formatDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Download, ChevronRight, Trash2 } from "lucide-react";
@@ -28,6 +29,8 @@ export default function ArchivePage() {
   const { isAdmin } = useAuth();
   const [months, setMonths] = useState<MonthData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteMonthId, setDeleteMonthId] = useState<string | null>(null);
+  const [deleteMonthName, setDeleteMonthName] = useState("");
 
   useEffect(() => {
     fetch("/api/months")
@@ -40,7 +43,15 @@ export default function ArchivePage() {
   }, []);
 
   const handleDeleteMonth = async (monthId: string, monthName: string) => {
-    if (!confirm(`Are you sure you want to delete ${monthName}? All goals will be lost.`)) return;
+    setDeleteMonthId(monthId);
+    setDeleteMonthName(monthName);
+  };
+
+  const confirmDeleteMonth = async () => {
+    if (!deleteMonthId) return;
+    const monthId = deleteMonthId;
+    setDeleteMonthId(null);
+    setDeleteMonthName("");
     try {
       const res = await fetch(`/api/months/${monthId}`, { method: "DELETE" });
       if (res.ok) {
@@ -136,6 +147,16 @@ export default function ArchivePage() {
             ))}
         </div>
       )}
+
+      {/* ── Delete Month Confirmation ─────────────────────────────────────── */}
+      <ConfirmModal
+        isOpen={!!deleteMonthId}
+        onClose={() => { setDeleteMonthId(null); setDeleteMonthName(""); }}
+        onConfirm={confirmDeleteMonth}
+        title="Delete Month"
+        message={`Are you sure you want to delete ${deleteMonthName}? All goals will be lost. This action cannot be undone.`}
+        confirmLabel="Delete"
+      />
     </div>
   );
 }

@@ -132,7 +132,7 @@ export async function GET() {
     });
 
     if (!existing) {
-      const preview = updateEntries.slice(0, 2).map((e) => `${e.icon} ${e.text}`).join(" · ");
+      const preview = updateEntries.slice(0, 2).map((e) => `${e.icon} ${e.text}`).join("\n");
       await prisma.notification.create({
         data: {
           userId: user.id,
