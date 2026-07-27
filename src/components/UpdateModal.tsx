@@ -207,7 +207,7 @@ export default function UpdateModal({
             </h2>
 
             {/* Changelog entries */}
-            <div className="text-left space-y-2.5 mb-6 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+            <div className="text-left space-y-2.5 mb-6 max-h-48 overflow-y-auto pr-1 modal-scroll">
               {entries.map((entry, i) => (
                 <motion.div
                   key={i}

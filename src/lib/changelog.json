@@ -8,7 +8,9 @@
       { "icon": "🎨", "text": "Styled assignee checkboxes as toggle pills, custom select dropdowns, and section-colored month picker." },
       { "icon": "🔒", "text": "Security hardening — removed hardcoded JWT fallback secret, added rate limiting on auth endpoints." },
       { "icon": "🧹", "text": "Removed dead dependencies (recharts, jspdf) and dead components. Converted login/404 to Server Components." },
-      { "icon": "♿", "text": "Added aria-live regions to stats bar, goal cards, and notification badges for screen reader updates." }
+      { "icon": "♿", "text": "Added aria-live regions to stats bar, goal cards, and notification badges for screen reader updates." },
+      { "icon": "🔧", "text": "Migrated middleware to Next.js 16 proxy convention to fix deprecation warning." },
+      { "icon": "✨", "text": "Scrollbar hover glow now works in all browsers — both main app and modal scrollbars glow on hover." }
     ]
   },
   "0.4.1": {

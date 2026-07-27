@@ -59,6 +59,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 - **GoalForm Month Binding**:
   - GoalForm now pre-selects the currently viewed month, preventing goals created for a different month from vanishing on refresh.
 
+### <img src="public/rina/bug-fix.webp" width="130" align="center" /> ✦ Bug Fixes
+
+- **Next.js 16 Proxy Migration**:
+  - Renamed `middleware` function to `proxy` in `src/proxy.ts` to comply with Next.js 16 deprecation.
+- **Scrollbar Glow Fix**:
+  - Fixed scrollbar hover glow not working in Chrome/Edge by separating WebKit and Firefox scrollbar styles with `@supports` queries.
+  - Main app scrollbar and modal scrollbar now both glow accent teal on hover.
+
 ### <img src="public/rina/thumb.webp" width="80" align="center" /> ✦ Cleanup & Performance
 
 - **Dead Dependency Removal**:
