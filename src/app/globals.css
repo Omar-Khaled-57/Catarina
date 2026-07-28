@@ -168,6 +168,28 @@ nav.glass {
   border-radius: 4px;
 }
 
+/* ─── Autofill Styling ────────────────────────────────────────────────────── */
+/* Override browser default yellow/blue autofill to match dark theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--surface-2) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  caret-color: var(--text) !important;
+  border-color: var(--border) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Light theme autofill */
+html.light input:-webkit-autofill,
+html.light input:-webkit-autofill:hover,
+html.light input:-webkit-autofill:focus,
+html.light input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--surface-2) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+}
+
 /* ─── Skip Link ────────────────────────────────────────────────────────────── */
 .sr-only {
   position: absolute;
