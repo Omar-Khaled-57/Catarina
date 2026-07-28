@@ -8,10 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "npx prisma migrate dev",
-    "db:deploy": "npx prisma migrate deploy",
+    "db:push": "npx prisma db push --env-file=.env",
     "db:status": "npx prisma migrate status",
     "db:seed": "npx tsx --env-file=.env prisma/seed.ts",
-    "db:setup": "npx prisma migrate deploy && npm run db:seed",
+    "db:setup": "npx prisma db push --env-file=.env && npm run db:seed",
     "db:reset": "npx prisma migrate reset --force && npm run db:seed",
     "db:studio": "npx prisma studio",
     "postinstall": "prisma generate"

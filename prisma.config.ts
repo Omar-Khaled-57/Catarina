@@ -1,5 +1,9 @@
 // This file configures the Prisma CLI (migrate, studio, generate).
 // The app runtime uses @libsql/client adapter in src/lib/prisma.ts pointing to Turso.
+//
+// IMPORTANT: Prisma CLI does NOT support libsql:// URLs.
+// CLI tools always use the local SQLite file. Migrations are applied to
+// Turso separately via `turso db execute` or `turso-push.mjs`.
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
@@ -8,8 +12,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // On Vercel / CI: uses DATABASE_URL env var (Turso).
-    // Locally: falls back to file:./dev.db for convenience.
-    url: process.env.DATABASE_URL || "file:./dev.db",
+    url: "file:./dev.db",
   },
 });

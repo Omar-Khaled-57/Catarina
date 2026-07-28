@@ -104,8 +104,8 @@ cp .env.example .env
 ### <img src="public/rina/excited.webp" width="60" align="center" /> Step 4: Push Schema & Seed Data
 
 ```bash
-# Apply database migrations
-npx prisma migrate deploy
+# Push schema to Turso (Prisma CLI uses local SQLite — this pushes to the remote DB)
+npx prisma db push --env-file=.env
 
 # Seed default sections, admin user, and demo goals
 npm run db:seed
@@ -150,7 +150,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in:
    - *(Optional)* `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
 5. In **Settings → General → Build Command**, set:
    ```
-   npx prisma generate && npx prisma migrate deploy && next build
+   npx prisma generate && next build
    ```
 6. Click **Deploy**.
 
@@ -234,11 +234,11 @@ Built with an offline-capable Service Worker and Web Manifest — installable on
 | **Build** | `npm run build` | Production build |
 | **Start** | `npm run start` | Start production server |
 | **Lint** | `npm run lint` | Run ESLint |
-| **Setup DB** | `npm run db:setup` | First-time: apply migrations + seed |
+| **Setup DB** | `npm run db:setup` | First-time: push schema + seed |
 | **Seed DB** | `npm run db:seed` | Seed default sections, admin, and demo goals |
 | **Reset DB** | `npm run db:reset` | Wipe database and re-seed from scratch |
-| **Migrate** | `npm run db:migrate` | Create a new migration (dev only) |
-| **Deploy Migrations** | `npm run db:deploy` | Apply pending migrations to production |
+| **Push Schema** | `npm run db:push` | Push schema changes to Turso |
+| **Migrate (dev)** | `npm run db:migrate` | Create a new migration file (local dev only) |
 | **Migration Status** | `npm run db:status` | Show which migrations are pending |
 | **Prisma Studio** | `npm run db:studio` | Open database browser |
 
