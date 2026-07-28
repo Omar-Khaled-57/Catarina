@@ -154,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     setUpdateData(null);
+    window.location.href = "/";
   }, []);
 
   /* Re-fetch current user from server */
