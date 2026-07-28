@@ -30,7 +30,7 @@ const PAD_R      = 28;
 const PAD_B      = 56;    // room for section labels below baseline
 const DEPTH_X    = 22;    // 3-D horizontal depth
 const DEPTH_Y    = 14;    // 3-D vertical depth
-const MIN_BAR_H  = 4;     // minimum bar height so 0% still shows a 3D base
+const MIN_BAR_H  = 1;     // minimum bar height so 0% still shows a 3D base
 const SVG_H      = PAD_T + CHART_H + DEPTH_Y + PAD_B;
 
 const BAR_AREA_W = SVG_W - PAD_L - PAD_R;
@@ -217,7 +217,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
           {/* ── 3-D Bars ───────────────────────────────────────────────── */}
           {sections.map(({ section, label, color }, i) => {
             const clamped = Math.min(Math.max(animPcts[i] ?? 0, 0), 100);
-            const barH    = (clamped / 100) * CHART_H;
+            const barH    = Math.max((clamped / 100) * CHART_H, MIN_BAR_H);
             const id      = section.toLowerCase();
 
             /* Front face corners */
@@ -228,75 +228,60 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
 
             /* 3-D offset corners */
             const dx = DEPTH_X, dy = DEPTH_Y;
-            // Right face: fTR → rTR → rBR → fBR
             const rTR: [number, number] = [x1 + dx, yT - dy];
             const rBR: [number, number] = [x1 + dx, yB - dy];
-            // Top face: fTL → tTL → rTR → fTR
             const tTL: [number, number] = [x0 + dx, yT - dy];
 
             const centerX = x0 + barW / 2;
 
             return (
               <g key={section}>
-                {clamped > 0 ? (
-                  <>
-                    {/* ── Right face (draw first so front overlaps edge) ── */}
-                    <polygon
-                      points={pts([[x1, yT], rTR, rBR, [x1, yB]])}
-                      fill={`url(#rg-${id})`}
-                    />
+                {/* ── Right face (draw first so front overlaps edge) ── */}
+                <polygon
+                  points={pts([[x1, yT], rTR, rBR, [x1, yB]])}
+                  fill={`url(#rg-${id})`}
+                />
 
-                    {/* ── Front face ── */}
-                    <polygon
-                      points={pts([[x0, yT], [x1, yT], [x1, yB], [x0, yB]])}
-                      fill={`url(#fg-${id})`}
-                    />
+                {/* ── Front face ── */}
+                <polygon
+                  points={pts([[x0, yT], [x1, yT], [x1, yB], [x0, yB]])}
+                  fill={`url(#fg-${id})`}
+                />
 
-                    {/* ── Top face (draw last, on top) ── */}
-                    <polygon
-                      points={pts([[x0, yT], tTL, rTR, [x1, yT]])}
-                      fill={`url(#tg-${id})`}
-                    />
+                {/* ── Top face (draw last, on top) ── */}
+                <polygon
+                  points={pts([[x0, yT], tTL, rTR, [x1, yT]])}
+                  fill={`url(#tg-${id})`}
+                />
 
-                    {/* Subtle top-edge highlight line */}
-                    <line
-                      x1={x0} y1={yT}
-                      x2={x1} y2={yT}
-                      stroke={color}
-                      strokeWidth="1.5"
-                      opacity="0.65"
-                    />
+                {/* Subtle top-edge highlight line */}
+                <line
+                  x1={x0} y1={yT}
+                  x2={x1} y2={yT}
+                  stroke={color}
+                  strokeWidth="1.5"
+                  opacity={clamped > 0.5 ? 0.65 : 0.3}
+                />
 
-                    {/* Bottom glow shadow */}
-                    <rect
-                      x={x0 + 4} y={yB + 2}
-                      width={barW - 8} height={6}
-                      rx="3"
-                      fill={color}
-                      opacity="0.18"
-                      style={{ filter: `blur(4px)` }}
-                    />
-                  </>
-                ) : (
-                  /* Empty bar — thin baseline hint */
-                  <line
-                    x1={x0} y1={yB}
-                    x2={x1} y2={yB}
-                    stroke={color}
-                    strokeWidth="2"
-                    opacity="0.25"
-                  />
-                )}
+                {/* Bottom glow shadow */}
+                <rect
+                  x={x0 + 4} y={yB + 2}
+                  width={barW - 8} height={6}
+                  rx="3"
+                  fill={color}
+                  opacity={clamped > 0.5 ? 0.18 : 0.08}
+                  style={{ filter: `blur(4px)` }}
+                />
 
-                {/* Percentage label — floats above bar (or near baseline if 0) */}
+                {/* Percentage label — floats above bar (or near baseline if ~0) */}
                 <text
                   x={centerX}
-                  y={clamped > 0 ? yT - dy - 7 : yB - 8}
+                  y={yT - dy - 7}
                   textAnchor="middle"
                   fill={color}
                   fontSize="11.5"
                   fontWeight="700"
-                  style={{ filter: clamped > 0 ? `drop-shadow(0 0 6px ${color}80)` : undefined }}
+                  style={{ filter: clamped > 0.5 ? `drop-shadow(0 0 6px ${color}80)` : undefined }}
                 >
                   {clamped.toFixed(2)}%
                 </text>
