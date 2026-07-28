@@ -1,5 +1,7 @@
 import { MetadataRoute } from 'next';
 
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -9,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/dashboard/archive/'],
       },
     ],
-    sitemap: 'https://catarina-devora.vercel.app/sitemap.xml',
-    host: 'https://catarina-devora.vercel.app',
+    sitemap: `${BASE_URL}/sitemap.xml`,
+    host: BASE_URL,
   };
 }

@@ -40,7 +40,7 @@ export default function ArchivedMonthPage({
   params: Promise<{ monthId: string }>;
 }) {
   const { monthId } = use(params);
-  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
+  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Your Team";
   const { user, isAdmin } = useAuth();
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [monthInfo, setMonthInfo] = useState<{

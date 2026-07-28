@@ -8,7 +8,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // CLI tools use the local SQLite file
-    url: "file:./dev.db",
+    // On Vercel / CI: uses DATABASE_URL env var (Turso).
+    // Locally: falls back to file:./dev.db for convenience.
+    url: process.env.DATABASE_URL || "file:./dev.db",
   },
 });

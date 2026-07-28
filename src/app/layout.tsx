@@ -19,22 +19,19 @@ const cairo = Cairo({
   display: "swap",
 });
 
-const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
+const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Your Team";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://catarina-devora.vercel.app"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Catarina",
     template: "%s | Catarina",
   },
   description:
     `Team planning and progress tracking for ${teamName}.`,
-  keywords: ["planning", "team", "goals", "devora", "project management"],
+  keywords: ["planning", "team", "goals", "project management"],
   authors: [{ name: teamName }],
-  manifest: "/manifest.json",
-  alternates: {
-    canonical: "https://catarina-devora.vercel.app",
-  },
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/apple-touch-icon.png",
@@ -42,12 +39,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Catarina",
     description: `Team planning and progress tracking for ${teamName}.`,
-    url: "https://catarina-devora.vercel.app",
+    url: siteUrl,
     siteName: "Catarina",
     images: [
       {
-        url: "https://catarina-devora.vercel.app/media/og-image.png",
-        secureUrl: "https://catarina-devora.vercel.app/media/og-image.png",
+        url: `${siteUrl}/media/og-image.png`,
+        secureUrl: `${siteUrl}/media/og-image.png`,
         type: "image/png",
         width: 580,
         height: 386,
@@ -61,14 +58,13 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Catarina",
     description: `Team planning and progress tracking for ${teamName}.`,
-    images: ["https://catarina-devora.vercel.app/media/og-image.png"],
-    creator: "@omar_khaled",
+    images: [`${siteUrl}/media/og-image.png`],
   },
   other: {
     "og:image:width": "1200",
     "og:image:height": "630",
     "og:image:type": "image/png",
-    "og:image:secure_url": "https://catarina-devora.vercel.app/media/og-image.png",
+    "og:image:secure_url": `${siteUrl}/media/og-image.png`,
   },
   robots: {
     index: true,

@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catarina — Features & Functions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0d0d12;
+      --surface: #16161e;
+      --surface-2: #1e1e28;
+      --border: #2a2a3a;
+      --text: #e4e4ef;
+      --text-dim: #8888a0;
+      --accent: #3ecfcf;
+      --accent-glow: rgba(62, 207, 207, 0.15);
+      --pink: #FF4D6A;
+      --purple: #7C3AED;
+      --blue: #3B82F6;
+      --yellow: #F59E0B;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Hero ────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 100vh;
+      padding: 2rem;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(62, 207, 207, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(124, 58, 237, 0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .hero-sticker {
+      width: 160px;
+      height: 160px;
+      object-fit: contain;
+      animation: float 3s ease-in-out infinite;
+      filter: drop-shadow(0 8px 32px rgba(62, 207, 207, 0.2));
+      margin-bottom: 1.5rem;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent), #a78bfa, var(--pink));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1rem;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      max-width: 560px;
+      margin-bottom: 2.5rem;
+    }
+
+    .scroll-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      animation: bounce 2s ease-in-out infinite;
+      cursor: pointer;
+    }
+
+    .scroll-hint svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--accent);
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(6px); }
+    }
+
+    /* ── Navigation Tabs ─────────────────────────────── */
+    .nav-tabs {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: rgba(13, 13, 18, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .nav-tab {
+      padding: 0.5rem 1.2rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+
+    .nav-tab:hover { border-color: var(--accent); color: var(--text); }
+    .nav-tab.active {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── Sections Container ──────────────────────────── */
+    .features-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 6rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-top: 3rem;
+    }
+
+    .section-header img {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .section-header h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .section-header .badge {
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid rgba(62, 207, 207, 0.2);
+    }
+
+    /* ── Feature Cards ───────────────────────────────── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      transition: all 0.3s ease;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-accent, var(--accent));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(62, 207, 207, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .card:hover::before { opacity: 1; }
+
+    .card-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.65;
+    }
+
+    .card .sticker {
+      width: 48px;
+      height: 48px;
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      opacity: 0;
+      transform: scale(0.7) rotate(-8deg);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      object-fit: contain;
+    }
+
+    .card:hover .sticker {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+
+    /* ── Wide Card (spans 2 cols) ───────────────────── */
+    .card.wide {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .card.wide img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Interactive Demo: Sections ──────────────────── */
+    .sections-demo {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .section-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 12px;
+      border: 2px solid var(--section-color, var(--border));
+      background: color-mix(in srgb, var(--section-color, var(--border)) 10%, transparent);
+      cursor: pointer;
+      transition: all 0.25s;
+      font-weight: 500;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+
+    .section-pill:hover,
+    .section-pill.active {
+      background: color-mix(in srgb, var(--section-color) 25%, transparent);
+      transform: scale(1.04);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--section-color) 20%, transparent);
+    }
+
+    .section-pill .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--section-color);
+    }
+
+    .section-info {
+      margin-top: 1.25rem;
+      padding: 1.25rem;
+      background: var(--surface-2);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      transition: all 0.3s;
+    }
+
+    .section-info strong { color: var(--text); }
+
+    /* ── Interactive Demo: Goal Tracker ──────────────── */
+    .goal-demo {
+      margin-top: 1.25rem;
+    }
+
+    .goal-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface-2);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+
+    .goal-row:hover {
+      border-color: rgba(62, 207, 207, 0.3);
+      background: rgba(62, 207, 207, 0.04);
+    }
+
+    .goal-checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.25s;
+    }
+
+    .goal-row.done .goal-checkbox {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .goal-row.done .goal-checkbox::after {
+      content: '✓';
+      color: var(--bg);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .goal-row.done .goal-text {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+
+    .goal-text { flex: 1; font-size: 0.9rem; font-weight: 500; }
+
+    .goal-progress {
+      width: 100px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .goal-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.5s ease;
+    }
+
+    .goal-pct {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* ── Interactive Demo: Notifications ─────────────── */
+    .notif-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .notif-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface-2);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      transition: all 0.3s;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateX(-20px);
+      animation: slideIn 0.4s ease forwards;
+    }
+
+    .notif-item:nth-child(2) { animation-delay: 0.15s; }
+    .notif-item:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes slideIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .notif-item:hover {
+      border-color: rgba(62, 207, 207, 0.3);
+      background: rgba(62, 207, 207, 0.04);
+    }
+
+    .notif-item.pinned { border-left: 3px solid var(--yellow); }
+
+    .notif-item img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .notif-text h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.15rem;
+    }
+
+    .notif-text p {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .notif-tag {
+      margin-left: auto;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: var(--accent-glow);
+      color: var(--accent);
+      white-space: nowrap;
+      align-self: center;
+    }
+
+    /* ── Permissions Table ───────────────────────────── */
+    .perm-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 1.25rem;
+      font-size: 0.85rem;
+    }
+
+    .perm-table th, .perm-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .perm-table th {
+      font-weight: 600;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .perm-table tr:last-child td { border-bottom: none; }
+
+    .perm-check { color: var(--accent); font-weight: 700; }
+    .perm-dash { color: var(--text-dim); }
+
+    /* ── Version Timeline ────────────────────────────── */
+    .timeline {
+      margin-top: 1.5rem;
+      position: relative;
+      padding-left: 2rem;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--border);
+      border-radius: 99px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 1.5rem;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -1.65rem;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--accent);
+      z-index: 1;
+    }
+
+    .timeline-item.major::before { border-color: var(--pink); background: var(--pink); }
+    .timeline-item.minor::before { border-color: var(--purple); background: var(--purple); }
+    .timeline-item.patch::before { border-color: var(--accent); }
+
+    .timeline-item h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    .timeline-item .version-tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+
+    .timeline-item.major .version-tag { background: rgba(255, 77, 106, 0.15); color: var(--pink); }
+    .timeline-item.minor .version-tag { background: rgba(124, 58, 237, 0.15); color: var(--purple); }
+    .timeline-item.patch .version-tag { background: var(--accent-glow); color: var(--accent); }
+
+    .timeline-item ul {
+      list-style: none;
+      margin-top: 0.5rem;
+    }
+
+    .timeline-item li {
+      padding: 0.25rem 0;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .timeline-item li::before {
+      content: '→ ';
+      color: var(--accent);
+    }
+
+    /* ── Media Gallery ───────────────────────────────── */
+    .media-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.25rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .media-row img {
+      height: 180px;
+      width: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      object-fit: cover;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+    }
+
+    .media-row img:hover { transform: scale(1.03); }
+
+    /* ── Sticker Parade ──────────────────────────────── */
+    .sticker-parade {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+      padding: 2rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .sticker-parade img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      transition: transform 0.3s;
+      cursor: pointer;
+    }
+
+    .sticker-parade img:hover {
+      transform: scale(1.25) rotate(-5deg);
+    }
+
+    .sticker-parade img.pop {
+      animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    /* ── Footer ──────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    footer img {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 0.75rem;
+      opacity: 0.7;
+    }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 720px) {
+      .card.wide { grid-template-columns: 1fr; }
+      .card-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 2.2rem; }
+      .perm-table { font-size: 0.75rem; }
+      .perm-table th, .perm-table td { padding: 0.5rem 0.6rem; }
+      .nav-tab { font-size: 0.75rem; padding: 0.4rem 0.9rem; }
+    }
+
+    /* ── Fade-in on scroll ───────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════════════ HERO ════════════ -->
+  <section class="hero" id="top">
+    <img src="/rina/logo.webp" alt="Catarina" class="hero-sticker" />
+    <h1>Catarina</h1>
+    <p>Your team's planning & tracking companion — goals, notifications, real-time sync, and a whole lot of personality.</p>
+    <a href="#core" class="scroll-hint">
+      Explore features
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </a>
+  </section>
+
+  <!-- ════════════ NAV ════════════ -->
+  <nav class="nav-tabs" id="nav">
+    <button class="nav-tab active" data-target="core">Core</button>
+    <button class="nav-tab" data-target="collab">Collaboration</button>
+    <button class="nav-tab" data-target="management">Management</button>
+    <button class="nav-tab" data-target="polish">Polish & UX</button>
+    <button class="nav-tab" data-target="changelog">Changelog</button>
+  </nav>
+
+  <!-- ════════════ FEATURES ════════════ -->
+  <div class="features-container">
+
+    <!-- ── CORE ── -->
+    <section id="core">
+      <div class="section-header reveal">
+        <img src="/rina/happy.webp" alt="Core features" />
+        <div>
+          <h2>Core Features</h2>
+          <span class="badge">Foundation</span>
+        </div>
+      </div>
+
+      <div class="card-grid">
+
+        <!-- Goal Tracking -->
+        <div class="card reveal" style="--card-accent: var(--accent)">
+          <img src="/rina/note.webp" alt="" class="sticker" />
+          <span class="card-icon">🎯</span>
+          <h3>Goal Tracking</h3>
+          <p>Set monthly goals with targets, steps, deadlines, and assignees. Track progress in real time with visual bars and completion states.</p>
+          <div class="goal-demo" id="goalDemo">
+            <div class="goal-row done" onclick="toggleGoal(this)">
+              <div class="goal-checkbox"></div>
+              <span class="goal-text">Design new landing page</span>
+              <div class="goal-progress"><div class="goal-progress-fill" style="width:100%"></div></div>
+              <span class="goal-pct">100%</span>
+            </div>
+            <div class="goal-row" onclick="toggleGoal(this)">
+              <div class="goal-checkbox"></div>
+              <span class="goal-text">Write API documentation</span>
+              <div class="goal-progress"><div class="goal-progress-fill" style="width:60%"></div></div>
+              <span class="goal-pct">60%</span>
+            </div>
+            <div class="goal-row" onclick="toggleGoal(this)">
+              <div class="goal-checkbox"></div>
+              <span class="goal-text">Launch social campaign</span>
+              <div class="goal-progress"><div class="goal-progress-fill" style="width:25%"></div></div>
+              <span class="goal-pct">25%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sections -->
+        <div class="card reveal" style="--card-accent: var(--purple)">
+          <img src="/rina/excited.webp" alt="" class="sticker" />
+          <span class="card-icon">📁</span>
+          <h3>Sections</h3>
+          <p>Organize work by team sections. Each has its own color, prefix, and dashboard — giving every team their own space.</p>
+          <div class="sections-demo" id="sectionsDemo">
+            <div class="section-pill" style="--section-color: #FF4D6A" onclick="selectSection(this, 'MARKETING')" data-key="MARKETING">
+              <span class="dot"></span> Marketing
+            </div>
+            <div class="section-pill" style="--section-color: #7C3AED" onclick="selectSection(this, 'ART')" data-key="ART">
+              <span class="dot"></span> Art
+            </div>
+            <div class="section-pill" style="--section-color: #3B82F6" onclick="selectSection(this, 'TECHNICAL')" data-key="TECHNICAL">
+              <span class="dot"></span> Technical
+            </div>
+            <div class="section-pill" style="--section-color: #F59E0B" onclick="selectSection(this, 'MANAGEMENT')" data-key="MANAGEMENT">
+              <span class="dot"></span> Management
+            </div>
+          </div>
+          <div class="section-info" id="sectionInfo">
+            Click a section above to see its details.
+          </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="card reveal" style="--card-accent: var(--blue)">
+          <img src="/rina/think.webp" alt="" class="sticker" />
+          <span class="card-icon">📊</span>
+          <h3>Live Dashboard</h3>
+          <p>Animated donut charts, progress bars, and stats at a glance. See how each section is performing this month with real-time data.</p>
+        </div>
+
+        <!-- Notifications -->
+        <div class="card reveal" style="--card-accent: var(--yellow)">
+          <img src="/rina/update.webp" alt="" class="sticker" />
+          <span class="card-icon">🔔</span>
+          <h3>Smart Notifications</h3>
+          <p>Get notified about goal updates, comments, deadline alerts, and system changes. Pin important ones and play audio alerts.</p>
+          <div class="notif-stack" id="notifDemo">
+            <div class="notif-item pinned">
+              <img src="/rina/deadline.webp" alt="" />
+              <div class="notif-text">
+                <h4>Deadline Approaching</h4>
+                <p>"Launch social campaign" is due in 2 days</p>
+              </div>
+              <span class="notif-tag">Pinned</span>
+            </div>
+            <div class="notif-item">
+              <img src="/rina/edit.webp" alt="" />
+              <div class="notif-text">
+                <h4>Goal Updated</h4>
+                <p>Sara moved "API docs" to 60%</p>
+              </div>
+            </div>
+            <div class="notif-item">
+              <img src="/rina/celebration.webp" alt="" />
+              <div class="notif-text">
+                <h4>Goal Completed!</h4>
+                <p>"Design landing page" is done 🎉</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── COLLABORATION ── -->
+    <section id="collab">
+      <div class="section-header reveal">
+        <img src="/rina/wave.webp" alt="Collaboration" />
+        <div>
+          <h2>Collaboration</h2>
+          <span class="badge">Real-time</span>
+        </div>
+      </div>
+
+      <div class="card-grid">
+
+        <div class="card wide reveal" style="--card-accent: #10b981">
+          <div>
+            <img src="/rina/excited.webp" alt="" class="sticker" />
+            <span class="card-icon">⚡</span>
+            <h3>Real-Time Sync</h3>
+            <p>Changes from other team members appear within 5 seconds — no page reload needed. Delta fetching means only modified data is transferred. Smart polling adjusts based on tab visibility. Optimistic mutations make your actions feel instant, with automatic rollback if something fails.</p>
+          </div>
+          <img src="/media/banner.png" alt="Catarina banner" />
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--accent)">
+          <img src="/rina/celebration.webp" alt="" class="sticker" />
+          <span class="card-icon">💬</span>
+          <h3>Comments & Assignments</h3>
+          <p>Comment on goals to discuss progress. Assign team members with granular permissions — who can check, who can edit. Section members get notified automatically.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--pink)">
+          <img src="/rina/thumb.webp" alt="" class="sticker" />
+          <span class="card-icon">🔄</span>
+          <h3>Live Activity Indicators</h3>
+          <p>New goals from other users shimmer with a teal glow. Dashboard section cards pulse when goals change. Toast notifications appear for incoming updates in the navbar.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── MANAGEMENT ── -->
+    <section id="management">
+      <div class="section-header reveal">
+        <img src="/rina/role-changed.webp" alt="Management" />
+        <div>
+          <h2>Management & Admin</h2>
+          <span class="badge">Control</span>
+        </div>
+      </div>
+
+      <div class="card-grid">
+
+        <div class="card reveal" style="--card-accent: var(--yellow)">
+          <img src="/rina/note.webp" alt="" class="sticker" />
+          <span class="card-icon">🔐</span>
+          <h3>Granular Permissions</h3>
+          <p>Admins control exactly what each member can do — create goals, edit goals, delete goals, manage members, and create planning months.</p>
+          <table class="perm-table">
+            <thead>
+              <tr><th>Permission</th><th>Admin</th><th>Member</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Create Goals</td><td class="perm-check">✓</td><td class="perm-check">✓</td></tr>
+              <tr><td>Edit Goals</td><td class="perm-check">✓</td><td class="perm-dash">—</td></tr>
+              <tr><td>Delete Goals</td><td class="perm-check">✓</td><td class="perm-dash">—</td></tr>
+              <tr><td>Manage Members</td><td class="perm-check">✓</td><td class="perm-dash">—</td></tr>
+              <tr><td>Create Months</td><td class="perm-check">✓</td><td class="perm-dash">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--purple)">
+          <img src="/rina/think.webp" alt="" class="sticker" />
+          <span class="card-icon">👤</span>
+          <h3>Profile System</h3>
+          <p>Edit your name, email, bio, profile photo, and password. Each member has a unique identity with their own avatar and section assignments.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--pink)">
+          <img src="/rina/sleeping.webp" alt="" class="sticker" />
+          <span class="card-icon">📁</span>
+          <h3>Archive & PDF Export</h3>
+          <p>Completed months are archived for history. Export any month to PDF for sharing with stakeholders or keeping offline records.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--blue)">
+          <img src="/rina/role-changed.webp" alt="" class="sticker" />
+          <span class="card-icon">🏆</span>
+          <h3>Approval Workflow</h3>
+          <p>New users go through an admin approval process — pending, approved, or rejected. Keeps your team roster clean and controlled.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── POLISH & UX ── -->
+    <section id="polish">
+      <div class="section-header reveal">
+        <img src="/rina/thumb.webp" alt="Polish" />
+        <div>
+          <h2>Polish & UX</h2>
+          <span class="badge">Experience</span>
+        </div>
+      </div>
+
+      <div class="card-grid">
+
+        <div class="card reveal" style="--card-accent: var(--accent)">
+          <img src="/rina/happy.webp" alt="" class="sticker" />
+          <span class="card-icon">📱</span>
+          <h3>Progressive Web App</h3>
+          <p>Install Catarina on any device — phone, tablet, or desktop. Works offline with a service worker that precaches assets and uses network-first for pages.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--purple)">
+          <img src="/rina/bug-fix.webp" alt="" class="sticker" />
+          <span class="card-icon">♿</span>
+          <h3>Accessibility</h3>
+          <p>ARIA live regions for screen readers, proper checkbox roles, <code>prefers-reduced-motion</code> support, and semantic HTML throughout.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--yellow)">
+          <img src="/rina/update.webp" alt="" class="sticker" />
+          <span class="card-icon">🎉</span>
+          <h3>Update Celebrations</h3>
+          <p>When a new version lands, you get a tiered celebration modal — major, minor, or patch — showing exactly what's new with the in-app changelog.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--pink)">
+          <img src="/rina/cry.webp" alt="" class="sticker" />
+          <span class="card-icon">🎨</span>
+          <h3>Catarina Expressions</h3>
+          <p>The Catarina mascot reacts to what's happening — celebrating completions, thinking during edits, sleeping when idle, and waving hello.</p>
+          <div class="sticker-parade" id="stickerParade">
+            <img src="/rina/wave.webp" alt="Wave" onclick="popSticker(this)" />
+            <img src="/rina/happy.webp" alt="Happy" onclick="popSticker(this)" />
+            <img src="/rina/excited.webp" alt="Excited" onclick="popSticker(this)" />
+            <img src="/rina/think.webp" alt="Think" onclick="popSticker(this)" />
+            <img src="/rina/celebration.webp" alt="Celebrate" onclick="popSticker(this)" />
+            <img src="/rina/deadline.webp" alt="Deadline" onclick="popSticker(this)" />
+            <img src="/rina/edit.webp" alt="Edit" onclick="popSticker(this)" />
+            <img src="/rina/sleeping.webp" alt="Sleeping" onclick="popSticker(this)" />
+            <img src="/rina/thumb.webp" alt="Thumbs up" onclick="popSticker(this)" />
+            <img src="/rina/cry.webp" alt="Cry" onclick="popSticker(this)" />
+            <img src="/rina/bug-fix.webp" alt="Bug fix" onclick="popSticker(this)" />
+            <img src="/rina/note.webp" alt="Note" onclick="popSticker(this)" />
+            <img src="/rina/404.webp" alt="404" onclick="popSticker(this)" />
+            <img src="/rina/bye.webp" alt="Bye" onclick="popSticker(this)" />
+            <img src="/rina/role-changed.webp" alt="Role" onclick="popSticker(this)" />
+            <img src="/rina/update.webp" alt="Update" onclick="popSticker(this)" />
+          </div>
+        </div>
+
+        <div class="card reveal" style="--card-accent: #10b981">
+          <img src="/rina/thumb.webp" alt="" class="sticker" />
+          <span class="card-icon">🔒</span>
+          <h3>Security</h3>
+          <p>HttpOnly JWT cookies (XSS-safe), bcrypt password hashing, rate limiting on auth endpoints (10/min per IP), and secure cookie flags in production.</p>
+        </div>
+
+        <div class="card reveal" style="--card-accent: var(--blue)">
+          <img src="/rina/note.webp" alt="" class="sticker" />
+          <span class="card-icon">🖼️</span>
+          <h3>Media & Assets</h3>
+          <p>Static assets — stickers, profile pics, and fonts — have infinite browser cache with immutable headers for instant loading.</p>
+          <div class="media-row">
+            <img src="/media/banner.png" alt="Banner" />
+            <img src="/media/peace.png" alt="Peace" />
+            <img src="/media/work.png" alt="Work" />
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── CHANGELOG ── -->
+    <section id="changelog">
+      <div class="section-header reveal">
+        <img src="/rina/update.webp" alt="Changelog" />
+        <div>
+          <h2>Version History</h2>
+          <span class="badge">Changelog</span>
+        </div>
+      </div>
+
+      <div class="timeline reveal">
+        <div class="timeline-item patch">
+          <h4><span class="version-tag">v0.4.2</span> Notification Modal & Goal Highlighting</h4>
+          <ul>
+            <li>NotificationModal — tap any notification for full details and deep-links</li>
+            <li>Goal highlight on deep link with section color pulse</li>
+            <li>Security hardening — rate limiting and JWT cleanup</li>
+          </ul>
+        </div>
+        <div class="timeline-item patch">
+          <h4><span class="version-tag">v0.4.1</span> PDF Export & UI Refinements</h4>
+          <ul>
+            <li>Fixed PDF export print styling</li>
+            <li>New Catarina notification stickers</li>
+            <li>Polished responsive mobile UI</li>
+          </ul>
+        </div>
+        <div class="timeline-item minor">
+          <h4><span class="version-tag">v0.4.0</span> Realtime Sync — Live Collaboration</h4>
+          <ul>
+            <li>Real-time change detection within 5s</li>
+            <li>Delta fetching and smart polling</li>
+            <li>Optimistic mutations with rollback</li>
+            <li>Goal glow, section pulse, and toast notifications</li>
+          </ul>
+        </div>
+        <div class="timeline-item patch">
+          <h4><span class="version-tag">v0.3.2</span> Code Quality & Modularization</h4>
+          <ul>
+            <li>Component extraction and custom hooks</li>
+            <li>Loading skeleton states</li>
+            <li>Accessibility improvements</li>
+          </ul>
+        </div>
+        <div class="timeline-item minor">
+          <h4><span class="version-tag">v0.3.0</span> Catarina Got an Upgrade!</h4>
+          <ul>
+            <li>Update celebration system</li>
+            <li>Tiered celebration modals</li>
+            <li>In-app changelog</li>
+          </ul>
+        </div>
+        <div class="timeline-item minor">
+          <h4><span class="version-tag">v0.2.0</span> Profile System & Expressions</h4>
+          <ul>
+            <li>Full profile editing</li>
+            <li>Catarina character expressions</li>
+            <li>Welcome celebration for first-timers</li>
+          </ul>
+        </div>
+        <div class="timeline-item major">
+          <h4><span class="version-tag">v0.1.0</span> Catarina Is Live!</h4>
+          <ul>
+            <li>Full team planning and tracking system</li>
+            <li>Monthly goal tracking with sections</li>
+            <li>Live performance dashboard</li>
+            <li>Progressive Web App</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ════════════ FOOTER ════════════ -->
+  <footer>
+    <img src="/rina/bye.webp" alt="Bye" />
+    <p>Made with care by the Devora team — Catarina v0.4.2</p>
+  </footer>
+
+  <!-- ════════════ SCRIPTS ════════════ -->
+  <script>
+    /* ── Nav tabs ─────────────────────────────────── */
+    const tabs = document.querySelectorAll('.nav-tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const target = document.getElementById(tab.dataset.target);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    /* Update active tab on scroll */
+    const sections = document.querySelectorAll('section[id]');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tabs.forEach(t => t.classList.toggle('active', t.dataset.target === entry.target.id));
+        }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px' });
+    sections.forEach(s => observer.observe(s));
+
+    /* ── Reveal on scroll ─────────────────────────── */
+    const reveals = document.querySelectorAll('.reveal');
+    const revealObs = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    reveals.forEach(r => revealObs.observe(r));
+
+    /* ── Goal toggle demo ─────────────────────────── */
+    function toggleGoal(row) {
+      row.classList.toggle('done');
+      const fill = row.querySelector('.goal-progress-fill');
+      const pct = row.querySelector('.goal-pct');
+      if (row.classList.contains('done')) {
+        fill.style.width = '100%';
+        pct.textContent = '100%';
+      } else {
+        fill.style.width = '0%';
+        pct.textContent = '0%';
+      }
+    }
+
+    /* ── Section selector demo ────────────────────── */
+    const sectionData = {
+      MARKETING: { color: '#FF4D6A', prefix: 'MRK-', desc: 'Social media campaigns, brand partnerships, content strategy, and growth metrics. Marketing goals focus on reach and engagement.' },
+      ART: { color: '#7C3AED', prefix: 'ART-', desc: 'Visual design, illustrations, UI assets, and creative direction. Art goals center around deliverables and quality milestones.' },
+      TECHNICAL: { color: '#3B82F6', prefix: 'TEC-', desc: 'Engineering tasks, bug fixes, infrastructure, and development sprints. Technical goals track code quality and feature delivery.' },
+      MANAGEMENT: { color: '#F59E0B', prefix: 'MNG-', desc: 'Planning, coordination, team ops, and strategic decisions. Management goals oversee cross-team progress and timelines.' },
+    };
+
+    function selectSection(el, key) {
+      document.querySelectorAll('.section-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      const d = sectionData[key];
+      document.getElementById('sectionInfo').innerHTML =
+        `<strong style="color:${d.color}">${key}</strong> — Prefix: <code>${d.prefix}</code><br/>${d.desc}`;
+    }
+
+    /* ── Sticker pop ──────────────────────────────── */
+    function popSticker(el) {
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    }
+
+    /* ── Auto-select first section on load ────────── */
+    window.addEventListener('DOMContentLoaded', () => {
+      const first = document.querySelector('.section-pill');
+      if (first) selectSection(first, 'MARKETING');
+    });
+  </script>
+
+</body>
+</html>

@@ -37,7 +37,7 @@ const CARD_MORPH = {
 };
 
 export default function LoginForm() {
-  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Devora";
+  const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Your Team";
   const router = useRouter();
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);

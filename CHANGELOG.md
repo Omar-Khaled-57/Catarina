@@ -14,6 +14,52 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.3] — 2026-07-28 · *Self-Hosting & Production Hardening*
+
+> **Release Highlight:** Patch release making Catarina fully deployable by any team — dynamic branding, production rate limiting, proper migration workflow, and a complete self-hosting guide.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Self-Hosting & Deployment
+
+- **`NEXT_PUBLIC_SITE_URL` Env Var**:
+  - Added site URL env var used across metadata, sitemap, robots, and OpenGraph tags. No more hardcoded domain.
+- **Dynamic Web Manifest**:
+  - Replaced static `public/manifest.json` with `src/app/manifest.ts` that reads `NEXT_PUBLIC_TEAM_NAME` and `NEXT_PUBLIC_SITE_URL`. PWA branding is now fully configurable.
+- **Team-Agnostic Seed Script**:
+  - Rewrote `prisma/seed.ts` with generic demo goals (no Devora-specific content). New deployments get a clean starting point.
+- **`db:setup` Script**:
+  - Added `npm run db:setup` for first-time setup — applies migrations and seeds in one command.
+- **README Overhaul**:
+  - Complete rewrite with platform links, Catarina stickers in steps, updated scripts table, and full Vercel deploy guide.
+
+### <img src="public/rina/thumb.webp" width="80" align="center" /> ✦ Production Rate Limiting
+
+- **Upstash Redis Integration**:
+  - Replaced in-memory `Map`-based rate limiter with Upstash Redis sliding window (`@upstash/ratelimit` + `@upstash/redis`).
+  - Rate limits now persist across all Vercel cold starts — brute-force attacks are actually blocked.
+  - Falls back to in-memory for local development (zero config needed).
+- **Async Rate Limiter**:
+  - `checkRateLimit()` is now `async` — callers in login and register routes updated with `await`.
+
+### <img src="public/rina/note.webp" width="80" align="center" /> ✦ Database Migrations
+
+- **Catchup Migration**:
+  - Created `20260728000000_catchup_add_tables_and_columns` to sync migration history with the current schema (UserSection, GoalAssignment, Step, Approval, Notification, SectionConfig).
+- **Migration Scripts**:
+  - Added `db:migrate`, `db:deploy`, `db:status` to `package.json` for proper Prisma workflow.
+- **Schema Update Guide**:
+  - Added `dev/SCHEMA-UPDATE-GUIDE.md` documenting the full schema update workflow for the team.
+
+### <img src="public/rina/bug-fix.webp" width="130" align="center" /> ✦ Cleanup
+
+- **Git Cleanup**:
+  - Removed `.agents/` and `.kilo/` from git tracking (already in `.gitignore`).
+- **Branding Cleanup**:
+  - Removed all hardcoded `catarina-devora.vercel.app` and `Devora` references from source code. All now read from env vars.
+- **Features Documentation**:
+  - Added `public/features-and-functions.html` — interactive page showcasing all Catarina features with stickers and demos.
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.2] — 2026-07-27 · *Notification Modal & Goal Highlighting*
 
 > **Release Highlight:** Patch release adding a full notification detail modal, section-colored goal highlight deep-links, styled form controls, security hardening, and accessibility improvements.

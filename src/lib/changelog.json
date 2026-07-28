@@ -1,4 +1,17 @@
 {
+  "0.4.3": {
+    "type": "patch",
+    "title": "Self-Hosting & Production Hardening",
+    "entries": [
+      { "icon": "🏠", "text": "Deploy your own Catarina — added NEXT_PUBLIC_SITE_URL env var for SEO, sitemap, and OpenGraph." },
+      { "icon": "📱", "text": "Dynamic web manifest — PWA branding now reads from environment variables." },
+      { "icon": "🌱", "text": "Team-agnostic seed script — new deployments get generic demo goals, no hardcoded content." },
+      { "icon": "⚡", "text": "Upstash Redis rate limiting — brute-force protection now works across Vercel cold starts." },
+      { "icon": "📦", "text": "Proper Prisma migration workflow — added db:migrate, db:deploy, db:status scripts." },
+      { "icon": "📖", "text": "README overhaul — platform links, Catarina stickers, and complete deploy guide." },
+      { "icon": "🧹", "text": "Removed all hardcoded branding — app is now fully white-label configurable." }
+    ]
+  },
   "0.4.2": {
     "type": "patch",
     "title": "Notification Modal & Goal Highlighting",
