@@ -169,53 +169,18 @@ nav.glass {
 }
 
 /* ─── Autofill Styling ────────────────────────────────────────────────────── */
-/* Override browser default yellow/blue autofill background.
-   Three-prong approach: background-color, box-shadow inset, and transition hack
-   to cover all Chromium versions and Tailwind CSS layer cascade. */
+/* Box-shadow inset paints a translucent teal over the native autofill background.
+   No transition hack needed — avoids clobbering Tailwind's transition-colors. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  background-color: var(--surface-2) !important;
+  -webkit-box-shadow: 0 0 0 30px var(--surface-2) inset !important;
+  box-shadow: 0 0 0 30px var(--surface-2) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
   color: var(--text) !important;
-  -webkit-box-shadow: 0 0 0 30px var(--surface-2) inset !important;
-  -webkit-text-fill-color: var(--text) !important;
   caret-color: var(--text) !important;
-  border-color: var(--border) !important;
-  transition: background-color 5000s ease-in-out 0s, color 5000s ease-in-out 0s;
-}
-
-html.light input:-webkit-autofill,
-html.light input:-webkit-autofill:hover,
-html.light input:-webkit-autofill:focus,
-html.light input:-webkit-autofill:active {
-  background-color: var(--surface-2) !important;
-  -webkit-box-shadow: 0 0 0 30px var(--surface-2) inset !important;
-  -webkit-text-fill-color: var(--text) !important;
-}
-
-/* ─── Skip Link ────────────────────────────────────────────────────────────── */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.focus\:not-sr-only:focus {
-  position: fixed;
-  width: auto;
-  height: auto;
-  padding: 8px 16px;
-  margin: 0;
-  overflow: visible;
-  clip: auto;
-  white-space: normal;
+  border-color: var(--accent) !important;
 }
 
 /* ─── Sonner Toast Fixes ────────────────────────────────────────────────────── */
