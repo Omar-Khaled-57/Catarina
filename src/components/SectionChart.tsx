@@ -30,6 +30,7 @@ const PAD_R      = 28;
 const PAD_B      = 56;    // room for section labels below baseline
 const DEPTH_X    = 22;    // 3-D horizontal depth
 const DEPTH_Y    = 14;    // 3-D vertical depth
+const MIN_BAR_H  = 4;     // minimum bar height so 0% still shows a 3D base
 const SVG_H      = PAD_T + CHART_H + DEPTH_Y + PAD_B;
 
 const BAR_AREA_W = SVG_W - PAD_L - PAD_R;
