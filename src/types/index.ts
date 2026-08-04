@@ -38,7 +38,8 @@ export interface GoalData {
 /** Minimal goal data used in dashboard overview (no comments/assignments/steps) */
 export type DashboardGoal = Pick<
   GoalData,
-  "id" | "name" | "description" | "current" | "target" | "done" | "deadline" | "carriedOver" | "section"
+  | "id" | "name" | "description" | "current" | "target" | "done"
+  | "deadline" | "carriedOver" | "section" | "updatedAt"
 >;
 
 /** Section data — minimal API response shape (key, label, color) */

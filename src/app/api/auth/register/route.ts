@@ -21,10 +21,10 @@ export async function POST(req: Request) {
       );
     }
     const formData = await req.formData();
-    const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const section = formData.get("section") as string;
+    const name = (formData.get("name") as string | null)?.trim() || "";
+    const email = (formData.get("email") as string | null)?.trim() || "";
+    const password = (formData.get("password") as string) || "";
+    const section = (formData.get("section") as string | null)?.toUpperCase().trim() || "";
     const pfp = formData.get("pfp") as File | null;
 
     if (!name || !email || !password || !section) {
@@ -34,8 +34,26 @@ export async function POST(req: Request) {
       );
     }
 
+    if (name.length > 100) {
+      return NextResponse.json({ error: "Name is too long (max 100 characters)" }, { status: 400 });
+    }
+
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
     const validSections = await getSectionKeys();
-    if (!validSections.includes(section.toUpperCase())) {
+    if (!validSections.includes(section)) {
       return NextResponse.json(
         { error: "Invalid section" },
         { status: 400 }
@@ -43,7 +61,7 @@ export async function POST(req: Request) {
     }
 
     /* Check if email is already registered as a user */
-    const existingUser = await prisma.user.findUnique({ where: { email } }) as {
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } }) as {
       id: string;
       email: string;
       name: string;
@@ -65,7 +83,7 @@ export async function POST(req: Request) {
 
     /* Check if there's already a pending approval for this email */
     const existingApproval = await prisma.approval.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     }) as {
       id: string;
       email: string;
@@ -109,23 +127,23 @@ export async function POST(req: Request) {
       pfpDataUri = `data:${pfp.type};base64,${base64}`;
     }
 
-    const hashedPassword = await bcrypt.hash(password as string, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     /* Create or update the approval request */
     const approval = await prisma.approval.upsert({
-      where: { email },
+      where: { email: normalizedEmail },
       update: {
-        name: name as string,
+        name,
         password: hashedPassword,
-        section: section as string,
+        section,
         pfp: pfpDataUri,
         status: "PENDING",
       },
       create: {
-        name: name as string,
-        email: email as string,
+        name,
+        email: normalizedEmail,
         password: hashedPassword,
-        section: section as string,
+        section,
         pfp: pfpDataUri,
       },
     });
@@ -134,7 +152,7 @@ export async function POST(req: Request) {
     await notifyAdmins({
       type: "SIGNUP_REQUEST",
       title: "New signup request",
-      message: `${name} (${email}) wants to join the ${section} section.`,
+      message: `${name} (${normalizedEmail}) wants to join the ${section} section.`,
       refId: approval.id,
       refType: "approval",
     });

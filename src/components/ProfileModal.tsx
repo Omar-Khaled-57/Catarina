@@ -53,7 +53,10 @@ export default function ProfileModal({
   /* Fetch dynamic section labels and colors */
   useEffect(() => {
     fetch("/api/sections")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load sections");
+        return r.json();
+      })
       .then((data) => {
         const labels: Record<string, string> = {};
         const colors: Record<string, string> = {};

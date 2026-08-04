@@ -2,21 +2,17 @@
 // Automatically carries over unfinished goals from the previous month
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import { requireAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { notifyMany } from "@/lib/notify";
 
 export async function POST(req: Request) {
-  const payload = await verifyToken();
-  if (!payload || payload.role !== "ADMIN") {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 }
-    );
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   try {
-    const { previousMonthId } = await req.json();
+    const body = await req.json().catch(() => null);
+    const previousMonthId = typeof body?.previousMonthId === "string" ? body.previousMonthId : undefined;
 
     /* Determine the next month to create */
     let newYear: number;

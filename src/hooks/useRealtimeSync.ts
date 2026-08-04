@@ -14,7 +14,6 @@ export interface UseRealtimeSyncOptions {
   monthId?: string;
   section?: string;
   enabled?: boolean;
-  onNotificationCount?: (count: number) => void;
 }
 
 export interface DeltaSnapshot {
@@ -37,15 +36,19 @@ export function useRealtimeSync({
   monthId,
   section,
   enabled = true,
-  onNotificationCount,
 }: UseRealtimeSyncOptions) {
   const lastCheckRef = useRef<string>(new Date().toISOString());
   const prevSectionsRef = useRef<string | null>(null);
   const [generation, setGeneration] = useState(0);
   const snapshotRef = useRef<DeltaSnapshot>({ goals: [], sectionChanged: false, generation: 0 });
   const [failCount, setFailCount] = useState(0);
+  const inFlightRef = useRef(false);
 
   const poll = useCallback(async () => {
+    /* Prevent overlapping requests if a poll takes longer than the interval */
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
     try {
       const params = new URLSearchParams({
         since: lastCheckRef.current,
@@ -54,7 +57,7 @@ export function useRealtimeSync({
       if (section) params.set("section", section);
 
       const res = await fetch(`/api/changes?${params}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`changes: ${res.status}`);
       const data: ChangeState = await res.json();
 
       let hasChanges = false;
@@ -80,18 +83,12 @@ export function useRealtimeSync({
         if (section) goalParams.set("section", section);
 
         const goalRes = await fetch(`/api/goals?${goalParams}`);
-        if (goalRes.ok) {
-          const goalData = await goalRes.json();
-          if (goalData.goals?.length > 0) {
-            goals = goalData.goals;
-            hasChanges = true;
-          }
+        if (!goalRes.ok) throw new Error(`goals: ${goalRes.status}`);
+        const goalData = await goalRes.json();
+        if (goalData.goals?.length > 0) {
+          goals = goalData.goals;
+          hasChanges = true;
         }
-      }
-
-      /* Handle new notifications */
-      if (data.newNotifications > 0) {
-        onNotificationCount?.(data.newNotifications);
       }
 
       /* Advance the checkpoint */
@@ -107,10 +104,12 @@ export function useRealtimeSync({
       /* Reset backoff on success */
       setFailCount(0);
     } catch {
-      /* Exponential backoff */
+      /* Exponential backoff on any failure (network, 5xx, bad payload) */
       setFailCount((c) => Math.min(c + 1, 4));
+    } finally {
+      inFlightRef.current = false;
     }
-  }, [monthId, section, onNotificationCount]);
+  }, [monthId, section]);
 
   /* Adaptive interval: 5s → 10s → 20s → 30s → 30s cap */
   const interval = Math.min(5000 * Math.pow(2, failCount), 30000);

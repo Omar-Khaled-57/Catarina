@@ -58,8 +58,8 @@ export function deadlineStatus(
   if (done) return "normal";
   const now = new Date();
   const dl = new Date(deadline);
+  if (dl.getTime() < now.getTime()) return "overdue";
   const diffDays = Math.ceil((dl.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return "overdue";
   if (diffDays <= 3) return "urgent";
   return "normal";
 }

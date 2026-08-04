@@ -33,14 +33,16 @@ export default function SectionManager() {
   const fetchSections = async () => {
     try {
       const res = await fetch("/api/admin/sections");
-      const data = await res.json();
-      if (data.sections) {
-        setSections(data.sections);
+      if (res.ok) {
+        const data = await res.json();
+        setSections(data.sections || []);
       } else {
         /* Fallback to public endpoint */
         const pubRes = await fetch("/api/sections");
-        const pubData = await pubRes.json();
-        setSections(pubData.sections || []);
+        if (pubRes.ok) {
+          const pubData = await pubRes.json();
+          setSections(pubData.sections || []);
+        }
       }
     } catch {
       /* silent */
@@ -172,6 +174,7 @@ export default function SectionManager() {
                   onClick={() => setEditingSection(s)}
                   className="p-1.5 rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 transition-colors"
                   title="Edit section"
+                  aria-label={`Edit section ${s.label}`}
                 >
                   <Pencil size={14} />
                 </button>
@@ -179,6 +182,7 @@ export default function SectionManager() {
                   onClick={() => setDeletingSection(s)}
                   className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                   title="Remove section"
+                  aria-label={`Remove section ${s.label}`}
                 >
                   <Trash2 size={14} />
                 </button>

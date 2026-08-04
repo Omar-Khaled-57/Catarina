@@ -1,25 +1,7 @@
 // Notification helper — create notifications for various app events
 
 import { prisma } from "@/lib/prisma";
-
-type NotificationType =
-  | "GOAL_CREATED"
-  | "STEP_ADDED"
-  | "MEMBER_JOINED"
-  | "SIGNUP_REQUEST"
-  | "SIGNUP_REJECTED"
-  | "DEADLINE_APPROACHING"
-  | "DEADLINE_MISSED"
-  | "GOAL_COMPLETED"
-  | "SYSTEM"
-  | "GOAL_REACHED"
-  | "COMMENT_ADDED"
-  | "MEMBER_LEFT_SECTION"
-  | "MEMBER_DELETED"
-  | "MONTH_CREATED"
-  | "GOALS_CARRIED_OVER"
-  | "ROLE_CHANGED"
-  | "VERSION_UPDATE";
+import { ROLE_ADMIN, type NotificationType } from "@/lib/constants";
 
 /**
  * Create a notification for a single user.
@@ -55,25 +37,29 @@ export async function notifyAdmins(
   opts: Omit<Parameters<typeof notify>[0], "userId">
 ) {
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { role: ROLE_ADMIN },
     select: { id: true },
-  }) as Array<{ id: string }>;
+  });
   return notifyMany(admins.map((a) => a.id), opts);
 }
 
 /**
- * Notify all members of a specific section.
+ * Notify all members of a specific section (optionally excluding one user,
+ * e.g. the actor who triggered the event).
  */
 export async function notifySection(
   section: string,
-  opts: Omit<Parameters<typeof notify>[0], "userId">
+  opts: Omit<Parameters<typeof notify>[0], "userId">,
+  excludeUserId?: string
 ) {
   const members = await prisma.userSection.findMany({
     where: { section },
     select: { userId: true },
-  }) as Array<{ userId: string }>;
+  });
   return notifyMany(
-    [...new Set(members.map((m) => m.userId))],
+    [...new Set(members.map((m) => m.userId))].filter(
+      (uid) => uid !== excludeUserId
+    ),
     opts
   );
 }

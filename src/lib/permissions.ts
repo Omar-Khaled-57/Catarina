@@ -3,6 +3,8 @@
  * controlled by admin. Defines permission flags, defaults, and serialization.
  */
 
+import { ROLE_ADMIN } from "@/lib/constants";
+
 /**
  * Permission flags for a member.
  * Stored as JSON string in User.permissions.
@@ -50,6 +52,18 @@ export function parsePermissions(raw: string | null | undefined): MemberPermissi
   } catch {
     return { ...DEFAULT_PERMISSIONS };
   }
+}
+
+/**
+ * Resolve a user's effective permissions from their role + raw DB value.
+ * Admins always get the full set; members get parsed (defaulted) flags.
+ * Single source for "admin ? all : parse(raw)" used across API routes.
+ */
+export function resolvePermissions(
+  role: string,
+  rawPermissions: string | null | undefined
+): MemberPermissions {
+  return role === ROLE_ADMIN ? ADMIN_PERMISSIONS : parsePermissions(rawPermissions);
 }
 
 /**

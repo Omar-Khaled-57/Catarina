@@ -1,4 +1,19 @@
 {
+  "0.4.4": {
+    "type": "patch",
+    "title": "Security Hardening & Reliability",
+    "entries": [
+      { "icon": "🛡️", "text": "Section data isolation — members can only see goals in their assigned sections." },
+      { "icon": "🔐", "text": "Admin checks re-verified against the database — token roles can no longer be forged." },
+      { "icon": "⚠️", "text": "Fail-fast auth — the app refuses to start without a JWT_SECRET." },
+      { "icon": "🚫", "text": "Self-demotion and last-admin protection — admins can't lock themselves or the team out." },
+      { "icon": "🗑️", "text": "Data-loss guard — users who authored goals can't be deleted until goals are reassigned." },
+      { "icon": "🧹", "text": "Stricter input validation across admin sections, registration, and profile endpoints." },
+      { "icon": "🐛", "text": "Duplicate email on approval now returns a clean error instead of crashing." },
+      { "icon": "✨", "text": "Fixed a transient duplicate goal on creation and cleaned up dead code." },
+      { "icon": "🧪", "text": "Added 30 unit tests for goal merging, permissions, and shared utilities." }
+    ]
+  },
   "0.4.3": {
     "type": "patch",
     "title": "Self-Hosting & Production Hardening",

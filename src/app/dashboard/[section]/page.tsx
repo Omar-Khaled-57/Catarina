@@ -46,7 +46,10 @@ export default function SectionPage({
   /* Fetch sections and validate */
   useEffect(() => {
     fetch("/api/sections")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load sections");
+        return res.json();
+      })
       .then((data) => {
         const secs = data.sections || [];
         const found = secs.find((s: { key: string }) => s.key === section);
@@ -90,6 +93,7 @@ export default function SectionPage({
       setIsLoading(true);
       try {
         const res = await fetch(`/api/goals?monthId=${mId}&section=${section}`);
+        if (!res.ok) throw new Error("Failed to load goals");
         const data = await res.json();
         setGoals(data.goals || []);
       } catch {
@@ -104,7 +108,10 @@ export default function SectionPage({
   /* Auto-select latest month */
   useEffect(() => {
     fetch("/api/months")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load months");
+        return res.json();
+      })
       .then((data) => {
         if (data.months?.length > 0) {
           const latest = data.months[data.months.length - 1];
@@ -144,7 +151,6 @@ export default function SectionPage({
   }, [searchParams, goals]);
 
   /* ─── Realtime Sync ──────────────────────────────────────────────────────── */
-  /* ─── Realtime Sync ───────────────────────────────────────────────── */
   const { generation, snapshotRef } = useRealtimeSync({
     monthId: monthId || undefined,
     section,
@@ -153,7 +159,10 @@ export default function SectionPage({
 
   const fetchSectionConfig = useCallback(() => {
     fetch("/api/sections")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load sections");
+        return res.json();
+      })
       .then((data) => {
         const secs = data.sections || [];
         const found = secs.find((s: { key: string }) => s.key === section);

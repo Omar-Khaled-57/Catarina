@@ -10,6 +10,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type GoalData } from "@/types";
 import { Check, Plus, ListChecks, ChevronDown, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 interface StepsChecklistProps {
   goalId: string;
@@ -59,6 +60,10 @@ export default function StepsChecklist({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: newText.trim(), order: steps.length }),
     });
+    if (!res.ok) {
+      toast.error("Failed to add step");
+      return;
+    }
     const { step } = await res.json();
     onStepsChange([...steps, step]);
     setNewText("");

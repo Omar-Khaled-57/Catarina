@@ -34,7 +34,10 @@ export default function ArchivePage() {
 
   useEffect(() => {
     fetch("/api/months")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load months");
+        return res.json();
+      })
       .then((data) => {
         setMonths(data.months || []);
       })
@@ -108,6 +111,7 @@ export default function ArchivePage() {
                         onClick={() => handleDeleteMonth(m.id, monthNameLine1(m.month, m.year))}
                         className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                         title="Delete Month"
+                        aria-label={`Delete ${monthNameLine1(m.month, m.year)}`}
                       >
                         <Trash2 size={16} />
                       </button>

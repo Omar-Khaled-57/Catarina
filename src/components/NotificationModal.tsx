@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import MonthCelebrationModal from "@/components/MonthCelebrationModal";
-import { AudioPlayer } from "@/components/NotificationPanel";
+import { AudioPlayer } from "@/components/AudioPlayer";
 import { type GoalData } from "@/types";
 import changelog from "@/lib/changelog.json";
 import Image from "next/image";
@@ -32,6 +32,7 @@ import {
   Shield,
   Bell,
   ArrowRight,
+  PartyPopper,
 } from "lucide-react";
 
 interface Notification {
@@ -216,7 +217,10 @@ export default function NotificationModal({
     }
     setLoadingGoal(true);
     fetch(`/api/goals/${notification.refId}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load goal");
+        return r.json();
+      })
       .then((d) => setGoalData(d.goal || null))
       .catch(() => setGoalData(null))
       .finally(() => setLoadingGoal(false));
@@ -227,6 +231,7 @@ export default function NotificationModal({
     setNavigating(true);
     try {
       const res = await fetch(`/api/goals/${notification.refId}`);
+      if (!res.ok) throw new Error("Failed to load goal");
       const data = await res.json();
       if (data.goal?.section) {
         onPanelClose?.();
@@ -444,7 +449,8 @@ export default function NotificationModal({
           {isCelebration && (
             <Button onClick={handleCelebrate} className="w-full">
               <span className="inline-flex items-center gap-2">
-                🎉 Celebrate
+                <PartyPopper size={16} className="text-accent" />
+                Celebrate
               </span>
             </Button>
           )}

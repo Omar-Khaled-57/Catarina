@@ -4,9 +4,10 @@
  * NotificationPanel — Modal with notification list, unread badge, mark read, pin, delete.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Modal from "@/components/ui/Modal";
 import NotificationModal from "@/components/NotificationModal";
+import { AudioPlayer } from "@/components/AudioPlayer";
 import MonthCelebrationModal from "@/components/MonthCelebrationModal";
 import Image from "next/image";
 import {
@@ -23,8 +24,6 @@ import {
   Award,
   FileText,
   Info,
-  Play,
-  Pause,
   Trophy,
   MessageCircle,
   UserMinus,
@@ -150,51 +149,6 @@ function timeAgo(dateStr: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function AudioPlayer({ src }: { src: string }) {
-  const [playing, setPlaying] = useState(false);
-  const [error, setError] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const toggle = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (playing) {
-      audio.pause();
-      setPlaying(false);
-    } else {
-      setError(false);
-      try {
-        await audio.play();
-        setPlaying(true);
-      } catch {
-        setPlaying(false);
-        setError(true);
-      }
-    }
-  };
-
-  return (
-    <span className="inline-flex flex-col gap-0.5 mt-2">
-      <button
-        onClick={toggle}
-        className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all"
-      >
-        {error ? <AlertTriangle size={14} /> : playing ? <Pause size={14} /> : <Play size={14} />}
-        {error ? "Error" : playing ? "Pause" : "Play"}
-      </button>
-      <audio
-        ref={audioRef}
-        src={src}
-        onEnded={() => setPlaying(false)}
-        onError={() => setError(true)}
-        preload="none"
-        className="hidden"
-      />
-    </span>
-  );
-}
-
 export default function NotificationPanel({
   isOpen,
   onClose,
@@ -212,6 +166,7 @@ export default function NotificationPanel({
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch("/api/notifications");
+      if (!res.ok) throw new Error("Failed to fetch notifications");
       const data = await res.json();
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
@@ -339,7 +294,7 @@ export default function NotificationPanel({
                 className={`flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-colors group/n ${
                   n.read ? "opacity-60" : "bg-surface-2/40"
                 } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""} ${
-                  isCelebration ? "cursor-pointer hover:bg-surface-2/60 ring-1 ring-amber-500/20" : ""
+                  isCelebration ? "cursor-pointer hover:bg-surface-2/60 ring-1 ring-teal-500/20" : ""
                 }`}
               >
                 <div className={`shrink-0 ${
@@ -348,10 +303,14 @@ export default function NotificationPanel({
                     : "mt-0.5"
                 } ${!imageSrc && !isCelebration ? iconColor : ""}`}>
                   {isCelebration ? (
-                    /* Celebration types show a sparkle emoji badge instead of an image inline */
-                    <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-amber-400/10 text-2xl select-none">
-                      🎉
-                    </span>
+                    /* Celebration types show an excited sticker badge instead of an image inline */
+                    <Image
+                      src="/rina/excited.webp"
+                      alt="Catarina excited"
+                      width={100}
+                      height={100}
+                      className="w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain"
+                    />
                   ) : imageSrc ? (
                     <Image
                       src={imageSrc}
@@ -452,6 +411,7 @@ export default function NotificationPanel({
                       }}
                       className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
                       title="Mark as read"
+                      aria-label="Mark as read"
                     >
                       <Check size={16} />
                     </button>
@@ -463,6 +423,7 @@ export default function NotificationPanel({
                     }}
                     className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
                     title={n.pinned ? "Unpin" : "Pin"}
+                    aria-label={n.pinned ? "Unpin" : "Pin"}
                   >
                     {n.pinned ? <PinOff size={16} /> : <Pin size={16} />}
                   </button>
@@ -473,6 +434,7 @@ export default function NotificationPanel({
                     }}
                     className="p-1.5 rounded-lg text-text-muted hover:text-danger transition-colors"
                     title="Delete"
+                    aria-label="Delete"
                   >
                     <Trash2 size={16} />
                   </button>

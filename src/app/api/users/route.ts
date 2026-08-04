@@ -1,26 +1,34 @@
-// GET /api/users — List users for assignment picker
-// Returns users who belong to the specified section
+// GET /api/users?section=<section> — List users for the assignment picker
+// Requires auth. The section param is mandatory; non-admins may only
+// list users within sections they belong to (checked live against the DB).
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import { requireUser, getUserContext, jsonError } from "@/lib/api-helpers";
+import { ROLE_ADMIN } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const section = searchParams.get("section");
+  if (!section) {
+    return jsonError("Missing required 'section' query param", 400);
+  }
 
-  const where: Record<string, unknown> = {};
-  if (section) {
-    where.userSections = { some: { section } };
+  /* Non-admins may only browse users in sections they belong to */
+  if (auth.data.role !== ROLE_ADMIN) {
+    const ctx = await getUserContext(auth.data.userId);
+    if (!ctx.sections.includes(section)) {
+      return jsonError("Forbidden", 403);
+    }
   }
 
   const users = await prisma.user.findMany({
-    where,
+    where: {
+      userSections: { some: { section } },
+    },
     select: {
       id: true,
       name: true,
@@ -28,12 +36,7 @@ export async function GET(req: Request) {
       userSections: { select: { section: true } },
     },
     orderBy: { name: "asc" },
-  }) as Array<{
-    id: string;
-    name: string;
-    pfp: string | null;
-    userSections: { section: string }[];
-  }>;
+  });
 
   return NextResponse.json({
     users: users.map((u) => ({

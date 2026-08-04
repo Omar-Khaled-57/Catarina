@@ -1,33 +1,31 @@
+// DELETE /api/months/[id] — Delete a planning month (admin only)
+
 import { NextResponse } from "next/server";
+import { requireAdmin, jsonError } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth.server";
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+
   try {
-    const payload = await verifyToken();
-    if (!payload) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (payload.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const { id } = await params;
-
-    await prisma.month.delete({
-      where: { id },
-    });
-
+    await prisma.month.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2025"
+    ) {
+      return jsonError("Month not found", 404);
+    }
     console.error("Error deleting month:", error);
-    return NextResponse.json(
-      { error: "Failed to delete month" },
-      { status: 500 }
-    );
+    return jsonError("Failed to delete month", 500);
   }
 }

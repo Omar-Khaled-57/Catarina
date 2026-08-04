@@ -57,7 +57,7 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
                 Your Section
               </span>
             )}
-            <Badge variant="section" section={section} className="whitespace-nowrap">
+            <Badge variant="section" section={section} color={color} className="whitespace-nowrap">
               {stats.total} goals
             </Badge>
           </div>

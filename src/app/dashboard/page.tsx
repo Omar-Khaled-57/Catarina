@@ -6,7 +6,7 @@
  * Includes section completion bar chart for at-a-glance performance.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import SectionCard from "@/components/SectionCard";
 import SectionChart from "@/components/SectionChart";
@@ -15,6 +15,8 @@ import CountUp from "@/components/ui/CountUp";
 import InView from "@/components/ui/InView";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { useGoalMerge } from "@/hooks/useGoalMerge";
+import { calcSectionStats } from "@/lib/utils";
 import { type SectionData, type DashboardGoal } from "@/types";
 import { Target, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 
@@ -28,7 +30,10 @@ export default function DashboardPage() {
   /* Fetch sections */
   useEffect(() => {
     fetch("/api/sections")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load sections");
+        return res.json();
+      })
       .then((data) => setSections(data.sections || []))
       .catch(() => {});
   }, []);
@@ -38,6 +43,7 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const res = await fetch(`/api/goals?monthId=${mId}`);
+      if (!res.ok) throw new Error("Failed to load goals");
       const data = await res.json();
       setGoals(data.goals || []);
     } catch {
@@ -50,7 +56,10 @@ export default function DashboardPage() {
   /* Auto-select latest month on mount */
   useEffect(() => {
     fetch("/api/months")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load months");
+        return res.json();
+      })
       .then((data) => {
         if (data.months?.length > 0) {
           const latest = data.months[data.months.length - 1];
@@ -73,36 +82,25 @@ export default function DashboardPage() {
     monthId: monthId || undefined,
     enabled: !!monthId,
   });
-  const [changedSections, setChangedSections] = useState<Set<string>>(new Set());
-  const clearPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSectionConfig = useCallback(() => {
+    fetch("/api/sections")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load sections");
+        return res.json();
+      })
+      .then((data) => setSections(data.sections || []))
+      .catch(() => {});
+  }, []);
 
   /* Merge delta goals + track section pulse */
-  useEffect(() => {
-    if (generation === 0) return;
-    const { goals: deltaGoals, sectionChanged } = snapshotRef.current;
-
-    if (deltaGoals.length > 0) {
-      setGoals((prev) => {
-        const deltaIds = new Set(deltaGoals.map((g) => g.id));
-        const hasExisting = prev.some((g) => deltaIds.has(g.id));
-        if (!hasExisting) return [...prev, ...deltaGoals];
-        return prev.map((g) =>
-          deltaIds.has(g.id) ? deltaGoals.find((d) => d.id === g.id)! : g
-        );
-      });
-
-      const affected = new Set(deltaGoals.map((g) => g.section));
-      setChangedSections(affected);
-      if (clearPulseTimerRef.current) clearTimeout(clearPulseTimerRef.current);
-      clearPulseTimerRef.current = setTimeout(() => setChangedSections(new Set()), 3000);
-    }
-
-    if (sectionChanged) {
-      fetch("/api/sections")
-        .then((res) => res.json())
-        .then((data) => setSections(data.sections || []));
-    }
-  }, [generation, snapshotRef]);
+  const { lastDeltaSections } = useGoalMerge({
+    generation,
+    snapshotRef,
+    setGoals,
+    onSectionChanged: fetchSectionConfig,
+  });
+  const changedSections = useMemo(() => new Set(lastDeltaSections), [lastDeltaSections]);
 
   /* Group goals by section */
   const goalsBySection = useMemo(() => {
@@ -114,13 +112,7 @@ export default function DashboardPage() {
   }, [goals, sections]);
 
   /* Global stats across all sections */
-  const globalStats = useMemo(() => {
-    const total = goals.length;
-    const done = goals.filter((g) => g.done).length;
-    const remaining = total - done;
-    const percentage = total > 0 ? Math.round((done / total) * 100 * 100) / 100 : 0;
-    return { total, done, remaining, percentage };
-  }, [goals]);
+  const globalStats = useMemo(() => calcSectionStats(goals), [goals]);
 
   return (
     <div className="space-y-6">

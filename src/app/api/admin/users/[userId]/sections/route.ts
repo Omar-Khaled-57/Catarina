@@ -2,7 +2,7 @@
 // Body: { sections: string[] } — replaces all section assignments
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import { requireAdmin, jsonError } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { notify, notifySection } from "@/lib/notify";
 import { getSectionKeys } from "@/lib/sections";
@@ -12,42 +12,46 @@ interface Params {
 }
 
 export async function PUT(req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload || payload.role !== "ADMIN") {
-    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   const { userId } = await params;
-  const { sections } = await req.json();
-
-  if (!Array.isArray(sections)) {
-    return NextResponse.json({ error: "sections must be an array" }, { status: 400 });
+  const body = await req.json().catch(() => null);
+  if (!body || !Array.isArray(body.sections)) {
+    return jsonError("sections must be an array", 400);
   }
 
-  /* Validate all section values against dynamic sections */
+  /* Normalize to uppercase, dedupe, and validate against dynamic sections */
   const validSections = await getSectionKeys();
   const validSet = new Set(validSections);
-  const invalid = sections.filter((s: string) => !validSet.has(s.toUpperCase()));
+  const rawSections: unknown[] = body.sections;
+  const sections = [
+    ...new Set(
+      rawSections
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .map((s) => s.trim().toUpperCase())
+    ),
+  ];
+  const invalid = sections.filter((s) => !validSet.has(s));
   if (invalid.length > 0) {
-    return NextResponse.json({ error: `Invalid sections: ${invalid.join(", ")}` }, { status: 400 });
+    return jsonError(`Invalid sections: ${invalid.join(", ")}`, 400);
   }
 
   /* Get previous section assignments for diff */
   const prevSections = await prisma.userSection.findMany({
     where: { userId },
     select: { section: true },
-  }) as Array<{ section: string }>;
+  });
   const prevSet = new Set(prevSections.map((s) => s.section));
   const newSet = new Set(sections);
   const removedSections = [...prevSet].filter((s) => !newSet.has(s));
 
   /* Replace all section assignments in a transaction */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     await tx.userSection.deleteMany({ where: { userId } });
     if (sections.length > 0) {
       await tx.userSection.createMany({
-        data: sections.map((section: string) => ({ userId, section })),
+        data: sections.map((section) => ({ userId, section })),
       });
     }
   });
@@ -57,7 +61,7 @@ export async function PUT(req: Request, { params }: Params) {
     const removedUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { name: true },
-    }) as { name: string } | null;
+    });
 
     /* Notify the user who was removed */
     await notify({

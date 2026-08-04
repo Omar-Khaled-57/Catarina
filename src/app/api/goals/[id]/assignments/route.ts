@@ -1,8 +1,14 @@
-// GET /api/goals/[id]/assignments — List assignments for a goal
+// GET /api/goals/[id]/assignments — List assignments for a goal (section members)
 // PUT /api/goals/[id]/assignments — Replace all assignments for a goal (admin only)
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import {
+  requireUser,
+  requireAdmin,
+  requireGoalAccess,
+  asBoolean,
+  jsonError,
+} from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 interface Params {
@@ -10,22 +16,17 @@ interface Params {
 }
 
 export async function GET(_req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
+  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  if (!access.ok) return access.response;
 
   const assignments = await prisma.goalAssignment.findMany({
     where: { goalId: id },
     include: { user: { select: { id: true, name: true, pfp: true } } },
-  }) as Array<{
-    userId: string;
-    canCheck: boolean;
-    canEdit: boolean;
-    user: { id: string; name: string; pfp: string | null };
-  }>;
+  });
 
   return NextResponse.json({
     assignments: assignments.map((a) => ({
@@ -39,30 +40,44 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload || payload.role !== "ADMIN") {
-    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const { assignments } = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || !Array.isArray(body.assignments)) {
+    return jsonError("assignments must be an array", 400);
+  }
 
-  if (!Array.isArray(assignments)) {
-    return NextResponse.json({ error: "assignments must be an array" }, { status: 400 });
+  const assignments: { userId: string; canCheck: boolean; canEdit: boolean }[] = [];
+  for (const a of body.assignments) {
+    if (!a || typeof a.userId !== "string" || !a.userId.trim()) {
+      return jsonError("Each assignment needs a valid userId", 400);
+    }
+    const canCheck = asBoolean(a.canCheck) ?? true;
+    const canEdit = asBoolean(a.canEdit) ?? false;
+    assignments.push({ userId: a.userId, canCheck, canEdit });
+  }
+
+  /* Validate the users actually exist (avoid dangling FK failures mid-transaction) */
+  if (assignments.length > 0) {
+    const ids = [...new Set(assignments.map((a) => a.userId))];
+    const count = await prisma.user.count({ where: { id: { in: ids } } });
+    if (count !== ids.length) {
+      return jsonError("One or more users do not exist", 400);
+    }
   }
 
   /* Replace all assignments in a transaction */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     await tx.goalAssignment.deleteMany({ where: { goalId: id } });
-
     if (assignments.length > 0) {
       await tx.goalAssignment.createMany({
-        data: assignments.map((a: { userId: string; canCheck?: boolean; canEdit?: boolean }) => ({
+        data: assignments.map((a) => ({
           goalId: id,
           userId: a.userId,
-          canCheck: a.canCheck ?? true,
-          canEdit: a.canEdit ?? false,
+          canCheck: a.canCheck,
+          canEdit: a.canEdit,
         })),
       });
     }

@@ -15,9 +15,11 @@ export interface JWTPayload {
   section: string;
 }
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is not set");
+}
+
+const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 const COOKIE_NAME = "catarina-token";
 const TOKEN_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds

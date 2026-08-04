@@ -53,7 +53,10 @@ export default function AdminPage() {
   /* Fetch sections */
   useEffect(() => {
     fetch("/api/sections")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load sections");
+        return res.json();
+      })
       .then((data) => setSections(data.sections || []))
       .catch(() => {});
   }, []);
@@ -61,7 +64,10 @@ export default function AdminPage() {
   /* Auto-select latest month on load */
   useEffect(() => {
     fetch("/api/months")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load months");
+        return res.json();
+      })
       .then((data) => {
         const months = data.months || [];
         if (months.length > 0 && !monthId) {
@@ -84,6 +90,7 @@ export default function AdminPage() {
     if (!isAdmin) return;
     try {
       const res = await fetch("/api/admin/users");
+      if (!res.ok) throw new Error("Failed to load users");
       const data = await res.json();
       setUsers(data.users || []);
     } catch { /* silent */ } finally {
@@ -101,6 +108,7 @@ export default function AdminPage() {
     if (!isAdmin) return;
     try {
       const res = await fetch("/api/admin/approvals");
+      if (!res.ok) throw new Error("Failed to load approvals");
       const data = await res.json();
       setApprovals(data.approvals || []);
     } catch { /* silent */ }
@@ -129,7 +137,10 @@ export default function AdminPage() {
 
     if (sectionChanged) {
       fetch("/api/sections")
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load sections");
+          return res.json();
+        })
         .then((data) => setSections(data.sections || []));
     }
   }, [generation, snapshotRef, fetchUsers]);
@@ -221,6 +232,7 @@ export default function AdminPage() {
                       onClick={() => handleApproval(a.id, "approve")}
                       className="p-2 rounded-lg bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
                       title="Approve"
+                      aria-label={`Approve ${a.name}`}
                     >
                       <UserCheck size={14} />
                     </button>
@@ -228,6 +240,7 @@ export default function AdminPage() {
                       onClick={() => handleApproval(a.id, "reject")}
                       className="p-2 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
                       title="Reject"
+                      aria-label={`Reject ${a.name}`}
                     >
                       <UserX size={14} />
                     </button>
@@ -308,11 +321,13 @@ export default function AdminPage() {
                   <Pencil size={12} /> Edit
                 </Button>
                 <Button variant="outline" onClick={() => toggleRole(u.id)} className="text-xs"
-                  title={u.role === "ADMIN" ? "Demote" : "Promote"}>
+                  title={u.role === "ADMIN" ? "Demote" : "Promote"}
+                  aria-label={u.role === "ADMIN" ? `Demote ${u.name}` : `Promote ${u.name}`}>
                   {u.role === "ADMIN" ? <ShieldOff size={12} /> : <Shield size={12} />}
                 </Button>
                 <Button variant="outline" onClick={() => setDeleteUser(u)}
-                  className="text-xs text-danger hover:bg-danger/10 hover:text-danger">
+                  className="text-xs text-danger hover:bg-danger/10 hover:text-danger"
+                  aria-label={`Delete user ${u.name}`}>
                   <Trash2 size={12} />
                 </Button>
               </div>

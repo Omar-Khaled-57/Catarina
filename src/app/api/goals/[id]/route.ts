@@ -1,22 +1,24 @@
 // GET    /api/goals/[id] — Fetch a single goal by ID (for notification deep links)
-// PUT    /api/goals/[id] — Update a goal (admin only for deadline changes)
+// PUT    /api/goals/[id] — Update a goal (section members with canEditGoals; admins for deadlines)
 // DELETE /api/goals/[id] — Delete a goal (admin only)
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
+import { requireUser, requireAdmin, requireGoalAccess, getUserContext, validateGoalFields, jsonError } from "@/lib/api-helpers";
+import { ROLE_ADMIN } from "@/lib/constants";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
+  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  if (!access.ok) return access.response;
+
   const goal = await prisma.goal.findUnique({
     where: { id },
     include: {
@@ -29,7 +31,7 @@ export async function GET(_req: Request, { params }: Params) {
   });
 
   if (!goal) {
-    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    return jsonError("Goal not found", 404);
   }
 
   const formatted = {
@@ -51,59 +53,53 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const { name, description, current, target, deadline } = await req.json();
+  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  if (!access.ok) return access.response;
 
-  /* Fetch the existing goal to check permissions */
-  const existing = await prisma.goal.findUnique({ where: { id } }) as {
-    id: string;
-    name: string;
-    description: string;
-    current: number;
-    target: number;
-    done: boolean;
-    deadline: Date;
-    carriedOver: boolean;
-    section: string;
-    monthId: string;
-    authorId: string;
-    goalNumber: number;
-    completedAt: Date | null;
-    deadlineSetByAdmin: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
-  if (!existing) {
-    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return jsonError("Invalid request body", 400);
   }
 
+  const fields = validateGoalFields(body as Record<string, unknown>);
+  if (!fields.ok) return jsonError(fields.message, 400);
+
   /* Non-admins cannot change the deadline */
-  if (
-    payload.role !== "ADMIN" &&
-    deadline &&
-    new Date(deadline).getTime() !== existing.deadline.getTime()
-  ) {
-    return NextResponse.json(
-      { error: "Only admins can change deadlines" },
-      { status: 403 }
-    );
+  if (auth.data.role !== ROLE_ADMIN && fields.data.deadline) {
+    const existing = await prisma.goal.findUnique({
+      where: { id },
+      select: { deadline: true },
+    });
+    if (
+      !existing ||
+      existing.deadline.getTime() !== fields.data.deadline.getTime()
+    ) {
+      return jsonError("Only admins can change deadlines", 403);
+    }
+  }
+
+  /* Members need canEditGoals to modify a goal's content */
+  if (auth.data.role !== ROLE_ADMIN) {
+    const ctx = await getUserContext(auth.data.userId);
+    if (!ctx.permissions.canEditGoals) {
+      return jsonError("You don't have permission to edit goals", 403);
+    }
   }
 
   const goal = await prisma.goal.update({
     where: { id },
     data: {
-      ...(name !== undefined && { name }),
-      ...(description !== undefined && { description }),
-      ...(current !== undefined && { current }),
-      ...(target !== undefined && { target }),
-      ...(deadline !== undefined && {
-        deadline: new Date(deadline),
-        deadlineSetByAdmin: payload.role === "ADMIN",
+      ...(fields.data.name !== undefined && { name: fields.data.name }),
+      ...(fields.data.description !== undefined && { description: fields.data.description }),
+      ...(fields.data.current !== undefined && { current: fields.data.current }),
+      ...(fields.data.target !== undefined && { target: fields.data.target }),
+      ...(fields.data.deadline !== undefined && {
+        deadline: fields.data.deadline,
+        deadlineSetByAdmin: auth.data.role === ROLE_ADMIN,
       }),
     },
   });
@@ -112,13 +108,8 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload || payload.role !== "ADMIN") {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 }
-    );
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
   await prisma.goal.delete({ where: { id } });

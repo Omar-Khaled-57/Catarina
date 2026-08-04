@@ -1,24 +1,19 @@
-// GET /api/months — List all planning months
+// GET /api/months — List all planning months (authenticated)
 
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+
   const months = await prisma.month.findMany({
     orderBy: [{ year: "asc" }, { month: "asc" }],
     include: {
       _count: { select: { goals: true } },
     },
-  }) as Array<{
-    id: string;
-    name: string;
-    year: number;
-    month: number;
-    isArchived: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    _count: { goals: number };
-  }>;
+  });
 
   return NextResponse.json({ months });
 }

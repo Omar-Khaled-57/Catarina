@@ -4,18 +4,21 @@ import { useEffect, useRef, useCallback } from "react";
 
 /**
  * Smart polling hook with visibility + idle detection.
- * - Active tab: polls at `interval` (default 5s)
+ * - Active tab: polls at `interval`
  * - Idle tab (>2min no mouse/keyboard): polls at interval * 3
- * - Hidden tab: polls at interval * 6 or pauses
- * - Focus event: immediate call, then resumes normal interval
+ * - Hidden tab: polls at interval * 6
+ * - Focus event: immediate check, then resumes normal interval
+ *
+ * Uses a chained setTimeout (not setInterval) so the effective interval is
+ * re-evaluated after every poll, and overlapping calls are prevented when the
+ * callback is asynchronous.
  */
 export function usePolling(
-  callback: () => void,
+  callback: () => void | Promise<void>,
   interval = 5000,
   enabled = true,
 ) {
   const savedCallback = useRef(callback);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActivityRef = useRef(0);
   const pausedRef = useRef(false);
 
@@ -33,54 +36,55 @@ export function usePolling(
     return interval;
   }, [interval]);
 
-  const tick = useCallback(() => {
-    savedCallback.current();
-  }, []);
-
-  /* Reset interval when activity detected */
-  const resetTimer = useCallback(() => {
-    lastActivityRef.current = Date.now();
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    timerRef.current = setInterval(tick, getEffectiveInterval());
-  }, [tick, getEffectiveInterval]);
-
   useEffect(() => {
     if (!enabled) return;
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    const schedule = (delay: number) => {
+      timer = setTimeout(() => {
+        void run();
+      }, delay);
+    };
+
+    const run = async () => {
+      if (stopped) return;
+      try {
+        await savedCallback.current();
+      } finally {
+        if (!stopped) schedule(getEffectiveInterval());
+      }
+    };
+
     /* Initialize activity timestamp */
     lastActivityRef.current = Date.now();
-
-    /* Start polling */
-    tick(); /* immediate first call */
-    timerRef.current = setInterval(tick, getEffectiveInterval());
 
     /* Activity tracking — resets idle timer */
     const onActivity = () => {
       lastActivityRef.current = Date.now();
     };
-    document.addEventListener("mousemove", onActivity, { passive: true });
-    document.addEventListener("keydown", onActivity, { passive: true });
 
     /* Visibility tracking — pauses/resumes on tab switch */
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        pausedRef.current = false;
-        tick(); /* immediate check on focus */
-        resetTimer();
-      } else {
-        pausedRef.current = true;
-        resetTimer(); /* switch to idle interval */
+      pausedRef.current = document.visibilityState !== "visible";
+      if (!pausedRef.current) {
+        void run(); /* immediate check on focus */
       }
     };
+
+    document.addEventListener("mousemove", onActivity, { passive: true });
+    document.addEventListener("keydown", onActivity, { passive: true });
     document.addEventListener("visibilitychange", onVisible);
 
+    void run(); /* immediate first call */
+
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      stopped = true;
+      if (timer) clearTimeout(timer);
       document.removeEventListener("mousemove", onActivity);
       document.removeEventListener("keydown", onActivity);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [enabled, tick, getEffectiveInterval, resetTimer]);
+  }, [enabled, getEffectiveInterval]);
 }

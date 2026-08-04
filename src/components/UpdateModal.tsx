@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { useModalA11y } from "@/hooks/useModalA11y";
 
 interface ChangelogEntry {
   icon: string;
@@ -119,6 +120,8 @@ export default function UpdateModal({
     setTimeout(onDismiss, 300);
   }, [onDismiss]);
 
+  const dialogRef = useModalA11y(show, handleDismiss);
+
   const imgSrc = IMAGE_MAP[type];
   const imgSize = IMAGE_SIZE[type];
 
@@ -134,7 +137,7 @@ export default function UpdateModal({
           onClick={handleDismiss}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
 
           {/* Confetti — major only */}
           {type === "major" && !confettiDone && (
@@ -163,6 +166,10 @@ export default function UpdateModal({
 
           {/* Card */}
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="update-modal-title"
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 10 }}
@@ -202,7 +209,7 @@ export default function UpdateModal({
             </motion.div>
 
             {/* Title */}
-            <h2 className="text-lg sm:text-xl font-black text-text mt-4 mb-3">
+            <h2 id="update-modal-title" className="text-lg sm:text-xl font-black text-text mt-4 mb-3">
               {title}
             </h2>
 

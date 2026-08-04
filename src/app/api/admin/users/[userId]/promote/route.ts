@@ -1,40 +1,39 @@
-// POST /api/admin/users/[userId]/promote — Toggle admin/member role
+// POST /api/admin/users/[userId]/promote — Toggle admin/member role (admin only)
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import { requireAdmin, jsonError } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notify";
+import { ROLE_ADMIN, ROLE_MEMBER } from "@/lib/constants";
 
 interface Params {
   params: Promise<{ userId: string }>;
 }
 
 export async function POST(_req: Request, { params }: Params) {
-  const payload = await verifyToken();
-  if (!payload || payload.role !== "ADMIN") {
-    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   const { userId } = await params;
 
-  const user = await prisma.user.findUnique({ where: { id: userId } }) as {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    password: string;
-    pfp: string | null;
-    bio: string | null;
-    primarySection: string | null;
-    permissions: string;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, role: true },
+  });
+  if (!user) return jsonError("User not found", 404);
 
-  const newRole = user.role === "ADMIN" ? "MEMBER" : "ADMIN";
+  const newRole = user.role === ROLE_ADMIN ? ROLE_MEMBER : ROLE_ADMIN;
+
+  /* Prevent an admin from demoting themselves or removing the last admin */
+  if (newRole === ROLE_MEMBER) {
+    if (userId === auth.data.userId) {
+      return jsonError("You cannot demote your own account", 400);
+    }
+    const adminCount = await prisma.user.count({ where: { role: ROLE_ADMIN } });
+    if (adminCount <= 1) {
+      return jsonError("Cannot demote the last admin", 400);
+    }
+  }
 
   const updated = await prisma.user.update({
     where: { id: userId },

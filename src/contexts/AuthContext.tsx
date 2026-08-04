@@ -105,17 +105,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* Login with email/password */
   const login = useCallback(
     async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data.user);
-        return { success: true };
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.user) {
+          setUser(data.user);
+          return { success: true };
+        }
+        return { success: false, error: data?.error || "Login failed" };
+      } catch {
+        return { success: false, error: "Network error, please try again" };
       }
-      return { success: false, error: data.error || "Login failed" };
     },
     []
   );
@@ -129,22 +133,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       section: string,
       pfp: File | null
     ): Promise<{ success: boolean; error?: string }> => {
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("email", email);
-      formData.append("password", password);
-      formData.append("section", section);
-      if (pfp) formData.append("pfp", pfp);
+      try {
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("email", email);
+        formData.append("password", password);
+        formData.append("section", section);
+        if (pfp) formData.append("pfp", pfp);
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok) {
-        return { success: true };
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok) {
+          return { success: true };
+        }
+        return { success: false, error: data?.error || "Registration failed" };
+      } catch {
+        return { success: false, error: "Network error, please try again" };
       }
-      return { success: false, error: data.error || "Registration failed" };
     },
     []
   );

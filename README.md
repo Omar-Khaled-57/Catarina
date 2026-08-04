@@ -7,14 +7,14 @@
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
     <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
-    <img src="https://img.shields.io/badge/version-0.4.3-blue?style=flat-square" alt="Version 0.4.3" />
+    <img src="https://img.shields.io/badge/version-0.4.4-blue?style=flat-square" alt="Version 0.4.4" />
     <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
 </div>
 
-## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.4.3
+## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.4.4
 
-**Self-Hosting & Production Hardening** — Deploy your own Catarina with dynamic branding, production-grade rate limiting via Upstash Redis, proper Prisma migration workflow, and a complete self-hosting guide.
+**Security Hardening & Reliability** — Section data isolation, database-verified admin roles, fail-fast auth, and guards against self-lockouts and data loss, plus reliability fixes and a full unit-test suite.
 
 See [CHANGELOG.md](CHANGELOG.md) for full details.
 
@@ -234,6 +234,7 @@ Built with an offline-capable Service Worker and Web Manifest — installable on
 | **Build** | `npm run build` | Production build |
 | **Start** | `npm run start` | Start production server |
 | **Lint** | `npm run lint` | Run ESLint |
+| **Test** | `npm run test` | Run the unit test suite (goal merging, permissions, helpers) |
 | **Setup DB** | `npm run db:setup` | First-time: push schema + seed |
 | **Seed DB** | `npm run db:seed` | Seed default sections, admin, and demo goals |
 | **Reset DB** | `npm run db:reset` | Wipe database and re-seed from scratch |

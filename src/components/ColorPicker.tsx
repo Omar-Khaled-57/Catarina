@@ -83,6 +83,7 @@ export default function ColorPicker({
                 boxShadow: value === c.hex ? `0 0 0 2px var(--bg), 0 0 0 4px ${c.hex}` : "none",
               }}
               title={c.name}
+              aria-label={`Select color ${c.name}`}
             >
               {value === c.hex && (
                 <Check size={14} className="absolute inset-0 m-auto text-white" strokeWidth={3} />
@@ -109,6 +110,7 @@ export default function ColorPicker({
                     backgroundColor: hex,
                     boxShadow: value === hex ? `0 0 0 2px var(--bg), 0 0 0 4px ${hex}` : "none",
                   }}
+                  aria-label={`Select color ${hex}`}
                 >
                   {value === hex && (
                     <Check size={14} className="mx-auto text-white" strokeWidth={3} />
@@ -118,6 +120,7 @@ export default function ColorPicker({
                   type="button"
                   onClick={() => removeCustomColor(hex)}
                   className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-danger text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`Remove color ${hex}`}
                 >
                   <X size={8} />
                 </button>

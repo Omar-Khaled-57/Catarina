@@ -48,7 +48,10 @@ export default function CommentSection({
       const controller = new AbortController();
 
       fetch(`/api/goals/${goalId}/comments`, { signal: controller.signal })
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load comments");
+          return res.json();
+        })
         .then((data) => {
           if (!controller.signal.aborted) {
             setComments(data.comments || []);

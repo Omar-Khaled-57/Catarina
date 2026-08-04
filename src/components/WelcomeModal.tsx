@@ -8,11 +8,13 @@
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModalA11y } from "@/hooks/useModalA11y";
 
 export default function WelcomeModal() {
   const { user, markWelcomeSeen } = useAuth();
 
   const show = user && !user.welcomeSeen;
+  const dialogRef = useModalA11y(!!show, markWelcomeSeen);
 
   return (
     <AnimatePresence>
@@ -25,9 +27,13 @@ export default function WelcomeModal() {
           className="fixed inset-0 z-[200] flex items-center justify-center p-4"
           onClick={markWelcomeSeen}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
 
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="welcome-modal-title"
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 10 }}
@@ -51,7 +57,7 @@ export default function WelcomeModal() {
               />
             </motion.div>
 
-            <h2 className="text-2xl font-black text-text mt-4 mb-2">
+            <h2 id="welcome-modal-title" className="text-2xl font-black text-text mt-4 mb-2">
               Welcome to Catarina!
             </h2>
             <p className="text-sm text-text-muted mb-2 leading-relaxed">

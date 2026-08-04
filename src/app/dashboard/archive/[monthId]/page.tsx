@@ -61,13 +61,19 @@ export default function ArchivedMonthPage({
 
   useEffect(() => {
     fetch(`/api/goals?monthId=${monthId}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load goals");
+        return res.json();
+      })
       .then((data) => setGoals(data.goals || []))
       .catch(() => { })
       .finally(() => setIsLoading(false));
 
     fetch("/api/months")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load months");
+        return res.json();
+      })
       .then((data) => {
         const found = data.months?.find(
           (m: { id: string }) => m.id === monthId
@@ -94,15 +100,8 @@ export default function ArchivedMonthPage({
     [goals]
   );
 
-  /* Global stats */
-  const globalStats = useMemo(() => {
-    const total = goals.length;
-    const done = goals.filter((g) => g.done).length;
-    const remaining = total - done;
-    const percentage =
-      total > 0 ? Math.round((done / total) * 100 * 100) / 100 : 0;
-    return { total, done, remaining, percentage };
-  }, [goals]);
+  /* Global stats (same shape as section stats) */
+  const globalStats = useMemo(() => calcSectionStats(goals), [goals]);
 
   /* Section stats */
   const sectionStats = useMemo(
@@ -724,6 +723,7 @@ export default function ArchivedMonthPage({
                 <button
                   onClick={() => setShowExport(false)}
                   className="rounded-xl p-2 text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+                  aria-label="Close export dialog"
                 >
                   <X size={18} />
                 </button>

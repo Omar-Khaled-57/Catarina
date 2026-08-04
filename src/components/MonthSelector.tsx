@@ -39,7 +39,10 @@ export default function MonthSelector({
   /* Fetch all months */
   useEffect(() => {
     fetch("/api/months")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load months");
+        return res.json();
+      })
       .then((data) => setMonths(data.months || []))
       .catch(() => {});
   }, []);

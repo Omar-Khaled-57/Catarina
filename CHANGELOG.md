@@ -14,6 +14,52 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.4] — 2026-08-04 · *Security Hardening & Reliability*
+
+> **Release Highlight:** Patch release hardening API security — section data isolation, database-verified roles, fail-fast auth, and guards against self-lockouts and data loss — plus reliability fixes and a full unit-test suite.
+
+### <img src="public/rina/bug-fix.webp" width="130" align="center" /> ✦ Security Hardening
+
+- **Section Data Isolation**:
+  - `GET /api/goals` now scopes results to the caller's assigned sections — members can no longer read every section's goals by guessing query parameters.
+- **Database-Verified Roles**:
+  - Admin checks (`requireAdmin`) re-read the role from the database instead of trusting the JWT role snapshot.
+- **Fail-Fast Auth**:
+  - The app now throws at startup if `JWT_SECRET` is missing — no more silent default-secret fallback.
+- **Admin Lockout Guards**:
+  - Admins can no longer demote themselves, or demote/delete the last remaining admin.
+- **Data-Loss Guard**:
+  - Deleting a user who has authored goals is blocked with a clear error (it would cascade-delete their goals).
+- **Duplicate-Email Handling**:
+  - Approving a signup for an email that already exists now returns a clean 409 instead of an unhandled crash.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Input Validation
+
+- **Admin Sections**: key/prefix/color format checks, label length caps, and `sortOrder`/`isActive` coercion with rejection on invalid values.
+- **Registration**: email format, password minimum length, name length, and section normalization.
+- **Profile**: name/email/bio/password length limits.
+- **Goals**: the target month is verified to exist before a goal is created — no more orphaned rows.
+
+### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Reliability Fixes
+
+- **Transient Duplicate Goal**:
+  - Optimistic "temp" goals now dedupe cleanly against realtime deltas — a goal no longer flashes twice while its POST resolves.
+- **Client Fetch Handling**:
+  - All pages and components now check `res.ok` — failed requests surface errors instead of silently rendering empty state.
+- **Circular Import**:
+  - Extracted the audio player into its own component to break a notification-module circular dependency.
+- **Lint Fix**:
+  - Resolved the build-blocking `react-hooks/set-state-in-effect` error; dashboard section pulses are now derived from merge state during render.
+- **Dead Code**:
+  - Removed the unused zustand dependency and the dead `onNotificationCount` parameter.
+
+### <img src="public/rina/thumb.webp" width="80" align="center" /> ✦ Testing
+
+- **30 Unit Tests**:
+  - Goal merge + temp-goal dedupe, permissions, and shared utilities — including a real bug fix uncovered while testing (deadline status math).
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.3] — 2026-07-28 · *Self-Hosting & Production Hardening*
 
 > **Release Highlight:** Patch release making Catarina fully deployable by any team — dynamic branding, production rate limiting, proper migration workflow, and a complete self-hosting guide.

@@ -37,6 +37,7 @@ export default function Navbar() {
   const fetchUnread = useCallback(async () => {
     try {
       const res = await fetch("/api/notifications?unread=true");
+      if (!res.ok) throw new Error("Failed to fetch notifications");
       const data = await res.json();
       const count = data.unreadCount || 0;
 

@@ -3,76 +3,77 @@
 // DELETE /api/notifications — Delete a notification or clear all read
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import { requireUser, asBoolean, jsonError } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const unreadOnly = searchParams.get("unread") === "true";
-  const since = searchParams.get("since");
+  const sinceRaw = searchParams.get("since");
+  if (sinceRaw && Number.isNaN(Date.parse(sinceRaw))) {
+    return jsonError("Invalid 'since' parameter", 400);
+  }
 
   const notifications = await prisma.notification.findMany({
     where: {
-      userId: payload.userId,
+      userId: auth.data.userId,
       ...(unreadOnly ? { read: false } : {}),
-      ...(since ? { createdAt: { gt: new Date(since) } } : {}),
+      ...(sinceRaw ? { createdAt: { gt: new Date(sinceRaw) } } : {}),
     },
     orderBy: [
       { pinned: "desc" },
       { createdAt: "desc" },
     ],
-    take: since ? 50 : 100,
-  }) as Array<{
-    id: string;
-    userId: string;
-    type: string;
-    title: string;
-    message: string;
-    read: boolean;
-    pinned: boolean;
-    refType: string | null;
-    refId: string | null;
-    createdAt: Date;
-  }>;
+    take: sinceRaw ? 50 : 100,
+  });
 
   const unreadCount = await prisma.notification.count({
-    where: { userId: payload.userId, read: false },
+    where: { userId: auth.data.userId, read: false },
   });
 
   return NextResponse.json({ notifications, unreadCount });
 }
 
 export async function PATCH(req: Request) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return jsonError("Invalid request body", 400);
   }
 
-  const { id, read, pinned, markAllRead } = await req.json();
+  const { id, read, pinned, markAllRead } = body;
 
-  if (markAllRead) {
+  if (markAllRead === true) {
     await prisma.notification.updateMany({
-      where: { userId: payload.userId, read: false },
+      where: { userId: auth.data.userId, read: false },
       data: { read: true },
     });
     return NextResponse.json({ ok: true });
   }
 
   if (!id) {
-    return NextResponse.json({ error: "Missing notification id" }, { status: 400 });
+    return jsonError("Missing notification id", 400);
   }
 
   const data: Record<string, boolean> = {};
-  if (read !== undefined) data.read = read;
-  if (pinned !== undefined) data.pinned = pinned;
+  if (read !== undefined) {
+    const v = asBoolean(read);
+    if (v === null) return jsonError("Invalid read value", 400);
+    data.read = v;
+  }
+  if (pinned !== undefined) {
+    const v = asBoolean(pinned);
+    if (v === null) return jsonError("Invalid pinned value", 400);
+    data.pinned = v;
+  }
 
   const notification = await prisma.notification.update({
-    where: { id, userId: payload.userId },
+    where: { id, userId: auth.data.userId },
     data,
   });
 
@@ -80,26 +81,29 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return jsonError("Invalid request body", 400);
   }
 
-  const { id, clearRead } = await req.json();
+  const { id, clearRead } = body;
 
-  if (clearRead) {
+  if (clearRead === true) {
     await prisma.notification.deleteMany({
-      where: { userId: payload.userId, read: true },
+      where: { userId: auth.data.userId, read: true },
     });
     return NextResponse.json({ ok: true });
   }
 
   if (!id) {
-    return NextResponse.json({ error: "Missing notification id" }, { status: 400 });
+    return jsonError("Missing notification id", 400);
   }
 
   await prisma.notification.delete({
-    where: { id, userId: payload.userId },
+    where: { id, userId: auth.data.userId },
   });
 
   return NextResponse.json({ ok: true });
