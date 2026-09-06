@@ -44,7 +44,7 @@ Follow this step-by-step guide to deploy your own instance of Catarina.
 - **Package Manager**: `npm` (comes with Node.js)
 - **Database**: A free account on [Turso](https://turso.tech) (libSQL / distributed SQLite edge database)
 - **Deployment Platform** *(Optional)*: A free account on [Vercel](https://vercel.com)
-- **Rate Limiting** *(Optional)*: A free account on [Upstash](https://upstash.com) for production rate limiting
+- **Rate Limiting**: Built-in sliding window over the same [Turso](https://turso.tech) database (no separate service)
 
 ---
 
@@ -96,8 +96,6 @@ cp .env.example .env
 | `DATABASE_URL` | Yes | Turso `libsql://` connection string |
 | `TURSO_AUTH_TOKEN` | Yes | Turso auth token |
 | `JWT_SECRET` | Yes | Random string for signing session tokens |
-| `UPSTASH_REDIS_REST_URL` | No | [Upstash](https://upstash.com) Redis URL for production rate limiting |
-| `UPSTASH_REDIS_REST_TOKEN` | No | [Upstash](https://upstash.com) Redis token |
 
 ---
 
@@ -147,7 +145,6 @@ Open [http://localhost:3000](http://localhost:3000) and sign in:
    - `DATABASE_URL`
    - `TURSO_AUTH_TOKEN`
    - `JWT_SECRET`
-   - *(Optional)* `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
 5. In **Settings → General → Build Command**, set:
    ```
    npx prisma generate && next build
@@ -219,7 +216,7 @@ Built with an offline-capable Service Worker and Web Manifest — installable on
 | **Database** | [Turso](https://turso.tech) (libSQL) | Distributed SQLite edge database |
 | **ORM** | [Prisma](https://prisma.io) 7.x | Schema migrations & type-safe queries |
 | **Auth** | [jose](https://github.com/panva/jose) + [bcryptjs](https://github.com/nicolo-ribaudo/bcryptjs) | Stateless sessions & hashed passwords |
-| **Rate Limiting** | [Upstash Redis](https://upstash.com) | Serverless rate limiting (optional) |
+| **Rate Limiting** | [Turso](https://turso.tech) (libSQL) | Shared sliding-window over `rate_limit_events` table |
 | **Animations** | [Framer Motion](https://www.framer.com/motion/) 12.x | Route transitions & UI animations |
 | **Notifications** | [Sonner](https://sonner.emilkowal.ski/) 2.x | Toast notifications |
 | **PWA** | Service Worker + Web Manifest | Offline support & installability |

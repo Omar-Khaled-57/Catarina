@@ -1,83 +1,168 @@
 /**
- * Rate Limiter — Upstash Redis sliding window for production,
- * falls back to in-memory for local dev when Upstash isn't configured.
- *
- * How it works (production):
- *   1. Request arrives → getClientIp extracts IP from x-forwarded-for
- *   2. checkRateLimit(key, max, window) → creates a Ratelimit instance
- *   3. Ratelimit calls Upstash Redis REST API (not TCP — works in serverless)
- *   4. Redis stores a sorted set of timestamps per key (e.g. "login:192.168.1.1")
- *   5. Sliding window counts how many requests exist in the last N ms
- *   6. If over limit → returns { limited: true, retryAfterMs }
- *   7. If under limit → increments counter, returns { limited: false }
+ * Rate Limiter — Turso (libsql) true sliding window for production,
+ * falls back to in-memory for local dev when DATABASE_URL isn't configured.
  *
  * Why this matters on Vercel:
  *   Each serverless function invocation can be a NEW cold start with empty memory.
  *   The old in-memory Map reset on every cold start, so a brute-force attacker
  *   hitting 1000 requests would get 1000 fresh maps — rate limit never triggered.
- *   Upstash Redis lives outside Vercel, so ALL instances share the same counter.
+ *   Turso lives outside Vercel, so ALL instances share the same counter.
+ *
+ * How it works (production):
+ *   1. Request arrives → getClientIp extracts IP from x-forwarded-for
+ *   2. checkRateLimit(key, max, window) → records an event row + counts it
+ *   3. DELETE this key's rows that fell out of the window (bounded per-key cleanup)
+ *   4. INSERT an event for this attempt (blocked attempts are recorded too)
+ *   5. SELECT COUNT(*) in [now - window, now] — shared across all instances
+ *   6. If count > max → { limited: true, retryAfterMs: oldest + window - now }
+ *   7. Steps 3-5 run as ONE atomic batch (transaction) — a concurrent request can
+ *      never undercount the window and slip past the limiter.
+ *
+ * Fail-open: if the store errors we log (throttled) and allow the request,
+ * so a Turso hiccup never bricks login/upload/bcrypt is still the real defense.
  */
 
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { createClient, type Client, type InStatement } from "@libsql/client";
+import { randomUUID } from "node:crypto";
 
-/* ── Shared Redis client (lazy singleton) ─────────────── */
-let redis: Redis | null = null;
+const MAX_KEY_LENGTH = 160; // bound pathological header/userId rows
 
-function getRedis(): Redis | null {
-  if (redis) return redis;
+/* ── Shared Turso client (lazy singleton) ─────────────── */
+let db: Client | null = null;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+function getDb(): Client | null {
+  if (db) return db;
 
-  if (!url || !token) return null;
+  const url = process.env.DATABASE_URL;
+  if (!url) return null;
 
-  redis = new Redis({ url, token });
-  return redis;
+  try {
+    db = createClient({
+      url,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+      intMode: "number",
+    });
+  } catch {
+    db = null;
+  }
+  return db;
+}
+
+/**
+ * Global hygiene sweep. Deletes events older than now - SWEEP_MARGIN_MS.
+ *
+ * INVARIANT: SWEEP_MARGIN_MS must always exceed the longest window used by any
+ * caller PLUS clock skew between serverless instances, otherwise this sweep
+ * could delete events that still belong to a live window. Longest window today
+ * is register (5 min). See src/app/api/auth/register/route.ts.
+ */
+const SWEEP_MARGIN_MS = 10 * 60_000; // 10 min > 5 min max window
+const SWEEP_INTERVAL_MS = 60_000; // at most once per minute per instance
+
+let lastGlobalSweep = 0;
+let lastErrorLog = 0;
+
+export type SlidingWindowOptions = {
+  /** Injectable clock (tests). Defaults to Date.now(). */
+  now?: number;
+  /** Force the throttled global sweep (tests). Defaults to the interval check. */
+  forceSweep?: boolean;
+};
+
+/**
+ * Sliding-window check against a libsql/Turso client. Exported for tests.
+ * All statements run atomically in one transaction + one round trip.
+ * The SELECT is always the LAST batch statement so its result set is at `results.at(-1)`.
+ */
+export async function tursoSlidingWindowCheck(
+  client: Client,
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+  opts: SlidingWindowOptions = {}
+): Promise<{ limited: boolean; retryAfterMs: number }> {
+  const now = opts.now ?? Date.now();
+  const windowStart = now - windowMs;
+
+  const stmts: InStatement[] = [];
+
+  const sweepDue = opts.forceSweep === true || now - lastGlobalSweep > SWEEP_INTERVAL_MS;
+  if (sweepDue) {
+    lastGlobalSweep = now;
+    stmts.push({
+      sql: "DELETE FROM rate_limit_events WHERE ts < ?",
+      args: [now - SWEEP_MARGIN_MS],
+    });
+  }
+
+  stmts.push(
+    {
+      sql: "DELETE FROM rate_limit_events WHERE key = ? AND ts < ?",
+      args: [key, windowStart],
+    },
+    {
+      sql: "INSERT INTO rate_limit_events (id, key, ts) VALUES (?, ?, ?)",
+      args: [randomUUID(), key, now],
+    },
+    {
+      sql: "SELECT COUNT(*) AS count, MIN(ts) AS oldest FROM rate_limit_events WHERE key = ? AND ts >= ?",
+      args: [key, windowStart],
+    }
+  );
+
+  const results = await client.batch(stmts, "write");
+  const row = results[results.length - 1].rows[0] as unknown as
+    | { count: number; oldest: number | null }
+    | undefined;
+
+  const count = Number(row?.count ?? 0);
+  const oldest = row?.oldest == null ? null : Number(row.oldest);
+
+  if (count > maxRequests) {
+    const retryAfterMs = oldest == null ? 0 : Math.max(0, oldest + windowMs - now);
+    return { limited: true, retryAfterMs };
+  }
+
+  return { limited: false, retryAfterMs: 0 };
 }
 
 /**
  * Check rate limit for a given key (typically IP-prefixed).
  * Returns { limited: true, retryAfterMs } if rate limit exceeded.
  *
- * In production (Upstash): uses Redis sorted sets — shared across all Vercel instances.
- * In local dev (no Upstash env vars): falls back to in-memory Map per instance.
+ * In production (Turso): uses a shared table across all Vercel instances.
+ * In local dev (no DATABASE_URL): falls back to an in-memory Map per instance.
  */
 export async function checkRateLimit(
   key: string,
   maxRequests: number,
   windowMs: number
 ): Promise<{ limited: false } | { limited: true; retryAfterMs: number }> {
-  const redisClient = getRedis();
+  const safeKey = key.length > MAX_KEY_LENGTH ? key.slice(0, MAX_KEY_LENGTH) : key;
 
-  /* ── Upstash path ──────────────────────────────────── */
-  if (redisClient) {
-    // Convert window from ms to a human-readable string for Upstash
-    const windowSec = Math.ceil(windowMs / 1000);
+  const client = getDb();
 
-    const limiter = new Ratelimit({
-      redis: redisClient,
-      limiter: Ratelimit.slidingWindow(maxRequests, `${windowSec} s`),
-      analytics: false,
-      prefix: `catarina:${key.split(":")[0]}`, // prefix by route type (login, register, etc.)
-    });
-
-    const result = await limiter.limit(key);
-
-    if (!result.success) {
-      const retryAfterMs = Math.max(0, result.reset - Date.now());
-      return { limited: true, retryAfterMs };
+  /* ── Turso path ─────────────────────────────────────── */
+  if (client) {
+    try {
+      const result = await tursoSlidingWindowCheck(client, safeKey, maxRequests, windowMs);
+      return result;
+    } catch (error) {
+      // Throttle error logs to 1/min per instance to avoid log flooding during outages
+      if (Date.now() - lastErrorLog > SWEEP_INTERVAL_MS) {
+        lastErrorLog = Date.now();
+        console.error("[RATE_LIMIT] Turso check failed, fail-open:", (error as Error).message);
+      }
+      return { limited: false };
     }
-
-    return { limited: false };
   }
 
   /* ── In-memory fallback (local dev) ────────────────── */
   const now = Date.now();
-  const entry = memStore.get(key);
+  const entry = memStore.get(safeKey);
 
   if (!entry || now > entry.resetAt) {
-    memStore.set(key, { count: 1, resetAt: now + windowMs });
+    memStore.set(safeKey, { count: 1, resetAt: now + windowMs });
     return { limited: false };
   }
 

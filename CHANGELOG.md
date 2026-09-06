@@ -14,6 +14,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> Unreleased · *Self-Hosted Rate Limiting*
+
+> Upstash paused the free Redis project for inactivity, so rate limiting now lives in the same Turso database the app already uses — one less external service, nothing to keep alive, no pause/archive cycle.
+
+### ✦ Rate Limiter Migration (Upstash → Turso)
+
+- **Dropped Upstash Redis**: `src/lib/rateLimit.ts` no longer uses `@upstash/redis` / `@upstash/ratelimit` — deps removed.
+- **Turso sliding window**: rate-limit checks now record an event row in the new `rate_limit_events` table and count in-window attempts. All statements run in **one atomic SQLite transaction** (via `client.batch(..., "write")`), so concurrent Vercel instances can't undercount the window.
+- **True sliding-window semantics**: blocked attempts are recorded and age out — identical behavior to `@upstash/ratelimit`.
+- **Self-cleaning**: per-key sweep on every check plus a throttled global sweep (margin > longest window) keep the table bounded.
+- **Fail-open**: a Turso hiccup logs (throttled) and allows the request instead of 500-ing the route; in-memory fallback still covers environments without `DATABASE_URL`.
+- **No config change**: uses existing `DATABASE_URL` + `TURSO_AUTH_TOKEN`. Removed `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` from `.env.example`.
+- **Migration**: `20260906000000_add_rate_limit` adds the `rate_limit_events` table (applied to Turso and `dev.db`).
+- **Tests**: new `src/lib/rateLimit.test.ts` exercises the real SQL — window boundaries, aging, per-key isolation, sweep retention, and `retryAfterMs`.
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.4] — 2026-08-04 · *Security Hardening & Reliability*
 
 > **Release Highlight:** Patch release hardening API security — section data isolation, database-verified roles, fail-fast auth, and guards against self-lockouts and data loss — plus reliability fixes and a full unit-test suite.

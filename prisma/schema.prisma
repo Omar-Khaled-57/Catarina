@@ -193,6 +193,19 @@ model Notification {
   @@index([createdAt])
 }
 
+// ─── RateLimitEvent Model ─────────────────────────────────────────────────────
+// Sliding-window rate limiter backend (replaces Upstash Redis).
+// Append-only event log: one row per rate-limit check. `ts` is epoch ms.
+// Rows are swept by src/lib/rateLimit.ts (per-key + throttled global sweep).
+model RateLimitEvent {
+  id  String @id // randomUUID
+  key String     // "login:1.2.3.4", "register:1.2.3.4", "profile:password:u_xxx"
+  ts  BigInt     // epoch ms
+
+  @@index([key, ts])
+  @@index([ts])
+}
+
 // ─── SectionConfig Model ─────────────────────────────────────────────────────
 // Dynamic section definitions — admin can add/remove/customize team sections
 model SectionConfig {
