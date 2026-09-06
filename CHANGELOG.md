@@ -14,7 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
-## <img src="public/rina/update.webp" width="120" align="center" /> Unreleased · *Self-Hosted Rate Limiting*
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.5] — 2026-09-06 · *Self-Hosted Rate Limiting*
 
 > Upstash paused the free Redis project for inactivity, so rate limiting now lives in the same Turso database the app already uses — one less external service, nothing to keep alive, no pause/archive cycle.
 

@@ -7,14 +7,14 @@
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
     <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
-    <img src="https://img.shields.io/badge/version-0.4.4-blue?style=flat-square" alt="Version 0.4.4" />
+    <img src="https://img.shields.io/badge/version-0.4.5-blue?style=flat-square" alt="Version 0.4.5" />
     <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
 </div>
 
-## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.4.4
+## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.4.5
 
-**Security Hardening & Reliability** — Section data isolation, database-verified admin roles, fail-fast auth, and guards against self-lockouts and data loss, plus reliability fixes and a full unit-test suite.
+**Self-Hosted Rate Limiting** — Upstash Redis was dropped in favor of the Turso database the app already uses. Rate limiting is now a true sliding-window counter living in `rate_limit_events`, shared across every Vercel instance and immune to free-tier pausing.
 
 See [CHANGELOG.md](CHANGELOG.md) for full details.
 
