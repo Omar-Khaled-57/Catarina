@@ -1,5 +1,5 @@
 /**
- * Proxy — Auth protection for dashboard routes.
+ * Proxy — Auth protection for dashboard and Cabinet routes.
  * Verifies JWT token from cookies and redirects to login if missing/invalid.
  * Runs on the edge for fast response times.
  */
@@ -37,5 +37,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/tools/:path*"],
 };

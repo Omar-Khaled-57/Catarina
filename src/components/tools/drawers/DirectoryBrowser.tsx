@@ -1,0 +1,1683 @@
+"use client";
+
+/**
+ * DirectoryBrowser — the right-hand panel in chest focus mode. Browses a
+ * section as: drawers (projects) → envelopes (children) + files (items).
+ * In focus mode everything can be opened, edited and made fresh:
+ *   - drawers can be added, renamed and deleted
+ *   - envelopes can be added, renamed, and opened to see their files
+ *   - files can be added (via a rich creation dialog), opened, and renamed
+ *   - multiple loose files can be selected and grouped into an envelope
+ * It stays two-way linked with the chest: opening a drawer shows its
+ * directory here, and clicking a project's directory opens its drawer.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Code2,
+  Copy,
+  Download,
+  ExternalLink,
+  File,
+  Folder,
+  Image,
+  Link2,
+  Pencil,
+  Plus,
+  Search,
+  StickyNote,
+  Trash2,
+  UploadCloud,
+  Video,
+  X,
+} from "lucide-react";
+import type {
+  DemoProject,
+  DemoSection,
+  DirItem,
+  EnvelopeData,
+} from "./types";
+import { downloadItem } from "@/lib/download";
+
+const FILE_TYPES = ["CODE", "IMAGE", "FILE", "LINK", "NOTE", "VIDEO"] as const;
+const FILE_TYPE_LABELS: Record<(typeof FILE_TYPES)[number], string> = {
+  CODE: "Code",
+  IMAGE: "Image",
+  FILE: "File",
+  LINK: "Link",
+  NOTE: "Note",
+  VIDEO: "Video",
+};
+const ITEM_ICONS: Record<DirItem["type"], LucideIcon> = {
+  CODE: Code2,
+  IMAGE: Image,
+  FILE: File,
+  LINK: Link2,
+  NOTE: StickyNote,
+  VIDEO: Video,
+};
+
+const isPreviewableUrl = (value: string) =>
+  /^(blob:|https?:|data:)/i.test(value);
+
+const TEXT_EXTENSIONS = [
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".xml",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".log",
+];
+const CODE_EXTENSIONS = [
+  ".js",
+  ".ts",
+  ".jsx",
+  ".tsx",
+  ".css",
+  ".html",
+  ".htm",
+  ".svg",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".c",
+  ".cpp",
+  ".h",
+  ".php",
+  ".sh",
+  ".bash",
+  ".sql",
+  ".graphql",
+  ".proto",
+  ".prisma",
+];
+
+/* Arabic ⇄ English search normalization.
+ *
+ * Startup: every string is folded so spelling variants never block a match:
+ *  أ / إ / آ → ا, ة → ه, ى → ي, plus diacritics and tatweel are stripped.
+ *
+ * Layout-smart: if the user typed on the wrong keyboard layout (Arabic letters
+ * for an English word, or English letters for an Arabic word), the letters are
+ * remapped through the Arabic QWERTY layout so that "اخةث" matches "home"
+ * (ا→h, خ→o, ة→m, ث→e). Both the query and every candidate get a folded form
+ * plus a keyboard-translated form, and any cross-combination can match.
+ */
+const removeDiacritics = (s: string) =>
+  s.normalize("NFKC").replace(/[\u064B-\u065F\u0670\u0640]/g, "");
+const variantFold = (s: string) =>
+  removeDiacritics(s.toLowerCase())
+    .replace(/[\u0623\u0625\u0622]/g, "\u0627")
+    .replace(/\u0629/g, "\u0647")
+    .replace(/\u0649/g, "\u064A");
+
+const EN_TO_AR: Record<string, string> = {
+  q: "\u0636", w: "\u0635", e: "\u062B", r: "\u0642", t: "\u0641",
+  y: "\u063A", u: "\u0639", i: "\u0647", o: "\u062E", p: "\u062D",
+  "[": "\u062C", "]": "\u062F",
+  a: "\u0634", s: "\u0633", d: "\u064A", f: "\u0628", g: "\u0644",
+  h: "\u0627", j: "\u062A", k: "\u0646", l: "\u0645", ";": "\u0643",
+  "'": "\u0637",
+  z: "\u0626", x: "\u0621", c: "\u0624", v: "\u0631", n: "\u0649",
+  m: "\u0629", ",": "\u0648", ".": "\u0632", "/": "\u0638",
+};
+const AR_TO_EN: Record<string, string> = {
+  "\u0636": "q", "\u0635": "w", "\u062B": "e", "\u0642": "r", "\u0641": "t",
+  "\u063A": "y", "\u0639": "u", "\u0647": "i", "\u062E": "o", "\u062D": "p",
+  "\u062C": "[", "\u062F": "]",
+  "\u0634": "a", "\u0633": "s", "\u064A": "d", "\u0628": "f", "\u0644": "g",
+  "\u0627": "h", "\u062A": "j", "\u0646": "k", "\u0645": "l", "\u0643": ";",
+  "\u0637": "'",
+  "\u0626": "z", "\u0621": "x", "\u0624": "c", "\u0631": "v", "\u0649": "n",
+  "\u0629": "m", "\u0648": ",", "\u0632": ".", "\u0638": "/",
+};
+
+const toKeys = (s: string) => {
+  let out = "";
+  for (const ch of s) {
+    out += AR_TO_EN[ch] ?? EN_TO_AR[ch] ?? ch;
+  }
+  return out;
+};
+
+const formsOf = (s: string) => {
+  const base = removeDiacritics(s.toLowerCase());
+  return [variantFold(base), variantFold(toKeys(base))];
+};
+
+const matchesQuery = (text: string, query: string) => {
+  if (!query) return false;
+  const [qf0, qf1] = formsOf(query);
+  return formsOf(text).some(
+    (hay) => (qf0 && hay.includes(qf0)) || (qf1 && hay.includes(qf1)),
+  );
+};
+
+interface SearchHits {
+  projects: DemoProject[];
+  envelopes: { project: DemoProject; envelope: EnvelopeData }[];
+  files: { project: DemoProject; envelope: EnvelopeData | null; file: DirItem }[];
+}
+
+function searchSection(section: DemoSection, query: string): SearchHits {
+  const hits: SearchHits = {
+    projects: [],
+    envelopes: [],
+    files: [],
+  };
+  if (!query) return hits;
+  for (const project of section.projects) {
+    if (matchesQuery(project.name, query)) hits.projects.push(project);
+    for (const envelope of project.envelopes) {
+      if (matchesQuery(envelope.name, query))
+        hits.envelopes.push({ project, envelope });
+      for (const file of envelope.items ?? []) {
+        const hay = `${file.name} ${FILE_TYPE_LABELS[file.type]}`;
+        if (matchesQuery(hay, query))
+          hits.files.push({ project, envelope, file });
+      }
+    }
+    for (const file of project.items ?? []) {
+      const hay = `${file.name} ${FILE_TYPE_LABELS[file.type]}`;
+      if (matchesQuery(hay, query)) hits.files.push({ project, envelope: null, file });
+    }
+  }
+  return hits;
+}
+
+function Row({
+  icon: Icon,
+  label,
+  meta,
+  color,
+  active = false,
+  onClick,
+  actions,
+  checked,
+  onCheck,
+}: {
+  icon: LucideIcon;
+  label: string;
+  meta?: string;
+  color: string;
+  active?: boolean;
+  onClick?: () => void;
+  actions?: React.ReactNode;
+  checked?: boolean;
+  onCheck?: () => void;
+}) {
+  return (
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`group flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+        active ? "bg-accent/10" : "hover:bg-accent/10"
+      } ${checked ? "bg-accent/10" : ""}`}
+    >
+      {typeof checked === "boolean" && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheck?.();
+          }}
+          className={`grid size-4 shrink-0 place-items-center rounded border transition-colors ${
+            checked
+              ? "border-accent bg-accent text-white"
+              : "border-border hover:border-accent"
+          }`}
+          aria-label={checked ? "Deselect" : "Select"}
+        >
+          {checked && <Check className="size-3" />}
+        </button>
+      )}
+      <Icon
+        className="size-4 shrink-0 transition-transform duration-200 ease-out group-hover:scale-110"
+        style={{ color }}
+      />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-text">
+        {label}
+      </span>
+      {meta && (
+        <span className="shrink-0 text-xs text-text-muted">{meta}</span>
+      )}
+      {actions && (
+        <span className="-translate-x-1 opacity-0 transition-[transform,opacity] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100">
+          <span className="flex items-center gap-1"> {actions}</span>
+        </span>
+      )}
+      <ChevronRight className="size-3.5 shrink-0 text-text-muted transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
+    </div>
+  );
+}
+
+function Crumb({
+  onClick,
+  children,
+  strong = false,
+}: {
+  onClick?: () => void;
+  children: React.ReactNode;
+  strong?: boolean;
+}) {
+  const inner = (
+    <span
+      className={`truncate ${
+        strong
+          ? "font-semibold text-text"
+          : "text-text-muted transition-colors hover:text-text"
+      }`}
+    >
+      {children}
+    </span>
+  );
+  if (!onClick) return inner;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    >
+      {inner}
+    </button>
+  );
+}
+
+function CopyButton({
+  value,
+  disabled = false,
+  className = "",
+}: {
+  value: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const copy = async () => {
+    if (disabled || !value.trim()) return;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      } catch {
+        return;
+      }
+    }
+    setCopied(true);
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label="Copy content"
+      disabled={disabled}
+      onClick={copy}
+      className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium transition-colors ${
+        disabled
+          ? "pointer-events-none border-transparent bg-transparent text-text-muted/40"
+          : "bg-surface text-text-muted hover:border-accent/40 hover:text-accent"
+      } ${className}`}
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+function FileDetail({
+  file,
+  color,
+  onRename,
+  onUpdateContent,
+  onDone,
+}: {
+  file: DirItem;
+  color: string;
+  onRename: (name: string) => void;
+  onUpdateContent: (content: string) => void;
+  onDone: () => void;
+}) {
+  const ItemIcon = ITEM_ICONS[file.type];
+  const [value, setValue] = useState(file.name);
+  const [draft, setDraft] = useState(file.content ?? "");
+
+  const commitName = () => onRename(value.trim() || file.name);
+  const commitContent = () => onUpdateContent(draft.trim());
+
+  const url = file.content;
+  const isUrl =
+    isPreviewableUrl(url ?? "") || /^(https?:|mailto:|tel:)/i.test(url ?? "");
+  const isMedia =
+    (file.type === "IMAGE" || file.type === "VIDEO") &&
+    !!url &&
+    isPreviewableUrl(url);
+  const showsImagePreview = file.type === "IMAGE";
+  const isLink = file.type === "LINK" && !!url && isUrl;
+
+  const openContent = () => {
+    const source = (isUrl && url) || draft.trim();
+    if (!source) return;
+    if (isUrl && url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const blob = new Blob([source], { type: "text/plain;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+  };
+
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="flex items-center gap-3 border-b border-border px-5 py-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-accent/10">
+          <ItemIcon className="size-5" style={{ color }} />
+        </div>
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={commitName}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.stopPropagation();
+              commitName();
+              onDone();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              onDone();
+            }
+          }}
+          className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-text focus:border-accent focus:outline-2 focus:outline-accent"
+          aria-label="File name"
+        />
+        <button
+          type="button"
+          onClick={openContent}
+          aria-label="Open content in new tab"
+          title="Open content in new tab"
+          className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-text-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <ExternalLink className="size-3.5" />
+        </button>
+        <span className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent uppercase">
+          {file.type.toLowerCase()}
+        </span>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
+        {isMedia || showsImagePreview ? (
+          <div className="flex h-full min-h-0 w-full items-center justify-center">
+            {showsImagePreview ? (
+              // eslint-disable-next-line @next/next/no-img-element -- blob/data URLs need a plain <img>
+              <img
+                src={isMedia ? url : "/media/banner.png"}
+                alt={file.name}
+                className="max-h-64 max-w-full rounded-lg border border-border object-contain shadow-lg shadow-black/20"
+              />
+            ) : (
+              <video
+                src={url}
+                controls
+                playsInline
+                className="max-h-40 w-full max-w-full rounded-lg border border-border bg-black shadow-lg shadow-black/20"
+              />
+            )}
+          </div>
+        ) : isLink ? (
+          <div className="flex h-full flex-col gap-2">
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+            >
+              <ExternalLink className="size-3.5 shrink-0" />
+              <span className="truncate">{url}</span>
+            </a>
+            <CopyButton value={url} className="self-start" />
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col text-left">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+                Content
+              </span>
+              <CopyButton value={draft} disabled={!draft.trim()} />
+            </div>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={
+                file.type === "CODE"
+                  ? "Paste or type code…"
+                  : file.type === "LINK"
+                    ? "Paste or type a URL…"
+                    : "Add content…"
+              }
+              className="h-full min-h-0 w-full flex-1 resize-none rounded-lg border border-border bg-surface/70 p-3 font-mono text-xs leading-relaxed text-text/90 placeholder:text-text-muted/50 focus:border-accent focus:outline-2 focus:outline-accent"
+              onBlur={commitContent}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      <footer className="mt-auto flex items-center justify-between border-t border-border px-5 py-2">
+        <button
+          type="button"
+          onClick={onDone}
+          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-text-muted transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <ArrowLeft className="size-3" />
+          Back
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            commitName();
+            commitContent();
+            onDone();
+          }}
+          className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <Check className="size-3" />
+          Done
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+function EditorRow({
+  icon: Icon,
+  color,
+  value,
+  onChange,
+  onCommit,
+  onCancel,
+}: {
+  icon: LucideIcon;
+  color: string;
+  value: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-accent/10 px-3 py-2">
+      <Icon className="size-4 shrink-0" style={{ color }} />
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.stopPropagation();
+            onCommit();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            onCancel();
+          }
+        }}
+        className="min-w-0 flex-1 rounded-lg border border-accent/30 bg-surface px-2 py-1 text-sm text-text focus:outline-2 focus:outline-accent"
+        aria-label="Rename"
+      />
+      <button
+        type="button"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onCommit();
+        }}
+        className="grid size-7 shrink-0 place-items-center rounded-lg text-accent transition-colors hover:bg-accent/10"
+        aria-label="Confirm"
+      >
+        <Check className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function FileForm({
+  existingCount,
+  color,
+  onCreate,
+  onCancel,
+}: {
+  existingCount: number;
+  color: string;
+  onCreate: (item: Omit<DirItem, "id">) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<(typeof FILE_TYPES)[number]>("FILE");
+  const [content, setContent] = useState("");
+  const [upload, setUpload] = useState<File | null>(null);
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null);
+
+  const TypeIcon = ITEM_ICONS[type];
+  const defaultName = `file ${existingCount + 1}`;
+
+  const handleUpload = (file: File | null) => {
+    setUpload(file);
+    if (!file) return;
+    if (!name.trim()) setName(file.name);
+    const lower = file.name.toLowerCase();
+    const ext = lower.includes(".") ? `.${lower.split(".").pop() ?? ""}` : "";
+
+    if (file.type.startsWith("image/")) {
+      setType("IMAGE");
+      setUploadUrl(URL.createObjectURL(file));
+      setContent("");
+    } else if (file.type.startsWith("video/")) {
+      setType("VIDEO");
+      setUploadUrl(URL.createObjectURL(file));
+      setContent("");
+    } else if (
+      file.type.startsWith("text/") ||
+      TEXT_EXTENSIONS.includes(ext) ||
+      CODE_EXTENSIONS.includes(ext)
+    ) {
+      setUploadUrl(null);
+      setContent("");
+      void file.text().then((text) => {
+        setContent(text);
+        setType(CODE_EXTENSIONS.includes(ext) ? "CODE" : "FILE");
+      });
+    } else {
+      setUploadUrl(null);
+      setContent("");
+      setType("FILE");
+    }
+  };
+
+  const submit = () => {
+    const finalName = name.trim() || defaultName;
+    const contentValue =
+      (type === "IMAGE" || type === "VIDEO") && uploadUrl
+        ? uploadUrl
+        : content.trim()
+          ? content.trim()
+          : undefined;
+    onCreate({
+      name: finalName,
+      type,
+      ...(contentValue ? { content: contentValue } : {}),
+    });
+  };
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+      className="flex w-full flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-2xl shadow-black/40 sm:p-5"
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="grid size-11 shrink-0 place-items-center rounded-xl transition-colors duration-200"
+          style={{ backgroundColor: `${color}22`, color }}
+        >
+          <TypeIcon className="size-5" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-text">New file</h2>
+          <p className="text-xs text-text-muted">
+            Everything is optional — sensible defaults kick in.
+          </p>
+        </div>
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+          Name
+        </span>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={defaultName}
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text transition-colors placeholder:text-text-muted/60 focus:border-accent focus:outline-2 focus:outline-accent"
+        />
+      </label>
+
+      <div>
+        <span className="mb-1 block text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+          Type
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {FILE_TYPES.map((t) => {
+            const TIcon = ITEM_ICONS[t];
+            const isActive = type === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                aria-pressed={isActive}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all duration-150 ease-out ${
+                  isActive
+                    ? "scale-[1.03] border-accent bg-accent/15 text-accent shadow-sm"
+                    : "border-border text-text-muted hover:border-accent/40 hover:text-text"
+                }`}
+              >
+                <TIcon className="size-3.5" />
+                {FILE_TYPE_LABELS[t]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <input
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder={
+          type === "LINK"
+            ? "Paste a URL"
+            : type === "CODE"
+              ? "Paste some code…"
+              : "Add a note or content (optional)"
+        }
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text transition-colors placeholder:text-text-muted/50 focus:border-accent focus:outline-2 focus:outline-accent"
+      />
+
+      <label className="grid cursor-pointer place-items-center gap-1 rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-text-muted transition-colors hover:border-accent/50 hover:text-text">
+        <UploadCloud className="size-4" />
+        <span className="font-medium text-text">
+          Upload image, video or any file
+        </span>
+        <span>Stored locally for now — cloud storage comes later</span>
+        <input
+          type="file"
+          className="sr-only"
+          onChange={(e) => handleUpload(e.target.files?.[0] ?? null)}
+        />
+      </label>
+
+      {upload && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-accent/5 px-3 py-2 text-xs">
+          <File className="size-3.5 shrink-0" style={{ color }} />
+          <span className="min-w-0 flex-1 truncate font-medium text-text">
+            {upload.name}
+          </span>
+          <span className="shrink-0 text-text-muted">
+            {(upload.size / 1024).toFixed(1)} KB
+          </span>
+        </div>
+      )}
+
+      {uploadUrl && type === "IMAGE" && (
+        <div className="overflow-hidden rounded-lg border border-border">
+          {/* eslint-disable-next-line @next/next/no-img-element -- blob preview */}
+          <img
+            src={uploadUrl}
+            alt="Preview"
+            className="max-h-32 w-full bg-black object-contain"
+          />
+        </div>
+      )}
+      {uploadUrl && type === "VIDEO" && (
+        <video
+          src={uploadUrl}
+          controls
+          playsInline
+          className="max-h-32 w-full rounded-lg border border-border bg-black"
+        />
+      )}
+
+      <div className="flex items-center gap-2 border-t border-border pt-3 text-xs text-text-muted">
+        <span>Becomes:</span>
+        <span className="max-w-[40%] truncate font-semibold text-text">
+          {name.trim() || defaultName}
+        </span>
+        <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent uppercase">
+          {type.toLowerCase()}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-text"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="inline-flex items-center gap-1 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-white transition-transform duration-150 ease-out hover:scale-[1.03] hover:brightness-110 active:scale-95"
+        >
+          <Plus className="size-3.5" />
+          Create
+        </button>
+      </div>
+    </form>
+  );
+}
+
+type EditTarget =
+  | { kind: "drawer"; id: string }
+  | { kind: "envelope"; id: string }
+  | { kind: "item"; envId: string | null; id: string };
+
+function SearchResults({
+  hits,
+  color,
+  onOpenResult,
+  query,
+}: {
+  hits: SearchHits;
+  color: string;
+  onOpenResult: (
+    projectId: string,
+    envId: string | null,
+    fileId: string | null,
+  ) => void;
+  query: string;
+}) {
+  const { projects, envelopes, files } = hits;
+  const total = projects.length + envelopes.length + files.length;
+
+  if (total === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <Search className="size-6 text-text-muted/40" />
+        <p className="text-sm text-text-muted">
+          No matches for “{query.trim()}”
+        </p>
+        <p className="max-w-xs text-xs text-text-muted/80">
+          Try an English or Arabic keyword — spelling variants count (ة≈ه, أ≈ا)
+          and you can even type on the wrong keyboard layout (اخةث finds home).
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-3">
+      <div className="flex items-center justify-between px-1 text-xs text-text-muted">
+        <span>
+          {total} {total === 1 ? "result" : "results"} for “{query.trim()}”
+        </span>
+        <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent uppercase">
+          EN / عربي
+        </span>
+      </div>
+
+      {projects.length > 0 && (
+        <div>
+          <p className="mb-1 px-1 text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+            Drawers
+          </p>
+          <div className="space-y-1">
+            {projects.map((p) => (
+              <Row
+                key={p.id}
+                icon={Folder}
+                label={p.name}
+                color={color}
+                meta={`${p.envelopes.length} ${
+                  p.envelopes.length === 1 ? "envelope" : "envelopes"
+                } · ${(p.items ?? []).length} ${
+                  (p.items ?? []).length === 1 ? "file" : "files"
+                }`}
+                onClick={() => onOpenResult(p.id, null, null)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {envelopes.length > 0 && (
+        <div>
+          <p className="mb-1 px-1 text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+            Envelopes
+          </p>
+          <div className="space-y-1">
+            {envelopes.map(({ project, envelope }) => (
+              <Row
+                key={envelope.id}
+                icon={Folder}
+                label={envelope.name}
+                color={color}
+                meta={`${project.name} · ${
+                  (envelope.items ?? []).length
+                } ${(envelope.items ?? []).length === 1 ? "file" : "files"}`}
+                onClick={() => onOpenResult(project.id, envelope.id, null)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {files.length > 0 && (
+        <div>
+          <p className="mb-1 px-1 text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+            Files
+          </p>
+          <div className="space-y-1">
+            {files.map(({ project, envelope, file }) => (
+              <Row
+                key={file.id}
+                icon={ITEM_ICONS[file.type]}
+                label={file.name}
+                color={color}
+                meta={`${project.name}${
+                  envelope ? " · " + envelope.name : ""
+                } · ${FILE_TYPE_LABELS[file.type]}`}
+                onClick={() =>
+                  onOpenResult(project.id, envelope?.id ?? null, file.id)
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function DirectoryBrowser({
+  section,
+  color,
+  activeProject,
+  focusTarget,
+  onOpenProject,
+  onAddProject,
+  onAddEnvelope,
+  onCreateFile,
+  onRenameProject,
+  onRenameEnvelope,
+  onRenameItem,
+  onUpdateFileContent,
+  onRemoveItem,
+  onDeleteProject,
+  onGroupItems,
+  onClose,
+}: {
+  section: DemoSection;
+  color: string;
+  activeProject: DemoProject | null;
+  focusTarget: { envelopeId: string; fileId: string } | null;
+  onOpenProject: (id: string | null) => void;
+  onAddProject: () => void;
+  onAddEnvelope: (projectId: string) => void;
+  onCreateFile: (
+    projectId: string,
+    envId: string | null,
+    item: Omit<DirItem, "id">,
+  ) => void;
+  onRenameProject: (id: string, name: string) => void;
+  onRenameEnvelope: (
+    projectId: string,
+    envelopeId: string,
+    name: string,
+  ) => void;
+  onRenameItem: (
+    projectId: string,
+    envelopeId: string | null,
+    itemId: string,
+    name: string,
+  ) => void;
+  onUpdateFileContent: (
+    projectId: string,
+    envelopeId: string | null,
+    itemId: string,
+    content: string,
+  ) => void;
+  onRemoveItem: (
+    projectId: string,
+    envelopeId: string | null,
+    itemId: string,
+  ) => void;
+  onDeleteProject: (id: string) => void;
+  onGroupItems: (projectId: string, itemIds: string[]) => void;
+  onClose: () => void;
+}) {
+  const reduce = useReducedMotion();
+  const viewT = reduce
+    ? { duration: 0.01 }
+    : { duration: 0.18, ease: "easeOut" as const };
+
+  const [envelopeId, setEnvelopeId] = useState<string | null>(
+    () => focusTarget?.envelopeId ?? null,
+  );
+  const [openFile, setOpenFile] = useState<{
+    envId: string | null;
+    id: string;
+  } | null>(() =>
+    focusTarget
+      ? { envId: focusTarget.envelopeId, id: focusTarget.fileId }
+      : null,
+  );
+  const [edit, setEdit] = useState<EditTarget | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [armDeleteId, setArmDeleteId] = useState<string | null>(null);
+  const [armDeleteItem, setArmDeleteItem] = useState<{
+    envId: string | null;
+    id: string;
+  } | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dialog, setDialog] = useState<{ envId: string | null } | null>(null);
+  const [query, setQuery] = useState("");
+
+  const envelope =
+    (activeProject &&
+      envelopeId &&
+      activeProject.envelopes.find((e) => e.id === envelopeId)) ||
+    null;
+
+  const depth = activeProject ? (envelope ? 2 : 1) : 0;
+  const looseFiles = activeProject?.items ?? [];
+  const trimmedQuery = query.trim();
+  const hits = searchSection(section, trimmedQuery);
+
+  const clearTransient = () => {
+    setOpenFile(null);
+    setEdit(null);
+    setArmDeleteId(null);
+    setArmDeleteItem(null);
+    setSelectMode(false);
+    setSelected(new Set());
+    setDialog(null);
+  };
+
+  const openProject = (id: string | null) => {
+    clearTransient();
+    onOpenProject(id);
+  };
+
+  const goToEnvelope = (id: string | null) => {
+    clearTransient();
+    setEnvelopeId(id);
+  };
+
+  const openResult = (
+    projectId: string,
+    envId: string | null,
+    fileId: string | null,
+  ) => {
+    setQuery("");
+    clearTransient();
+    onOpenProject(projectId);
+    setEnvelopeId(envId);
+    if (fileId) setOpenFile({ envId, id: fileId });
+  };
+
+  const commitEdit = () => {
+    if (!edit) return;
+    const v = editValue.trim();
+    if (edit.kind === "drawer") onRenameProject(edit.id, v);
+    else if (edit.kind === "envelope" && activeProject)
+      onRenameEnvelope(activeProject.id, edit.id, v);
+    else if (edit.kind === "item" && activeProject)
+      onRenameItem(activeProject.id, edit.envId, edit.id, v);
+    setEdit(null);
+  };
+
+  const openFileItem = (envId: string | null, itemId: string) => {
+    setOpenFile({ envId, id: itemId });
+    setEdit(null);
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const groupSelected = () => {
+    if (activeProject && selected.size > 0) {
+      onGroupItems(activeProject.id, [...selected]);
+      setSelectMode(false);
+      setSelected(new Set());
+    }
+  };
+
+  const runningFile = openFile
+    ? (openFile.envId
+        ? (envelope?.items ?? []).find((i) => i.id === openFile.id)
+        : looseFiles.find((i) => i.id === openFile.id)) || null
+    : null;
+
+  const viewKey = runningFile
+    ? `file:${runningFile.id}`
+    : trimmedQuery
+      ? `search:${trimmedQuery}`
+      : `view:${depth}:${envelopeId ?? "root"}`;
+
+  const closeDialog = () => setDialog(null);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${section.label} directory`}
+      className="relative flex h-full max-h-[82vh] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-border bg-surface/85 shadow-2xl shadow-black/40 backdrop-blur-xl sm:min-h-[480px]"
+    >
+      <header className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+          <Crumb onClick={() => openProject(null)}>
+            <Folder className="mr-1 inline size-3.5" style={{ color }} />
+            {section.label}
+          </Crumb>
+          {activeProject && (
+            <>
+              <ChevronRight className="size-3.5 shrink-0 text-text-muted" />
+              <Crumb onClick={() => goToEnvelope(null)} strong>
+                {activeProject.name}
+              </Crumb>
+            </>
+          )}
+          {envelope && (
+            <>
+              <ChevronRight className="size-3.5 shrink-0 text-text-muted" />
+              <Crumb strong>{envelope.name}</Crumb>
+            </>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close focus mode"
+          className="grid size-8 shrink-0 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <X className="size-4" />
+        </button>
+      </header>
+
+      {!runningFile && (
+        <div className="flex items-center gap-2 border-b border-border px-5 py-2.5">
+          <Search className="size-4 shrink-0 text-text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            aria-label="Search"
+            className="min-w-0 flex-1 border-none bg-transparent text-sm text-text outline-none placeholder:text-text-muted/50"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                setQuery("");
+              }
+            }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="grid size-6 shrink-0 place-items-center rounded-md text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={viewKey}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={viewT}
+            className="flex h-full min-h-0 w-full flex-col"
+          >
+            {trimmedQuery ? (
+              <SearchResults
+                hits={hits}
+                color={color}
+                onOpenResult={openResult}
+                query={query}
+              />
+            ) : runningFile ? (
+              <FileDetail
+                file={runningFile}
+                color={color}
+                onRename={(name) =>
+                  activeProject &&
+                  onRenameItem(
+                    activeProject.id,
+                    openFile!.envId,
+                    openFile!.id,
+                    name,
+                  )
+                }
+                onUpdateContent={(content) =>
+                  activeProject &&
+                  onUpdateFileContent(
+                    activeProject.id,
+                    openFile!.envId,
+                    openFile!.id,
+                    content,
+                  )
+                }
+                onDone={() => setOpenFile(null)}
+              />
+            ) : depth === 0 ? (
+              section.projects.length === 0 && edit?.kind !== "drawer" ? (
+                <p className="px-3 py-8 text-center text-sm text-text-muted">
+                  No drawers yet — add one below.
+                </p>
+              ) : (
+                <div className="w-full space-y-1">
+                  {section.projects.map((project) =>
+                    edit?.kind === "drawer" && edit.id === project.id ? (
+                      <EditorRow
+                        key={project.id}
+                        icon={Folder}
+                        color={color}
+                        value={editValue}
+                        onChange={setEditValue}
+                        onCommit={commitEdit}
+                        onCancel={() => setEdit(null)}
+                      />
+                    ) : (
+                      <Row
+                        key={project.id}
+                        icon={Folder}
+                        label={project.name}
+                        color={color}
+                        active={activeProject?.id === project.id}
+                        meta={`${project.envelopes.length} ${
+                          project.envelopes.length === 1
+                            ? "envelope"
+                            : "envelopes"
+                        } · ${project.items?.length ?? 0} ${
+                          (project.items?.length ?? 0) === 1 ? "file" : "files"
+                        }`}
+onClick={() =>
+                        openProject(
+                          activeProject?.id === project.id ? null : project.id,
+                        )
+                      }
+                        actions={
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setArmDeleteId(null);
+                                setEdit({ kind: "drawer", id: project.id });
+                                setEditValue(project.name);
+                              }}
+                              className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+                              aria-label={`Rename ${project.name}`}
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (armDeleteId === project.id) {
+                                  onDeleteProject(project.id);
+                                  setArmDeleteId(null);
+                                } else {
+                                  setEdit(null);
+                                  setArmDeleteId(project.id);
+                                }
+                              }}
+                              className={`grid size-7 place-items-center rounded-lg transition-colors ${
+                                armDeleteId === project.id
+                                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                                  : "text-text-muted hover:bg-red-500/10 hover:text-red-600"
+                              }`}
+                              aria-label={
+                                armDeleteId === project.id
+                                  ? `Confirm delete ${project.name}`
+                                  : `Delete ${project.name}`
+                              }
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </>
+                        }
+                      />
+                    ),
+                  )}
+                </div>
+              )
+            ) : envelope ? (
+              <div className="w-full space-y-1">
+                {envelope.items?.length === 0 && (
+                  <p className="px-3 py-8 text-center text-sm text-text-muted">
+                    Empty envelope — add a file below.
+                  </p>
+                )}
+                {envelope.items?.map((item) =>
+                  edit?.kind === "item" &&
+                  edit.id === item.id &&
+                  edit.envId === envelope.id ? (
+                    <EditorRow
+                      key={item.id}
+                      icon={ITEM_ICONS[item.type]}
+                      color={color}
+                      value={editValue}
+                      onChange={setEditValue}
+                      onCommit={commitEdit}
+                      onCancel={() => setEdit(null)}
+                    />
+                  ) : (
+                    <Row
+                      key={item.id}
+                      icon={ITEM_ICONS[item.type]}
+                      label={item.name}
+                      color={color}
+                      meta={item.type.toLowerCase()}
+                      onClick={() => openFileItem(envelope.id, item.id)}
+                      actions={
+                        <>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); downloadItem(item); }} className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Download ${item.name}`}>
+                            <Download className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEdit({ kind: "item", envId: envelope.id, id: item.id });
+                              setEditValue(item.name);
+                            }}
+                            className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+                            aria-label={`Rename ${item.name}`}
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEdit(null);
+                              if (
+                                armDeleteItem?.id === item.id &&
+                                armDeleteItem.envId === envelope.id
+                              ) {
+                                onRemoveItem(activeProject!.id, envelope.id, item.id);
+                                setArmDeleteItem(null);
+                              } else {
+                                setArmDeleteItem({ envId: envelope.id, id: item.id });
+                              }
+                            }}
+                            className={`grid size-7 place-items-center rounded-lg transition-colors ${
+                              armDeleteItem?.id === item.id &&
+                              armDeleteItem.envId === envelope.id
+                                ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                                : "text-text-muted hover:bg-red-500/10 hover:text-red-600"
+                            }`}
+                            aria-label={
+                              armDeleteItem?.id === item.id &&
+                              armDeleteItem.envId === envelope.id
+                                ? `Confirm delete ${item.name}`
+                                : `Delete ${item.name}`
+                            }
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </>
+                      }
+                    />
+                  ),
+                )}
+              </div>
+            ) : (
+              <div className="w-full space-y-1">
+                {selectMode && (
+                  <div className="flex min-h-0 items-center gap-2 px-1 pb-2 text-xs text-text-muted">
+                    <span>
+                      {selected.size > 0
+                        ? `${selected.size} selected`
+                        : "Select files to group"}
+                    </span>
+                    {selected.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={groupSelected}
+                        className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-accent/10 px-2 py-1 font-medium text-accent transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <Folder className="size-3" />
+                        Make envelope
+                      </button>
+                    )}
+                  </div>
+                )}
+                {looseFiles.length === 0 &&
+                  activeProject!.envelopes.length === 0 && (
+                    <p className="px-3 py-8 text-center text-sm text-text-muted">
+                      Empty drawer — add an envelope or a file below.
+                    </p>
+                  )}
+                {activeProject!.envelopes.map((env) =>
+                  edit?.kind === "envelope" && edit.id === env.id ? (
+                    <EditorRow
+                      key={env.id}
+                      icon={Image}
+                      color={color}
+                      value={editValue}
+                      onChange={setEditValue}
+                      onCommit={commitEdit}
+                      onCancel={() => setEdit(null)}
+                    />
+                  ) : (
+                    <Row
+                      key={env.id}
+                      icon={Image}
+                      label={env.name}
+                      color={color}
+                      meta={`${env.items?.length ?? 0} ${
+                        (env.items?.length ?? 0) === 1 ? "item" : "items"
+                      }`}
+                      onClick={() => goToEnvelope(env.id)}
+                      actions={
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEdit({ kind: "envelope", id: env.id });
+                            setEditValue(env.name);
+                          }}
+                          className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+                          aria-label={`Rename ${env.name}`}
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                      }
+                    />
+                  ),
+                )}
+                {looseFiles.map((item) =>
+                  edit?.kind === "item" &&
+                  edit.id === item.id &&
+                  edit.envId === null ? (
+                    <EditorRow
+                      key={item.id}
+                      icon={ITEM_ICONS[item.type]}
+                      color={color}
+                      value={editValue}
+                      onChange={setEditValue}
+                      onCommit={commitEdit}
+                      onCancel={() => setEdit(null)}
+                    />
+                  ) : (
+                    <Row
+                      key={item.id}
+                      icon={ITEM_ICONS[item.type]}
+                      label={item.name}
+                      color={color}
+                      meta={item.type.toLowerCase()}
+                      active={selected.has(item.id)}
+                      checked={selectMode ? selected.has(item.id) : undefined}
+                      onCheck={() => selectMode && toggleSelected(item.id)}
+                      onClick={() =>
+                        selectMode
+                          ? toggleSelected(item.id)
+                          : openFileItem(null, item.id)
+                      }
+                      actions={
+                        selectMode ? undefined : (
+                          <>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); downloadItem(item); }} className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Download ${item.name}`}>
+                              <Download className="size-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEdit({ kind: "item", envId: null, id: item.id });
+                                setEditValue(item.name);
+                              }}
+                              className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+                              aria-label={`Rename ${item.name}`}
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEdit(null);
+                                if (
+                                  armDeleteItem?.id === item.id &&
+                                  armDeleteItem.envId === null
+                                ) {
+                                  onRemoveItem(activeProject!.id, null, item.id);
+                                  setArmDeleteItem(null);
+                                } else {
+                                  setArmDeleteItem({ envId: null, id: item.id });
+                                }
+                              }}
+                              className={`grid size-7 place-items-center rounded-lg transition-colors ${
+                                armDeleteItem?.id === item.id &&
+                                armDeleteItem.envId === null
+                                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                                  : "text-text-muted hover:bg-red-500/10 hover:text-red-600"
+                              }`}
+                              aria-label={
+                                armDeleteItem?.id === item.id &&
+                                armDeleteItem.envId === null
+                                  ? `Confirm delete ${item.name}`
+                                  : `Delete ${item.name}`
+                              }
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </>
+                        )
+                      }
+                    />
+                  ),
+                )}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <footer className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-2.5 text-xs text-text-muted">
+        {runningFile ? (
+          <span className="ml-auto">Editing {runningFile.name}</span>
+        ) : depth === 2 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => goToEnvelope(null)}
+              className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <ArrowLeft className="size-3" />
+              Back to {activeProject!.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDialog({ envId: envelope!.id })}
+              className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Plus className="size-3" />
+              Add file
+            </button>
+            <span className="ml-auto">
+              {envelope!.items?.length ?? 0}{" "}
+              {(envelope!.items?.length ?? 0) === 1 ? "file" : "files"}
+            </span>
+          </>
+        ) : depth === 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onAddEnvelope(activeProject!.id)}
+              className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Plus className="size-3" />
+              Envelope
+            </button>
+            <button
+              type="button"
+              onClick={() => setDialog({ envId: null })}
+              className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Plus className="size-3" />
+              File
+            </button>
+            {looseFiles.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectMode((v) => !v);
+                  setSelected(new Set());
+                }}
+                className={`inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                  selectMode ? "text-accent" : "text-text hover:text-accent"
+                }`}
+              >
+                {selectMode ? "Cancel" : "Select"}
+              </button>
+            )}
+            <span className="ml-auto">
+              {selectMode
+                ? `${selected.size} selected`
+                : `${activeProject!.envelopes.length} ${
+                    activeProject!.envelopes.length === 1
+                      ? "envelope"
+                      : "envelopes"
+                  } · ${looseFiles.length} ${
+                    looseFiles.length === 1 ? "file" : "files"
+                  }`}
+            </span>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onAddProject}
+              className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Plus className="size-3" />
+              Add drawer
+            </button>
+            <span className="ml-auto">
+              {section.projects.length}{" "}
+              {section.projects.length === 1 ? "drawer" : "drawers"}
+            </span>
+          </>
+        )}
+      </footer>
+
+      <AnimatePresence>
+        {dialog && (
+          <motion.div
+            role="presentation"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                closeDialog();
+              }
+            }}
+            className="absolute inset-0 z-10 flex items-start justify-center overflow-hidden bg-black/30 p-3 backdrop-blur-[2px] sm:p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={reduce ? { duration: 0.01 } : { duration: 0.18 }}
+            onClick={closeDialog}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="New file"
+              className="flex max-h-full w-full max-w-sm"
+              initial={{ opacity: 0, y: 18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={
+                reduce
+                  ? { duration: 0.01 }
+                  : { type: "spring", stiffness: 420, damping: 34 }
+              }
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FileForm
+                existingCount={
+                  dialog.envId
+                    ? (envelope?.items?.length ?? 0)
+                    : looseFiles.length
+                }
+                color={color}
+                onCreate={(item) => {
+                  if (activeProject) onCreateFile(activeProject.id, dialog.envId, item);
+                  closeDialog();
+                }}
+                onCancel={closeDialog}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

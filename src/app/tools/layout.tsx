@@ -1,13 +1,12 @@
 "use client";
 
 /**
- * Dashboard Layout — thin wrapper over the shared AuthShell.
- * Auth protection is handled by proxy.ts (JWT cookie check).
+ * Tools Layout — every Cabinet page shares the authenticated AuthShell.
  */
 
 import AuthShell from "@/components/AuthShell";
 
-export default function DashboardLayout({
+export default function ToolsLayout({
   children,
 }: {
   children: React.ReactNode;

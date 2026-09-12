@@ -17,7 +17,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Left: Logo + Branding */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
             <Image
               src="/icons/logo.webp"
               alt="Catarina"
@@ -37,12 +37,18 @@ export default function Footer() {
           </div>
 
           {/* Center: Links */}
-          <div className="flex items-center gap-4 text-xs text-text-muted">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-text-muted">
             <Link
               href="/dashboard"
               className="hover:text-accent transition-colors"
             >
               Dashboard
+            </Link>
+            <Link
+              href="/tools"
+              className="hover:text-accent transition-colors"
+            >
+              Cabinet
             </Link>
             <Link
               href="/dashboard/archive"

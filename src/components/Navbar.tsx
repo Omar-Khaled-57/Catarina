@@ -20,6 +20,7 @@ import { Sun, Moon, LogOut, User, Bell, Target } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { consumeSuppress } from "@/lib/toastSuppress";
+import { CABINET_LABEL } from "@/lib/tools";
 
 export default function Navbar() {
   const { user, logout, isAdmin, refreshUser } = useAuth();
@@ -69,6 +70,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/tools", label: CABINET_LABEL },
     { href: "/dashboard/archive", label: "Archive" },
     ...(isAdmin ? [{ href: "/dashboard/admin", label: "Admin" }] : []),
   ];
