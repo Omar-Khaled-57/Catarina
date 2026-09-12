@@ -33,7 +33,7 @@ interface SectionChestProps {
   onAddEnvelope: (projectId: string) => void;
   onAddItem: (projectId: string) => void;
   onFocus: (() => void) | null;
-  onFocusProject?: (projectId: string, envelopeId: string, fileId: string) => void;
+  onFocusProject?: (projectId: string, envelopeId: string | null, fileId: string) => void;
 }
 
 export default function SectionChest({
@@ -167,6 +167,9 @@ export default function SectionChest({
                         key={file.id}
                         file={file}
                         index={project.envelopes.length + fileIndex}
+                        onOpenInFocus={() =>
+                          onFocusProject?.(project.id, null, file.id)
+                        }
                       />
                     ))}
                   </div>

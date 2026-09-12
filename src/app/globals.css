@@ -914,22 +914,50 @@ html.dark [data-sonner-toast] [data-title] {
 .drawer-file__thumbnail img { width: 100%; height: 45px; object-fit: cover; }
 
 .drawer-file__text-preview {
+  display: flex;
+  flex-wrap: wrap;
   align-content: start;
-  justify-items: start;
-  gap: 2px;
-  padding: 4px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 9px 7px 6px;
   background: #f3f4f6;
   color: #4b5563;
-  font-family: var(--font-inter), monospace;
-  font-size: 9px;
+  font-family: var(--font-inter), sans-serif;
+  font-size: 11px;
   line-height: 1.2;
 }
 
-.drawer-file__link-icon { background: #dbeafe; color: #2563eb; }
-.drawer-file__name {
-  align-self: end;
+.drawer-file__main-name {
   overflow: hidden;
-  padding: 2px 3px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-file__snippet {
+  flex-basis: 100%;
+  overflow: hidden;
+  color: #6b7280;
+  font-family: ui-monospace, monospace;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-file__link-icon { background: #dbeafe; color: #2563eb; }
+.drawer-file__header {
+  position: absolute;
+  top: 7px;
+  right: 30px;
+  left: 7px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 5px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.82);
   color: #374151;
@@ -940,12 +968,27 @@ html.dark [data-sonner-toast] [data-title] {
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-.drawer-file:hover .drawer-file__name {
+.drawer-file__header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-file:hover .drawer-file__header {
   background: #111827;
   color: #fff;
   transform: translateY(-2px);
 }
 .drawer-file__download { grid-column: 2; grid-row: 2; }
+.drawer-file__download {
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.88);
+}
 
 @media (max-width: 420px) {
   .drawer-file {

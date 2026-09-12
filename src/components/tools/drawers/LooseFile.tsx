@@ -6,14 +6,41 @@ import { Download, FileCode2, FileText, ImageIcon, Link2, Video } from "lucide-r
 import type { DirItem } from "./types";
 import { downloadItem } from "@/lib/download";
 
-export default function LooseFile({ file, index }: { file: DirItem; index: number }) {
+export default function LooseFile({
+  file,
+  index,
+  onOpenInFocus,
+}: {
+  file: DirItem;
+  index: number;
+  onOpenInFocus: () => void;
+}) {
   const isMedia = file.type === "IMAGE" || file.type === "VIDEO";
   const preview = file.content?.startsWith("/") || file.content?.startsWith("http");
+  const FileIcon =
+    file.type === "IMAGE"
+      ? ImageIcon
+      : file.type === "VIDEO"
+        ? Video
+        : file.type === "LINK"
+          ? Link2
+          : file.type === "CODE"
+            ? FileCode2
+            : FileText;
 
   return (
     <div
       className={`drawer-file drawer-file--${file.type.toLowerCase()}`}
       style={{ "--file-index": index } as React.CSSProperties}
+      role="button"
+      tabIndex={0}
+      onClick={onOpenInFocus}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpenInFocus();
+        }
+      }}
     >
       {isMedia ? (
         <span className="drawer-file__thumbnail">
@@ -27,17 +54,24 @@ export default function LooseFile({ file, index }: { file: DirItem; index: numbe
             <ImageIcon size={22} aria-hidden="true" />
           )}
         </span>
-      ) : file.type === "LINK" ? (
-        <span className="drawer-file__link-icon"><Link2 size={20} aria-hidden="true" /></span>
       ) : (
         <span className="drawer-file__text-preview">
-          <FileCode2 size={13} aria-hidden="true" />
-          {(file.content ?? file.name).slice(0, 38)}
+          <FileIcon size={18} aria-hidden="true" />
+          <span className="drawer-file__main-name">{file.name}</span>
+          {file.type !== "LINK" && (
+            <span className="drawer-file__snippet">
+              {(file.content ?? "No preview yet").slice(0, 32)}
+            </span>
+          )}
         </span>
       )}
-      <span className="drawer-file__name">{file.name}</span>
-      {!isMedia && file.type !== "LINK" && <FileText size={10} aria-hidden="true" />}
-      <button type="button" className="drawer-file__download" onClick={() => downloadItem(file)} aria-label={`Download ${file.name}`} title={`Download ${file.name}`}>
+      {isMedia && (
+        <span className="drawer-file__header">
+          <FileIcon size={12} aria-hidden="true" />
+          <span>{file.name}</span>
+        </span>
+      )}
+      <button type="button" className="drawer-file__download" onClick={(event) => { event.stopPropagation(); downloadItem(file); }} aria-label={`Download ${file.name}`} title={`Download ${file.name}`}>
         <Download size={11} />
       </button>
     </div>

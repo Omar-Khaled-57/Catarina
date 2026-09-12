@@ -29,7 +29,7 @@ const exitTween = { duration: 0.32, ease: [0.32, 0.72, 0, 1] } as const;
 
 let demoIdSeq = 0;
 
-type FocusTarget = { envelopeId: string; fileId: string } | null;
+type FocusTarget = { envelopeId: string | null; fileId: string } | null;
 
 export default function DrawersWorkshop({
   sections: initialSections,
@@ -188,7 +188,7 @@ export default function DrawersWorkshop({
   const renameEnvelope = (
     sectionKey: string,
     projectId: string,
-    envelopeId: string,
+    envelopeId: string | null,
     name: string,
   ) => {
     const trimmed = name.trim();
@@ -400,7 +400,7 @@ export default function DrawersWorkshop({
   const focusProject = (
     sectionKey: string,
     projectId: string,
-    envelopeId: string,
+    envelopeId: string | null,
     fileId: string,
   ) => {
     setOpenIds((prev) => ({ ...prev, [sectionKey]: projectId }));

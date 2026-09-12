@@ -205,6 +205,7 @@ function Row({
   active = false,
   onClick,
   actions,
+  trailing,
   checked,
   onCheck,
 }: {
@@ -215,6 +216,7 @@ function Row({
   active?: boolean;
   onClick?: () => void;
   actions?: React.ReactNode;
+  trailing?: React.ReactNode;
   checked?: boolean;
   onCheck?: () => void;
 }) {
@@ -270,6 +272,7 @@ function Row({
           <span className="flex items-center gap-1"> {actions}</span>
         </span>
       )}
+      {trailing && <span className="shrink-0">{trailing}</span>}
       <ChevronRight className="size-3.5 shrink-0 text-text-muted transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
     </div>
   );
@@ -397,19 +400,12 @@ function FileDetail({
     isPreviewableUrl(url);
   const showsImagePreview = file.type === "IMAGE";
   const isLink = file.type === "LINK" && !!url && isUrl;
-
-  const openContent = () => {
-    const source = (isUrl && url) || draft.trim();
-    if (!source) return;
-    if (isUrl && url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-      return;
-    }
-    const blob = new Blob([source], { type: "text/plain;charset=utf-8" });
-    const blobUrl = URL.createObjectURL(blob);
-    window.open(blobUrl, "_blank", "noopener,noreferrer");
-    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
-  };
+  const canOpenExternally =
+    file.type !== "CODE" &&
+    file.type !== "NOTE" &&
+    file.type !== "FILE" &&
+    !!url &&
+    isUrl;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
@@ -441,13 +437,24 @@ function FileDetail({
         />
         <button
           type="button"
-          onClick={openContent}
-          aria-label="Open content in new tab"
-          title="Open content in new tab"
+          onClick={() => downloadItem(file)}
+          aria-label={`Download ${file.name}`}
+          title={`Download ${file.name}`}
           className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-text-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          <ExternalLink className="size-3.5" />
+          <Download className="size-3.5" />
         </button>
+        {canOpenExternally && (
+          <button
+            type="button"
+            onClick={() => window.open(url ?? "", "_blank", "noopener,noreferrer")}
+            aria-label="Open externally"
+            title="Open externally"
+            className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-text-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <ExternalLink className="size-3.5" />
+          </button>
+        )}
         <span className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent uppercase">
           {file.type.toLowerCase()}
         </span>
@@ -959,7 +966,7 @@ export default function DirectoryBrowser({
   section: DemoSection;
   color: string;
   activeProject: DemoProject | null;
-  focusTarget: { envelopeId: string; fileId: string } | null;
+  focusTarget: { envelopeId: string | null; fileId: string } | null;
   onOpenProject: (id: string | null) => void;
   onAddProject: () => void;
   onAddEnvelope: (projectId: string) => void;
@@ -1332,8 +1339,12 @@ onClick={() =>
                       icon={ITEM_ICONS[item.type]}
                       label={item.name}
                       color={color}
-                      meta={item.type.toLowerCase()}
                       onClick={() => openFileItem(envelope.id, item.id)}
+                      trailing={
+                        <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-text-muted uppercase">
+                          {FILE_TYPE_LABELS[item.type]}
+                        </span>
+                      }
                       actions={
                         <>
                           <button type="button" onClick={(e) => { e.stopPropagation(); downloadItem(item); }} className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Download ${item.name}`}>
@@ -1471,10 +1482,14 @@ onClick={() =>
                       icon={ITEM_ICONS[item.type]}
                       label={item.name}
                       color={color}
-                      meta={item.type.toLowerCase()}
                       active={selected.has(item.id)}
                       checked={selectMode ? selected.has(item.id) : undefined}
                       onCheck={() => selectMode && toggleSelected(item.id)}
+                      trailing={
+                        <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-text-muted uppercase">
+                          {FILE_TYPE_LABELS[item.type]}
+                        </span>
+                      }
                       onClick={() =>
                         selectMode
                           ? toggleSelected(item.id)
