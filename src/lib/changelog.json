@@ -1,4 +1,14 @@
 {
+  "0.4.5": {
+    "type": "patch",
+    "title": "Self-Hosted Rate Limiting",
+    "entries": [
+      { "icon": "📦", "text": "Replaced Upstash Redis with Turso — rate limiting now lives in the same database Catarina already uses. One less service to keep alive." },
+      { "icon": "🔄", "text": "True sliding-window limiter with atomic batch transactions — attempts stay counted across every Vercel cold start." },
+      { "icon": "🧹", "text": "Self-cleaning rate-limit table and fail-open behavior — brute-force protection that can't pause, archive, or 500 the app." },
+      { "icon": "🧪", "text": "Added 7 unit tests covering window boundaries, aging, and per-key isolation, plus a production migration run." }
+    ]
+  },
   "0.4.4": {
     "type": "patch",
     "title": "Security Hardening & Reliability",
