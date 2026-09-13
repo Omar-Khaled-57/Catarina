@@ -17,9 +17,9 @@ export async function GET(req: Request) {
     return jsonError("Missing required 'section' query param", 400);
   }
 
-  /* Non-admins may only browse users in sections they belong to */
-  if (auth.data.role !== ROLE_ADMIN) {
-    const ctx = await getUserContext(auth.data.userId);
+  /* Non-admins may only browse users in sections they belong to (live role) */
+  const ctx = await getUserContext(auth.data.userId);
+  if (ctx.role !== ROLE_ADMIN) {
     if (!ctx.sections.includes(section)) {
       return jsonError("Forbidden", 403);
     }

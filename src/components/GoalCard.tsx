@@ -5,7 +5,7 @@
  * and colorful notes area. Replaces the old table row.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { type GoalData } from "@/types";
 import EditableProgress from "@/components/EditableProgress";
@@ -41,6 +41,7 @@ export default function GoalCard({
   onAutoComplete,
   isNew = false,
   highlight = false,
+  readOnly = false,
 }: {
   goal: GoalData;
   userId: string;
@@ -56,33 +57,53 @@ export default function GoalCard({
   onAutoComplete: (goalId: string) => void;
   isNew?: boolean;
   highlight?: boolean;
+  readOnly?: boolean;
 }) {
   const [isPulsing, setIsPulsing] = useState(false);
   const [localSteps, setLocalSteps] = useState(goal.steps);
+  const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const deadline = deadlineStatus(goal.deadline, goal.done);
+
+  /* Keep optimistic step edits in sync with authoritative server state
+   * (realtime merges, own edits landing back from the API). */
+  /* eslint-disable react-hooks/set-state-in-effect -- derived local state synced on prop change */
+  useEffect(() => {
+    setLocalSteps(goal.steps);
+  }, [goal.id, goal.steps]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* Clear the checkbox-pulse timer on unmount to avoid setState leaks */
+  useEffect(() => {
+    return () => {
+      if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    };
+  }, []);
 
   /* Permission check */
   let canToggle = false;
   let canEdit = false;
-  if (isAdmin) {
-    canToggle = true;
-    canEdit = true;
-  } else {
-    const assignment = goal.assignments.find((a) => a.userId === userId);
-    if (assignment) {
-      canToggle = assignment.canCheck;
-      canEdit = assignment.canEdit;
-    } else if (permissions.canEditGoals) {
+  if (!readOnly) {
+    if (isAdmin) {
       canToggle = true;
       canEdit = true;
+    } else {
+      const assignment = goal.assignments.find((a) => a.userId === userId);
+      if (assignment) {
+        canToggle = assignment.canCheck;
+        canEdit = assignment.canEdit;
+      } else if (permissions.canEditGoals) {
+        canToggle = true;
+        canEdit = true;
+      }
     }
   }
 
   const handleToggle = () => {
     setIsPulsing(true);
     onToggle(goal.id, !goal.done);
-    setTimeout(() => setIsPulsing(false), 400);
+    if (pulseTimer.current) clearTimeout(pulseTimer.current);
+    pulseTimer.current = setTimeout(() => setIsPulsing(false), 400);
   };
 
   const handleProgressSave = (current: number, target: number) => {
@@ -200,21 +221,23 @@ export default function GoalCard({
           {/* Actions */}
           <div className="flex items-center gap-0.5 shrink-0">
             {/* Comment button with count badge */}
-            <button
-              onClick={() => onComment(goal.id)}
-              className="relative rounded-lg p-1.5 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
-              aria-label="Comments"
-            >
-              <MessageSquare size={14} />
-              {goal.comments.length > 0 && (
-                <span
-                  className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg flex items-center justify-center"
-                  style={{ backgroundColor: color }}
-                >
-                  {goal.comments.length}
-                </span>
-              )}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => onComment(goal.id)}
+                className="relative rounded-lg p-1.5 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
+                aria-label="Comments"
+              >
+                <MessageSquare size={14} />
+                {goal.comments.length > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg flex items-center justify-center"
+                    style={{ backgroundColor: color }}
+                  >
+                    {goal.comments.length}
+                  </span>
+                )}
+              </button>
+            )}
             {canEdit && (
               <button
                 onClick={() => onEdit(goal)}
@@ -224,7 +247,7 @@ export default function GoalCard({
                 <Pencil size={14} />
               </button>
             )}
-            {permissions.canDeleteGoals && (
+            {permissions.canDeleteGoals && !readOnly && (
               <button
                 onClick={() => onDelete(goal.id)}
                 className="rounded-lg p-1.5 text-text-muted hover:bg-danger/10 hover:text-danger transition-colors"
@@ -253,6 +276,7 @@ export default function GoalCard({
           steps={localSteps}
           color={color}
           canToggle={canToggle}
+          canEdit={canEdit}
           onStepsChange={setLocalSteps}
           onAllDone={() => onAutoComplete(goal.id)}
         />

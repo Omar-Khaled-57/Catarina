@@ -46,6 +46,7 @@ export default function CommentSection({
     if (isOpen && !wasOpen && goalId) {
       /* Modal just opened — fetch comments from external API */
       const controller = new AbortController();
+      setIsLoading(true);
 
       fetch(`/api/goals/${goalId}/comments`, { signal: controller.signal })
         .then((res) => {

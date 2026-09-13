@@ -56,10 +56,14 @@ export default function EditUserModal({
   };
 
   const handleSave = async () => {
+    if (newPassword && newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
     setIsSaving(true);
     try {
       const body: Record<string, unknown> = { name, email, bio, pfp, permissions };
-      if (newPassword && newPassword.length >= 6) {
+      if (newPassword) {
         body.newPassword = newPassword;
       }
       const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -78,7 +82,10 @@ export default function EditUserModal({
         body: JSON.stringify({ sections: userSections }),
       });
       if (!secRes.ok) {
-        toast.error("Failed to update sections");
+        /* Profile changes were already saved — surface partial failure,
+           then refresh so the table shows the applied changes. */
+        toast.error("Profile updated, but sections failed to save");
+        onSaved();
         return;
       }
 

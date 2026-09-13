@@ -27,6 +27,16 @@ import {
 /* ─── Tab definitions ──────────────────────────────────────────────────── */
 type TabId = "overview" | "sections" | "performance";
 
+/* HTML-escape user/section-controlled strings before injecting them into the
+ * PDF iframe document (goal names are member-authored → stored XSS guard). */
+const esc = (s: unknown) =>
+  String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "Overview", icon: <FileText size={14} /> },
   { id: "sections", label: "Sections", icon: <Layers size={14} /> },
@@ -50,6 +60,7 @@ export default function ArchivedMonthPage({
     isArchived: boolean;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   /* Tab state */
   const [activeTab, setActiveTab] = useState<TabId>("overview");
@@ -60,31 +71,41 @@ export default function ArchivedMonthPage({
   const [pdfTheme, setPdfTheme] = useState<PdfTheme>("dark");
 
   useEffect(() => {
-    fetch(`/api/goals?monthId=${monthId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load goals");
-        return res.json();
-      })
-      .then((data) => setGoals(data.goals || []))
-      .catch(() => { })
-      .finally(() => setIsLoading(false));
+    /* Reset per navigation — don't show the previous month's content (or its
+     * stale error) while the new month is loading. */
+    /* eslint-disable react-hooks/set-state-in-effect -- synchronize UI state to the newly-navigated monthId */
+    setIsLoading(true);
+    setLoadError(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
-    fetch("/api/months")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load months");
-        return res.json();
-      })
-      .then((data) => {
-        const found = data.months?.find(
+    Promise.all([
+      fetch(`/api/goals?monthId=${monthId}`),
+      fetch("/api/months"),
+    ])
+      .then(async ([goalsRes, monthsRes]) => {
+        if (!goalsRes.ok) throw new Error("Failed to load goals");
+        if (!monthsRes.ok) throw new Error("Failed to load months");
+        const [goalData, monthData] = await Promise.all([
+          goalsRes.json(),
+          monthsRes.json(),
+        ]);
+        setGoals(goalData.goals || []);
+        const found = monthData.months?.find(
           (m: { id: string }) => m.id === monthId
         );
         if (found) {
           setMonthInfo(found);
         } else {
+          /* Month genuinely doesn't exist (200 + no match) → real 404. */
           notFound();
         }
       })
-      .catch(() => { notFound(); });
+      .catch(() => {
+        /* Network/server errors are NOT 404s — show a retryable error state
+         * instead of a misleading "month not found" page. */
+        setLoadError(true);
+      })
+      .finally(() => setIsLoading(false));
   }, [monthId]);
 
   /* Group goals by section */
@@ -131,7 +152,7 @@ export default function ArchivedMonthPage({
           (g) => `
         <tr>
           <td style="padding:10px 14px;border-bottom:1px solid ${p.border};font-weight:600;font-size:13px;color:${p.text};">${g.goalNumber}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid ${p.border};font-size:13px;color:${p.text};">${g.name}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${p.border};font-size:13px;color:${p.text};">${esc(g.name)}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${p.border};text-align:center;">
             <span style="background:${g.done ? "rgba(0,232,162,0.12)" : "rgba(255,184,48,0.12)"};color:${g.done ? p.accent : p.warning};font-weight:700;font-size:11px;padding:2px 10px;border-radius:999px;">${g.done ? "Done" : "Active"}</span>
           </td>
@@ -146,7 +167,7 @@ export default function ArchivedMonthPage({
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
           <div style="display:flex;align-items:center;gap:10px;">
             <div style="width:10px;height:10px;border-radius:3px;background:${color};"></div>
-            <h2 style="font-size:18px;font-weight:800;color:${p.text};margin:0;">${label}</h2>
+            <h2 style="font-size:18px;font-weight:800;color:${p.text};margin:0;">${esc(label)}</h2>
           </div>
           <div style="display:flex;gap:16px;font-size:12px;color:${p.textMuted};">
             <span>${stats.done} done</span>
@@ -190,7 +211,7 @@ export default function ArchivedMonthPage({
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Report — ${monthInfo ? `${monthNameLine1(monthInfo.month, monthInfo.year)}` : "Archive"}</title>
+  <title>Report — ${monthInfo ? `${esc(monthNameLine1(monthInfo.month, monthInfo.year))}` : "Archive"}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -232,7 +253,7 @@ export default function ArchivedMonthPage({
   <div class="page">
     <div class="header">
       <div class="header-label">Monthly Report · Catarina</div>
-      <div class="header-title">${monthInfo ? `${monthNameLine1(monthInfo.month, monthInfo.year)} — ${monthNameLine2(monthInfo.month)}` : "Archive Report"}</div>
+      <div class="header-title">${monthInfo ? `${esc(monthNameLine1(monthInfo.month, monthInfo.year))} — ${esc(monthNameLine2(monthInfo.month))}` : "Archive Report"}</div>
       <div class="header-sub">${goals.length} total goals across ${SECTIONS.length} sections · Generated ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
     </div>
 
@@ -276,7 +297,7 @@ export default function ArchivedMonthPage({
           <div style="width:10px;height:10px;border-radius:3px;background:${color};flex-shrink:0;"></div>
           <div style="flex:1;">
             <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-              <span style="font-size:12px;font-weight:600;color:${p.text};">${label}</span>
+              <span style="font-size:12px;font-weight:600;color:${p.text};">${esc(label)}</span>
               <span style="font-size:12px;font-weight:700;color:${color};">${stats.percentage.toFixed(1)}%</span>
             </div>
             <div style="height:6px;background:${p.surface2};border-radius:999px;overflow:hidden;">
@@ -345,7 +366,7 @@ export default function ArchivedMonthPage({
             <line x1="${x0}" y1="${yT}" x2="${x1}" y2="${yT}" stroke="${color}" stroke-width="1.5" opacity="0.6" />
             <text x="${centerX}" y="${yT - dy - 7}" text-anchor="middle" fill="${color}" font-size="11" font-weight="700">${pct.toFixed(1)}%</text>
             <text x="${centerX}" y="${baseY + 18}" text-anchor="middle" fill="${p.textMuted}" font-size="8.5" font-weight="600" letter-spacing="0.8">COMPLETION IN</text>
-            <text x="${centerX}" y="${baseY + 32}" text-anchor="middle" fill="${color}" font-size="9" font-weight="700" letter-spacing="0.8">${label.toUpperCase()}</text>`;
+            <text x="${centerX}" y="${baseY + 32}" text-anchor="middle" fill="${color}" font-size="9" font-weight="700" letter-spacing="0.8">${esc(label.toUpperCase())}</text>`;
         }).join("");
 
         return `
@@ -376,7 +397,7 @@ export default function ArchivedMonthPage({
   </div>
 
     <div class="footer">
-      <div class="footer-brand">CATARINA · by ${teamName}</div>
+      <div class="footer-brand">CATARINA · by ${esc(teamName)}</div>
       <div class="footer-time">Generated ${new Date().toLocaleString("en-GB")}</div>
     </div>
 </body>
@@ -404,6 +425,29 @@ export default function ArchivedMonthPage({
     return (
       <div className="flex items-center justify-center py-16">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+      </div>
+    );
+  }
+
+  /* ─── Error state (network/fetch failure — not a 404) ───────────── */
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <h2 className="text-lg font-bold text-text">Couldn&apos;t load this month</h2>
+        <p className="mt-1 text-sm text-text-muted max-w-sm">
+          There was a problem fetching this month&apos;s data. Check your connection
+          and try again.
+        </p>
+        <button
+          onClick={() => {
+            setIsLoading(true);
+            setLoadError(false);
+            window.location.reload();
+          }}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent/10 text-accent px-4 py-2 text-sm font-semibold hover:bg-accent/20 transition-colors"
+        >
+          Try again
+        </button>
       </div>
     );
   }

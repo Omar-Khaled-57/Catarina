@@ -10,6 +10,7 @@ import NotificationModal from "@/components/NotificationModal";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import MonthCelebrationModal from "@/components/MonthCelebrationModal";
 import Image from "next/image";
+import { toast } from "sonner";
 import {
   Bell,
   Check,
@@ -185,56 +186,99 @@ export default function NotificationPanel({
   }, [isOpen, fetchNotifications]);
 
   const markRead = async (id: string) => {
+    const prev = notifications;
+    const prevUnread = unreadCount;
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, read: true }),
-    });
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, read: true }),
+      });
+      if (!res.ok) throw new Error(`mark read: ${res.status}`);
+    } catch {
+      setNotifications(prev);
+      setUnreadCount(prevUnread);
+      toast.error("Failed to mark as read");
+    }
   };
 
   const markAllRead = async () => {
+    const prev = notifications;
+    const prevUnread = unreadCount;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markAllRead: true }),
-    });
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markAllRead: true }),
+      });
+      if (!res.ok) throw new Error(`mark all read: ${res.status}`);
+    } catch {
+      setNotifications(prev);
+      setUnreadCount(prevUnread);
+      toast.error("Failed to mark all as read");
+    }
   };
 
   const togglePin = async (id: string, pinned: boolean) => {
+    const prev = notifications;
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, pinned: !pinned } : n))
     );
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, pinned: !pinned }),
-    });
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, pinned: !pinned }),
+      });
+      if (!res.ok) throw new Error(`pin: ${res.status}`);
+    } catch {
+      setNotifications(prev);
+      toast.error("Failed to update pin");
+    }
   };
 
   const deleteNotification = async (id: string) => {
     const notif = notifications.find((n) => n.id === id);
+    const prev = notifications;
+    const prevUnread = unreadCount;
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     if (notif && !notif.read) setUnreadCount((prev) => Math.max(0, prev - 1));
-    await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error(`delete: ${res.status}`);
+    } catch {
+      setNotifications(prev);
+      setUnreadCount(prevUnread);
+      toast.error("Failed to delete notification");
+    }
   };
 
   const clearRead = async () => {
+    const prev = notifications;
+    const prevUnread = unreadCount;
     setNotifications((prev) => prev.filter((n) => !n.read));
-    await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clearRead: true }),
-    });
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clearRead: true }),
+      });
+      if (!res.ok) throw new Error(`clear read: ${res.status}`);
+    } catch {
+      setNotifications(prev);
+      setUnreadCount(prevUnread);
+      toast.error("Failed to clear read notifications");
+    }
   };
 
   return (

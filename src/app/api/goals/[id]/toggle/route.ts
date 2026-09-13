@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import {
   requireUser,
   requireGoalAccess,
+  getUserContext,
+  getGoalCapabilities,
   asBoolean,
   jsonError,
 } from "@/lib/api-helpers";
@@ -21,7 +23,8 @@ export async function PATCH(req: Request, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const body = await req.json().catch(() => null);
@@ -31,6 +34,17 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const done = asBoolean(body.done);
   if (done === null) return jsonError("Invalid done value", 400);
+
+  /* Per-assignment canCheck gate: only members allowed to check this goal */
+  const cap = await getGoalCapabilities(
+    auth.data.userId,
+    ctx.role,
+    ctx.permissions,
+    id
+  );
+  if (!cap.canCheck) {
+    return jsonError("You don't have permission to check this goal", 403);
+  }
 
   const goal = await prisma.goal.findUnique({
     where: { id },

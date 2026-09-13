@@ -4,7 +4,7 @@
  * GoalForm — Create/Edit goal modal with assignments picker.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,18 +80,31 @@ export default function GoalForm({
   const [assignments, setAssignments] = useState<GoalAssignmentData[]>([]);
   const [showAssignments, setShowAssignments] = useState(false);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- reset form fields when modal opens */
+const wasOpenRef = useRef(false);
+  const initialDataRef = useRef(initialData);
+  const initialAssignmentsRef = useRef<GoalAssignmentData[]>([]);
   useEffect(() => {
-    if (!isOpen) return;
+    initialDataRef.current = initialData;
+  }, [initialData]);
 
-    if (initialData) {
-      setName(initialData.name || "");
-      setDescription(initialData.description || "");
-      setCurrent(initialData.current ?? 0);
-      setTarget(initialData.target ?? 1);
-      setDeadline(initialData.deadline || "");
-      setMonthId(initialData.monthId || "");
-      setAssignments(initialData.assignments || []);
+  useEffect(() => {
+    /* Reset only on the closed→open transition. Depending on `initialData`
+     * identity would wipe in-progress edits whenever the parent re-renders
+     * (e.g. realtime merge bumps the generation while typing). */
+    const opening = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (!opening) return;
+
+    const data = initialDataRef.current;
+    if (data) {
+      setName(data.name || "");
+      setDescription(data.description || "");
+      setCurrent(data.current ?? 0);
+      setTarget(data.target ?? 1);
+      setDeadline(data.deadline || "");
+      setMonthId(data.monthId || "");
+      setAssignments(data.assignments || []);
+      initialAssignmentsRef.current = data.assignments || [];
     } else {
       setName("");
       setDescription("");
@@ -99,17 +112,17 @@ export default function GoalForm({
       setTarget(1);
       setDeadline("");
       setAssignments([]);
+      initialAssignmentsRef.current = [];
     }
     setShowAssignments(false);
     setUserSearch("");
-  }, [isOpen, initialData]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     fetch("/api/months")
       .then((r) => r.json())
-      .then((d) => setMonths(d.months || []))
+      .then((d) => setMonths((d.months || []).filter((m: { isArchived?: boolean }) => !m.isArchived)))
       .catch(() => {});
   }, [isOpen]);
 
@@ -151,6 +164,7 @@ export default function GoalForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return; /* prevent duplicate submits while a save is pending */
     if (!name.trim()) {
       toast.error("Goal name is required");
       return;
@@ -175,10 +189,27 @@ export default function GoalForm({
         monthId,
       });
 
-      if (assignments.length > 0 && (goalId || newGoalId)) {
+      const targetId = goalId || newGoalId;
+      /* Persist assignments whenever they changed — including clearing the
+       * whole list (a no-op-only save for create-with-nobody-assigned is
+       * skipped by the equality check below). */
+      const assignmentsChanged =
+        targetId &&
+        JSON.stringify(assignments) !== JSON.stringify(initialAssignmentsRef.current);
+
+      if (targetId && assignmentsChanged) {
         setSavingAssignments(true);
         try {
-          await onSaveAssignments(goalId || newGoalId!, assignments);
+          await onSaveAssignments(targetId, assignments);
+        } catch {
+          /* The goal itself saved fine — do NOT keep the modal open for a
+           * re-submit, that would create a duplicate goal. Tell the user to
+           * fix assignments from the goal card instead. */
+          toast.error(
+            goalId
+              ? "Changes saved, but assignments couldn't be updated. Retry from the goal card."
+              : "Goal created, but assignments couldn't be saved. Assign members from the goal card."
+          );
         } finally {
           setSavingAssignments(false);
         }
@@ -279,21 +310,29 @@ export default function GoalForm({
           </div>
           <div>
             <label htmlFor="goal-month" className="block text-xs font-semibold text-text-muted mb-1">
-              Month
+              Month {goalId && <span className="font-normal text-text-muted/60">(fixed after creation)</span>}
             </label>
+            {/* A goal's month is fixed at creation — allow choosing only when it's a new goal. */}
             <select
               id="goal-month"
               value={monthId}
               onChange={(e) => setMonthId(e.target.value)}
-              className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text focus:outline-none focus:border-accent select-glass"
+              disabled={!!goalId}
+              className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text focus:outline-none focus:border-accent select-glass disabled:opacity-60 disabled:cursor-not-allowed"
               required
             >
-              <option value="">Select month</option>
-              {months.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
+              {months.length === 0 && monthId ? (
+                <option value={monthId}>Current month</option>
+              ) : (
+                <>
+                  <option value="">Select month</option>
+                  {months.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
         </div>

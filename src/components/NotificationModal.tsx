@@ -215,15 +215,25 @@ export default function NotificationModal({
       setGoalData(null);
       return;
     }
+    let cancelled = false; /* guard: a slow response must not overwrite a newer notification */
     setLoadingGoal(true);
     fetch(`/api/goals/${notification.refId}`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load goal");
         return r.json();
       })
-      .then((d) => setGoalData(d.goal || null))
-      .catch(() => setGoalData(null))
-      .finally(() => setLoadingGoal(false));
+      .then((d) => {
+        if (!cancelled) setGoalData(d.goal || null);
+      })
+      .catch(() => {
+        if (!cancelled) setGoalData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingGoal(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, isGoal, notification?.refId]);
 
   const handleNavigateToGoal = useCallback(async () => {

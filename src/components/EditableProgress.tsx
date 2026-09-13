@@ -29,6 +29,7 @@ export default function EditableProgress({
   const [draftCurrent, setDraftCurrent] = useState(String(current));
   const [draftTarget, setDraftTarget] = useState(String(target));
   const ref = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editing) ref.current?.focus();
@@ -39,6 +40,15 @@ export default function EditableProgress({
     const t = Math.max(1, parseInt(draftTarget) || 1);
     if (c !== current || t !== target) onSave(c, t);
     setEditing(false);
+  };
+
+  /* Prevent blade-tabbing between the two number inputs from blur-saving and
+   * unmounting the editor before the second field can be reached. */
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget as Node | null;
+    if (editorRef.current && (!next || !editorRef.current.contains(next))) {
+      save();
+    }
   };
 
   const percentage = calcPercentage(current, target);
@@ -61,14 +71,13 @@ export default function EditableProgress({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1.5">
+      <div ref={editorRef} onBlur={handleBlur} className="flex items-center gap-1.5">
         <input
           ref={ref}
           type="number"
           min={0}
           value={draftCurrent}
           onChange={(e) => setDraftCurrent(e.target.value)}
-          onBlur={save}
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
           className="w-14 text-center text-sm font-bold rounded-lg bg-surface-2 border border-accent px-2 py-1 text-text focus:outline-none"
         />
@@ -78,7 +87,6 @@ export default function EditableProgress({
           min={1}
           value={draftTarget}
           onChange={(e) => setDraftTarget(e.target.value)}
-          onBlur={save}
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
           className="w-14 text-center text-sm rounded-lg bg-surface-2 border border-accent px-2 py-1 text-text focus:outline-none"
         />

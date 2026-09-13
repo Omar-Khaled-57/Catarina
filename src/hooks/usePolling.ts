@@ -19,6 +19,7 @@ export function usePolling(
   enabled = true,
 ) {
   const savedCallback = useRef(callback);
+  const baseIntervalRef = useRef(interval);
   const lastActivityRef = useRef(0);
   const pausedRef = useRef(false);
 
@@ -27,20 +28,27 @@ export function usePolling(
     savedCallback.current = callback;
   }, [callback]);
 
+  /* Interval lives in a ref so backoff changes don't restart the effect
+   * (which would wipe the pending timer and cause an immediate hot retry). */
+  useEffect(() => {
+    baseIntervalRef.current = interval;
+  }, [interval]);
+
   const getEffectiveInterval = useCallback(() => {
-    if (pausedRef.current) return interval * 6;
+    if (pausedRef.current) return baseIntervalRef.current * 6;
 
     const idle = Date.now() - lastActivityRef.current > 2 * 60 * 1000;
-    if (idle) return interval * 3;
+    if (idle) return baseIntervalRef.current * 3;
 
-    return interval;
-  }, [interval]);
+    return baseIntervalRef.current;
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;
+    let running = false;
 
     const schedule = (delay: number) => {
       timer = setTimeout(() => {
@@ -49,10 +57,13 @@ export function usePolling(
     };
 
     const run = async () => {
-      if (stopped) return;
+      if (stopped || running) return; /* never overlap runs — a visibility
+                                          check that fires mid-run waits */
+      running = true;
       try {
         await savedCallback.current();
       } finally {
+        running = false;
         if (!stopped) schedule(getEffectiveInterval());
       }
     };

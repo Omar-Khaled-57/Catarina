@@ -6,11 +6,14 @@ import { prisma } from "@/lib/prisma";
 import {
   requireUser,
   requireGoalAccess,
+  getUserContext,
+  getGoalCapabilities,
   asString,
   asNonNegativeInt,
   jsonError,
 } from "@/lib/api-helpers";
 import { notifyMany } from "@/lib/notify";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function GET(
   _req: Request,
@@ -20,7 +23,8 @@ export async function GET(
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const steps = await prisma.step.findMany({
@@ -37,9 +41,30 @@ export async function POST(
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
+  const limited = await checkRateLimit(
+    `mutation:steps:${auth.data.userId}`,
+    60,
+    60_000
+  );
+  if (limited.limited) {
+    return jsonError("Too many step additions, try again shortly", 429);
+  }
+
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
+
+  /* Mirror the UI: adding a step is a content edit, gated by canEdit */
+  const cap = await getGoalCapabilities(
+    auth.data.userId,
+    ctx.role,
+    ctx.permissions,
+    id
+  );
+  if (!cap.canEdit) {
+    return jsonError("You don't have permission to add steps to this goal", 403);
+  }
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {

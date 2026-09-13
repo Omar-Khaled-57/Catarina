@@ -37,6 +37,16 @@ function saveCustomColors(colors: string[]): void {
   localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(colors));
 }
 
+const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+const HEX_PARTIAL_RE = /^#?[0-9A-Fa-f]{0,6}$/;
+
+/* Normalizes "#RRGGBB" or "RRGGBB" to a canonical "#RRGGBB", or null if invalid */
+function normalizeHex(input: string): string | null {
+  const raw = input.trim();
+  const hex = raw.startsWith("#") ? raw : `#${raw}`;
+  return HEX_RE.test(hex) ? hex.toUpperCase() : null;
+}
+
 export default function ColorPicker({
   value,
   onChange,
@@ -46,16 +56,23 @@ export default function ColorPicker({
 }) {
   const [customColors, setCustomColors] = useState<string[]>(loadCustomColors);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [newColor, setNewColor] = useState("#00E8A2");
+  const [colorDraft, setColorDraft] = useState("#00E8A2");
   const pickerRef = useRef<HTMLInputElement>(null);
 
+  /* "FF" or "FF0000" are fine to type; only a full 6-digit hex is saveable */
+  const newColorCanonical = normalizeHex(colorDraft);
+  const newColorValid = newColorCanonical !== null;
+  const newColorDup = newColorCanonical ? customColors.includes(newColorCanonical) : false;
+
   const addCustomColor = () => {
+    if (!newColorCanonical) return;
     if (customColors.length >= MAX_CUSTOM_COLORS) return;
-    if (customColors.includes(newColor)) return;
-    const updated = [...customColors, newColor];
+    if (customColors.includes(newColorCanonical)) return;
+    const updated = [...customColors, newColorCanonical];
     setCustomColors(updated);
     saveCustomColors(updated);
-    onChange(newColor);
+    onChange(newColorCanonical);
+    setColorDraft(newColorCanonical);
   };
 
   const removeCustomColor = (hex: string) => {
@@ -147,16 +164,16 @@ export default function ColorPicker({
               <input
                 ref={pickerRef}
                 type="color"
-                value={newColor}
-                onChange={(e) => setNewColor(e.target.value)}
+                value={newColorCanonical ?? "#00E8A2"}
+                onChange={(e) => setColorDraft(e.target.value)}
                 className="h-9 w-9 rounded-lg cursor-pointer border-0 bg-transparent p-0"
               />
               <input
                 type="text"
-                value={newColor}
+                value={colorDraft}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) setNewColor(val);
+                  if (HEX_PARTIAL_RE.test(val)) setColorDraft(val);
                 }}
                 className="flex-1 min-w-0 rounded-lg bg-surface border border-border/40 px-3 py-1.5 text-xs text-text font-mono focus:outline-none focus:border-accent"
                 placeholder="#000000"
@@ -166,7 +183,7 @@ export default function ColorPicker({
             <button
               type="button"
               onClick={addCustomColor}
-              disabled={customColors.length >= MAX_CUSTOM_COLORS || customColors.includes(newColor)}
+              disabled={!newColorValid || customColors.length >= MAX_CUSTOM_COLORS || newColorDup}
               className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Plus size={12} />

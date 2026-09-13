@@ -6,6 +6,7 @@ import {
   requireUser,
   requireAdmin,
   requireGoalAccess,
+  getUserContext,
   asBoolean,
   jsonError,
 } from "@/lib/api-helpers";
@@ -20,7 +21,8 @@ export async function GET(_req: Request, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const assignments = await prisma.goalAssignment.findMany({
@@ -54,8 +56,13 @@ export async function PUT(req: Request, { params }: Params) {
     if (!a || typeof a.userId !== "string" || !a.userId.trim()) {
       return jsonError("Each assignment needs a valid userId", 400);
     }
-    const canCheck = asBoolean(a.canCheck) ?? true;
-    const canEdit = asBoolean(a.canEdit) ?? false;
+    /* Strict booleans — never default canCheck/canEdit to true (would grant
+     * capabilities to anyone the client "forgets" to express). */
+    const canCheck = asBoolean(a.canCheck);
+    const canEdit = asBoolean(a.canEdit);
+    if (canCheck === null || canEdit === null) {
+      return jsonError("canCheck and canEdit must be booleans for each assignment", 400);
+    }
     assignments.push({ userId: a.userId, canCheck, canEdit });
   }
 

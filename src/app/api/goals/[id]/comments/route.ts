@@ -6,10 +6,12 @@ import { prisma } from "@/lib/prisma";
 import {
   requireUser,
   requireGoalAccess,
+  getUserContext,
   asString,
   jsonError,
 } from "@/lib/api-helpers";
 import { notifySection, notifyAdmins } from "@/lib/notify";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -20,7 +22,8 @@ export async function GET(_req: Request, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const comments = await prisma.comment.findMany({
@@ -38,8 +41,19 @@ export async function POST(req: Request, { params }: Params) {
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
+  /* Comment flood guard — per-user cap. */
+  const limited = await checkRateLimit(
+    `mutation:comments:${auth.data.userId}`,
+    60,
+    60_000
+  );
+  if (limited.limited) {
+    return jsonError("Too many comments, try again shortly", 429);
+  }
+
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const body = await req.json().catch(() => null);

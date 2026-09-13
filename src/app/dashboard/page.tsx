@@ -6,7 +6,7 @@
  * Includes section completion bar chart for at-a-glance performance.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Image from "next/image";
 import SectionCard from "@/components/SectionCard";
 import SectionChart from "@/components/SectionChart";
@@ -38,18 +38,22 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  /* Fetch goals for the selected month */
+  /* Fetch goals for the selected month — guard against out-of-order responses
+   * when the user switches months mid-flight. */
+  const fetchSeqRef = useRef(0);
   const fetchGoals = useCallback(async (mId: string) => {
+    const seq = ++fetchSeqRef.current;
     setIsLoading(true);
     try {
       const res = await fetch(`/api/goals?monthId=${mId}`);
       if (!res.ok) throw new Error("Failed to load goals");
       const data = await res.json();
+      if (fetchSeqRef.current !== seq) return;
       setGoals(data.goals || []);
     } catch {
-      setGoals([]);
+      if (fetchSeqRef.current === seq) setGoals([]);
     } finally {
-      setIsLoading(false);
+      if (fetchSeqRef.current === seq) setIsLoading(false);
     }
   }, []);
 
@@ -62,7 +66,12 @@ export default function DashboardPage() {
       })
       .then((data) => {
         if (data.months?.length > 0) {
-          const latest = data.months[data.months.length - 1];
+          /* Prefer the latest non-archived month so an archived one isn't
+             auto-selected as the working month. */
+          const latestActive = [...data.months]
+            .reverse()
+            .find((m: { isArchived?: boolean }) => !m.isArchived);
+          const latest = latestActive ?? data.months[data.months.length - 1];
           setMonthId(latest.id);
           fetchGoals(latest.id);
         } else {

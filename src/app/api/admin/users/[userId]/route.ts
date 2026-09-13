@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import {
   requireAdmin,
   asString,
+  asValidPassword,
   jsonError,
 } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +17,7 @@ import {
 import { PERMISSION_KEYS } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 import { ROLE_ADMIN, ROLE_MEMBER } from "@/lib/constants";
+import { MAX_IMAGE_SIZE, validateImageDataUri } from "@/lib/image";
 import bcrypt from "bcryptjs";
 
 interface Params {
@@ -58,8 +60,10 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.pfp === "") {
       data.pfp = null;
     } else {
-      const pfp = asString(body.pfp, 2_000_000);
-      if (pfp === null) return jsonError("Invalid profile picture", 400);
+      const pfp = asString(body.pfp, MAX_IMAGE_SIZE);
+      if (pfp === null || !validateImageDataUri(pfp)) {
+        return jsonError("Invalid profile picture", 400);
+      }
       data.pfp = pfp;
     }
   }
@@ -91,11 +95,9 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   if (body.newPassword !== undefined) {
-    const newPassword = asString(body.newPassword, 200);
-    if (!newPassword || newPassword.length < 6) {
-      return jsonError("Password must be at least 6 characters", 400);
-    }
-    data.password = await bcrypt.hash(newPassword, 12);
+    const newPw = asValidPassword(body.newPassword);
+    if (!newPw.ok) return jsonError(newPw.message, 400);
+    data.password = await bcrypt.hash(newPw.password, 12);
   }
 
   /* Validate email uniqueness when changing */

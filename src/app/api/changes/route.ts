@@ -3,14 +3,13 @@
 // ~3 row reads per call (indexed MAX + COUNT queries)
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth.server";
+import { requireUser, getUserContext, jsonError } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { ROLE_ADMIN } from "@/lib/constants";
 
 export async function GET(req: Request) {
-  const payload = await verifyToken();
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const since = searchParams.get("since");
@@ -23,10 +22,21 @@ export async function GET(req: Request) {
 
   const sinceDate = since ? new Date(since) : new Date(0);
 
+  /* Non-admins may only poll change timestamps for their own sections, so the
+   * endpoint can't be used to probe activity in other sections. */
+  const ctx = await getUserContext(auth.data.userId);
+
   /* 1. MAX Goal.updatedAt — has any goal changed since `since`? */
-  const goalWhere: Record<string, string> = {};
+  const goalWhere: Record<string, string | { in: string[] }> = {};
+  if (ctx.role !== ROLE_ADMIN) {
+    if (section && !ctx.sections.includes(section)) {
+      return jsonError("Forbidden", 403);
+    }
+    goalWhere.section = section ?? { in: ctx.sections };
+  } else if (section) {
+    goalWhere.section = section;
+  }
   if (monthId) goalWhere.monthId = monthId;
-  if (section) goalWhere.section = section;
 
   const goalAgg = await prisma.goal.aggregate({
     where: goalWhere,
@@ -41,7 +51,7 @@ export async function GET(req: Request) {
   /* 3. COUNT new notifications for user since `since` */
   const newNotifications = await prisma.notification.count({
     where: {
-      userId: payload.userId,
+      userId: auth.data.userId,
       createdAt: { gt: sinceDate },
     },
   });

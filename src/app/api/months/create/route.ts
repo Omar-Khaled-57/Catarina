@@ -47,15 +47,8 @@ export async function POST(req: Request) {
     /* Check if this month already exists */
     const existing = await prisma.month.findUnique({
       where: { year_month: { year: newYear, month: newMonth } },
-    }) as {
-      id: string;
-      name: string;
-      year: number;
-      month: number;
-      isArchived: boolean;
-      createdAt: Date;
-      updatedAt: Date;
-    } | null;
+      select: { id: true },
+    });
     if (existing) {
       return NextResponse.json(
         { error: "This month already exists" },
@@ -63,69 +56,94 @@ export async function POST(req: Request) {
       );
     }
 
-    /* Create the new month */
+    /* Create the new month and carry over unfinished goals inside one
+     * transaction so a mid-way failure can't leave a half-built month. */
     const monthLabel = `${String(newMonth).padStart(2, "0")}/${String(newYear).slice(-2)}`;
-    const newMonthRecord = await prisma.month.create({
-      data: {
-        name: monthLabel,
-        year: newYear,
-        month: newMonth,
-      },
-    });
+    const carriedGoalNames: string[] = [];
+    const carriedAssigneeIds: string[] = [];
 
-    /* Carry over unfinished goals from the previous month */
-    let carriedOver = 0;
-    let carriedGoalNames: string[] = [];
-    if (previousMonthId) {
-      const unfinishedGoals = await prisma.goal.findMany({
-        where: {
-          monthId: previousMonthId,
-          done: false,
-        },
-      }) as Array<{
-        id: string;
-        name: string;
-        description: string;
-        current: number;
-        target: number;
-        done: boolean;
-        deadline: Date;
-        carriedOver: boolean;
-        section: string;
-        monthId: string;
-        authorId: string;
-        goalNumber: number;
-        completedAt: Date | null;
-        deadlineSetByAdmin: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-      }>;
-
-      if (unfinishedGoals.length > 0) {
-        await prisma.goal.createMany({
-          data: unfinishedGoals.map((goal) => ({
-            name: goal.name,
-            description: goal.description,
-            current: goal.current,
-            target: goal.target,
-            done: false,
-            deadline: goal.deadline,
-            carriedOver: true,
-            section: goal.section,
-            monthId: newMonthRecord.id,
-            authorId: goal.authorId,
-            deadlineSetByAdmin: true,
-          })),
+    let newMonthRecord: { id: string; name: string; year: number; month: number; isArchived: boolean; createdAt: Date; updatedAt: Date };
+    try {
+      newMonthRecord = await prisma.$transaction(async (tx) => {
+        const created = await tx.month.create({
+          data: {
+            name: monthLabel,
+            year: newYear,
+            month: newMonth,
+          },
         });
-        carriedOver = unfinishedGoals.length;
-        carriedGoalNames = unfinishedGoals.map((g) => g.name);
+
+        if (previousMonthId) {
+          const unfinishedGoals = await tx.goal.findMany({
+            where: {
+              monthId: previousMonthId,
+              done: false,
+            },
+            include: {
+              assignments: { select: { userId: true, canCheck: true, canEdit: true } },
+            },
+          });
+
+          for (const goal of unfinishedGoals) {
+            const copy = await tx.goal.create({
+              data: {
+                name: goal.name,
+                description: goal.description,
+                current: goal.current,
+                target: goal.target,
+                done: false,
+                deadline: goal.deadline,
+                carriedOver: true,
+                section: goal.section,
+                monthId: created.id,
+                authorId: goal.authorId,
+                deadlineSetByAdmin: true,
+              },
+            });
+
+            /* Carry over the assignments too — a carried goal that loses its
+             * assignees stops honoring their canCheck/canEdit capabilities. */
+            if (goal.assignments.length > 0) {
+              await tx.goalAssignment.createMany({
+                data: goal.assignments.map((a) => ({
+                  goalId: copy.id,
+                  userId: a.userId,
+                  canCheck: a.canCheck,
+                  canEdit: a.canEdit,
+                })),
+              });
+            }
+
+            carriedGoalNames.push(goal.name);
+            for (const a of goal.assignments) carriedAssigneeIds.push(a.userId);
+          }
+        }
+
+        return created;
+      });
+    } catch (error) {
+      /* The pre-check above can race against a concurrent same-year/month
+       * create; map the unique violation to the same friendly 409. */
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2002"
+      ) {
+        return NextResponse.json(
+          { error: "This month already exists" },
+          { status: 409 }
+        );
       }
+      throw error;
     }
+
+    const carriedOver = carriedGoalNames.length;
 
     /* Notify all users about the new month */
     const allUsers = await prisma.user.findMany({
       select: { id: true },
-    }) as Array<{ id: string }>;
+    });
     const allUserIds = allUsers.map((u) => u.id);
 
     if (allUserIds.length > 0) {
@@ -140,16 +158,7 @@ export async function POST(req: Request) {
 
     /* Notify assignees about carried over goals */
     if (carriedOver > 0) {
-      const carriedAssignments = await prisma.goal.findMany({
-        where: { monthId: newMonthRecord.id, carriedOver: true },
-        select: {
-          assignments: { select: { userId: true } },
-        },
-      });
-      const carriedUserIds = [...new Set(
-        carriedAssignments.flatMap((g) => g.assignments.map((a) => a.userId))
-      )];
-
+      const carriedUserIds = [...new Set(carriedAssigneeIds)];
       if (carriedUserIds.length > 0) {
         await notifyMany(carriedUserIds, {
           type: "GOALS_CARRIED_OVER",

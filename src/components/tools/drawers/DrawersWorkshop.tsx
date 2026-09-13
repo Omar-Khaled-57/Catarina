@@ -423,7 +423,7 @@ export default function DrawersWorkshop({
 
   return (
     <>
-      <div className="grid justify-items-center gap-14 lg:grid-cols-2">
+      <div className="grid items-end justify-items-center gap-20 lg:grid-cols-2">
         {sections.map((section) => {
           const hiddenInGrid = focusedKey === section.key;
           return (

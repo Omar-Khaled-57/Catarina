@@ -126,6 +126,7 @@ export default function SectionDetail({
                 canDeleteGoals: isAdmin,
               }}
               color={color}
+              readOnly
               onToggle={() => {}}
               onEdit={() => {}}
               onDelete={() => {}}

@@ -50,6 +50,31 @@ export default function ProfileModal({
   const [sectionColors, setSectionColors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /* Re-sync form fields each time the modal opens (the component stays
+     mounted between opens, so useState initializers would go stale). */
+  const wasOpenRef = useRef(false);
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    const opening = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (!opening) return;
+
+    const u = userRef.current;
+    setPickedSection(u.primarySection || "MANAGEMENT");
+    setPfp(u.pfp);
+    setEditName(u.name);
+    setEditEmail(u.email);
+    setEditBio(u.bio || "");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setHasChanges(false);
+  }, [isOpen]);
+
   /* Fetch dynamic section labels and colors */
   useEffect(() => {
     fetch("/api/sections")
@@ -73,16 +98,29 @@ export default function ProfileModal({
   const markChanged = () => setHasChanges(true);
 
   const handlePickSection = async (section: string) => {
+    if (saving) return; /* prevent toggling while a request is pending */
+    const prev = pickedSection;
+    if (section === prev) return; /* no-op — already the highlighted section */
     setPickedSection(section);
     setSaving(true);
     try {
-      await fetch("/api/auth/primary-section", {
+      const res = await fetch("/api/auth/primary-section", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ section }),
       });
+      if (!res.ok) {
+        setPickedSection(prev);
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Failed to switch primary section");
+        return;
+      }
       await refreshUser();
-    } catch { /* silent */ } finally {
+      toast.success("Primary section updated");
+    } catch {
+      setPickedSection(prev);
+      toast.error("Network error, please try again");
+    } finally {
       setSaving(false);
     }
   };
@@ -168,6 +206,7 @@ export default function ProfileModal({
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
+                e.target.value = ""; /* allow re-selecting the same file */
                 if (file) handleUpload(file);
               }}
             />

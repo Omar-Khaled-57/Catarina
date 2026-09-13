@@ -29,7 +29,7 @@ interface SectionChestProps {
   openId: string | null;
   onOpenProject: (id: string | null) => void;
   onAddProject: () => void;
-  onRemoveProject: (sectionKey: string, id: string) => void;
+  onRemoveProject: (id: string) => void;
   onAddEnvelope: (projectId: string) => void;
   onAddItem: (projectId: string) => void;
   onFocus: (() => void) | null;
@@ -183,7 +183,7 @@ export default function SectionChest({
                     <button type="button" className="chest-drawer__add" onClick={() => onAddItem(project.id)}>
                       <Plus size={10} /> File
                     </button>
-                    <button type="button" className="chest-drawer__remove" onClick={() => onRemoveProject(section.key, project.id)} aria-label={`Remove ${project.name}`}>
+                    <button type="button" className="chest-drawer__remove" onClick={() => onRemoveProject(project.id)} aria-label={`Remove ${project.name}`}>
                       <Archive size={12} />
                     </button>
                   </div>
@@ -231,26 +231,28 @@ export default function SectionChest({
         </label>
         <span className="text-sm font-semibold text-text">{section.label}</span>
         <span className="text-xs text-text-muted">
-          · {projects.length} {projects.length === 1 ? "drawer" : "drawers"}
+          {projects.length} {projects.length === 1 ? "drawer" : "drawers"}
         </span>
-        <button
-          type="button"
-          onClick={onAddProject}
-          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <Plus size={13} />
-          Add drawer
-        </button>
-        {onFocus && (
+        <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
-            onClick={onFocus}
+            onClick={onAddProject}
             className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            <Maximize2 size={13} />
-            Focus
+            <Plus size={13} />
+            Add drawer
           </button>
-        )}
+          {onFocus && (
+            <button
+              type="button"
+              onClick={onFocus}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Maximize2 size={13} />
+              Focus
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

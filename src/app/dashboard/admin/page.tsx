@@ -71,7 +71,12 @@ export default function AdminPage() {
       .then((data) => {
         const months = data.months || [];
         if (months.length > 0 && !monthId) {
-          setMonthId(months[months.length - 1].id);
+          /* Prefer the latest non-archived month so an archived one isn't
+             auto-selected as the working month. */
+          const latestActive = [...months]
+            .reverse()
+            .find((m: { isArchived?: boolean }) => !m.isArchived);
+          setMonthId((latestActive ?? months[months.length - 1]).id);
         }
       })
       .catch(() => {});
@@ -145,42 +150,63 @@ export default function AdminPage() {
     }
   }, [generation, snapshotRef, fetchUsers]);
 
+  /* Clear the debounced refetch timer on unmount */
+  useEffect(() => {
+    return () => {
+      if (usersTimerRef.current) clearTimeout(usersTimerRef.current);
+    };
+  }, []);
+
   const handleApproval = async (id: string, action: "approve" | "reject") => {
-    const res = await fetch("/api/admin/approvals", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
-    });
-    if (res.ok) {
-      toast.success(action === "approve" ? "User approved" : "Request rejected");
-      fetchApprovals();
-      if (action === "approve") fetchUsers();
-    } else {
-      toast.error("Failed to process request");
+    try {
+      const res = await fetch("/api/admin/approvals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      if (res.ok) {
+        toast.success(action === "approve" ? "User approved" : "Request rejected");
+        fetchApprovals();
+        if (action === "approve") fetchUsers();
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Failed to process request");
+      }
+    } catch {
+      toast.error("Network error, please try again");
     }
   };
 
   const toggleRole = async (userId: string) => {
-    const res = await fetch(`/api/admin/users/${userId}/promote`, { method: "POST" });
-    if (res.ok) {
-      const data = await res.json();
-      toast.success(`Role changed to ${data.user.role}`);
-      fetchUsers();
-    } else {
-      toast.error("Failed to change role");
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/promote`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`Role changed to ${data.user.role}`);
+        fetchUsers();
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Failed to change role");
+      }
+    } catch {
+      toast.error("Network error, please try again");
     }
   };
 
   const handleDelete = async () => {
     if (!deleteUser) return;
-    const res = await fetch(`/api/admin/users/${deleteUser.id}`, { method: "DELETE" });
-    if (res.ok) {
-      toast.success("User deleted");
-      setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
-      setDeleteUser(null);
-    } else {
-      const data = await res.json();
-      toast.error(data.error || "Failed to delete user");
+    try {
+      const res = await fetch(`/api/admin/users/${deleteUser.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("User deleted");
+        setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
+        setDeleteUser(null);
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Failed to delete user");
+      }
+    } catch {
+      toast.error("Network error, please try again");
     }
   };
 

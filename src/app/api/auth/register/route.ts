@@ -7,7 +7,16 @@ import { prisma } from "@/lib/prisma";
 import { getSectionKeys } from "@/lib/sections";
 import { notifyAdmins } from "@/lib/notify";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { asValidPassword } from "@/lib/api-helpers";
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_IMAGE_SIZE,
+  sniffImageType,
+} from "@/lib/image";
 import bcrypt from "bcryptjs";
+
+/** Single, non-enumerating message for any already-taken email. */
+const EMAIL_CONFLICT = "This email address is already in use.";
 
 export async function POST(req: Request) {
   try {
@@ -43,11 +52,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
+    const pw = asValidPassword(password);
+    if (!pw.ok) {
+      return NextResponse.json({ error: pw.message }, { status: 400 });
     }
 
     const normalizedEmail = email.toLowerCase();
@@ -63,71 +70,48 @@ export async function POST(req: Request) {
     /* Check if email is already registered as a user */
     const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } }) as {
       id: string;
-      email: string;
-      name: string;
-      role: string;
-      password: string;
-      pfp: string | null;
-      bio: string | null;
-      primarySection: string | null;
-      permissions: string;
-      createdAt: Date;
-      updatedAt: Date;
     } | null;
     if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: EMAIL_CONFLICT }, { status: 409 });
     }
 
     /* Check if there's already a pending approval for this email */
     const existingApproval = await prisma.approval.findUnique({
       where: { email: normalizedEmail },
-    }) as {
-      id: string;
-      email: string;
-      name: string;
-      password: string;
-      section: string;
-      pfp: string | null;
-      status: string;
-      createdAt: Date;
-      updatedAt: Date;
-    } | null;
+      select: { status: true },
+    });
     if (existingApproval && existingApproval.status === "PENDING") {
-      return NextResponse.json(
-        { error: "A request for this email is already pending approval" },
-        { status: 409 }
-      );
+      /* Same generic answer as the registered-user conflict — no enumeration */
+      return NextResponse.json({ error: EMAIL_CONFLICT }, { status: 409 });
     }
 
     let pfpDataUri: string | null = null;
     if (pfp && pfp.size > 0) {
-      const ALLOWED_TYPES = new Set([
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ]);
-      if (!ALLOWED_TYPES.has(pfp.type)) {
+      if (!ALLOWED_IMAGE_TYPES.has(pfp.type)) {
         return NextResponse.json(
           { error: "Unsupported file type. Use JPG, PNG, GIF, or WebP." },
           { status: 400 }
         );
       }
-      if (pfp.size > 2 * 1024 * 1024) {
+      if (pfp.size > MAX_IMAGE_SIZE) {
         return NextResponse.json(
           { error: "File too large. Max 2 MB." },
           { status: 400 }
         );
       }
-      const bytes = await pfp.arrayBuffer();
+      const bytes = new Uint8Array(await pfp.arrayBuffer());
+      const detected = sniffImageType(bytes);
+      if (!detected) {
+        return NextResponse.json(
+          { error: "File is not a valid image" },
+          { status: 400 }
+        );
+      }
       const base64 = Buffer.from(bytes).toString("base64");
-      pfpDataUri = `data:${pfp.type};base64,${base64}`;
+      pfpDataUri = `data:${detected};base64,${base64}`;
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(pw.password, 12);
 
     /* Create or update the approval request */
     const approval = await prisma.approval.upsert({

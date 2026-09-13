@@ -184,11 +184,20 @@ interface RateLimitEntry {
 
 const memStore = new Map<string, RateLimitEntry>();
 
-/** Get client IP from request headers */
+/** Get client IP from request headers.
+ * Uses the RIGHTMOST x-forwarded-for hop (added by the closest trusted proxy)
+ * or x-real-ip, so a client cannot rotate their rate-limit key by prepending a
+ * spoofed x-forwarded-for header. */
 export function getClientIp(req: Request): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp;
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) {
+    const parts = fwd
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return "unknown";
 }

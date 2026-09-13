@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import {
   requireAdmin,
   asString,
+  asValidPassword,
   jsonError,
 } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +15,7 @@ import {
   type MemberPermissions,
 } from "@/lib/permissions";
 import { PERMISSION_KEYS } from "@/lib/constants";
+import { MAX_IMAGE_SIZE, validateImageDataUri } from "@/lib/image";
 import bcrypt from "bcryptjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,12 +31,12 @@ export async function POST(req: Request) {
 
   const name = asString(body.name, 100);
   const emailRaw = asString(body.email, 200);
-  const password = asString(body.password, 200);
   if (!name) return jsonError("Name is required", 400);
   if (!emailRaw || !EMAIL_RE.test(emailRaw)) return jsonError("Valid email is required", 400);
-  if (!password || password.length < 6) {
-    return jsonError("Password must be at least 6 characters", 400);
-  }
+
+  const pw = asValidPassword(body.password);
+  if (!pw.ok) return jsonError(pw.message, 400);
+
   const email = emailRaw.toLowerCase();
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -49,9 +51,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12);
+  const hashedPassword = await bcrypt.hash(pw.password, 12);
   const userRole = body.role === "ADMIN" ? "ADMIN" : "MEMBER";
-  const pfp = asString(body.pfp ?? "", 2_000_000);
+  const pfp = asString(body.pfp ?? "", MAX_IMAGE_SIZE);
+  if (pfp !== null && pfp !== "" && !validateImageDataUri(pfp)) {
+    return jsonError("Invalid profile picture", 400);
+  }
   const bio = asString(body.bio ?? "", 2000);
 
   const validSections = await getSectionKeys();

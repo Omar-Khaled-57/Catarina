@@ -58,13 +58,13 @@ export default function ArchivePage() {
     try {
       const res = await fetch(`/api/months/${monthId}`, { method: "DELETE" });
       if (res.ok) {
-        toast.success("Month deleted successfully");
-        setMonths((prev) => prev.filter(m => m.id !== monthId));
+        toast.success("Month archived. Its goals and reports are preserved.");
+        setMonths((prev) => prev.map(m => m.id === monthId ? { ...m, isArchived: true } : m));
       } else {
-        toast.error("Failed to delete month");
+        toast.error("Failed to archive month");
       }
     } catch {
-      toast.error("Failed to delete month");
+      toast.error("Failed to archive month");
     }
   };
 
@@ -110,8 +110,8 @@ export default function ArchivePage() {
                       <button
                         onClick={() => handleDeleteMonth(m.id, monthNameLine1(m.month, m.year))}
                         className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                        title="Delete Month"
-                        aria-label={`Delete ${monthNameLine1(m.month, m.year)}`}
+                        title="Archive Month"
+                        aria-label={`Archive ${monthNameLine1(m.month, m.year)}`}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -157,9 +157,9 @@ export default function ArchivePage() {
         isOpen={!!deleteMonthId}
         onClose={() => { setDeleteMonthId(null); setDeleteMonthName(""); }}
         onConfirm={confirmDeleteMonth}
-        title="Delete Month"
-        message={`Are you sure you want to delete ${deleteMonthName}? All goals will be lost. This action cannot be undone.`}
-        confirmLabel="Delete"
+        title="Archive Month"
+        message={`Archive ${deleteMonthName}? It will be hidden from the active month list, but its goals and reports are kept and remain available here.`}
+        confirmLabel="Archive"
       />
     </div>
   );

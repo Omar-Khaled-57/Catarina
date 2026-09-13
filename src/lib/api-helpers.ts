@@ -28,6 +28,13 @@ type AuthResult<T> = { ok: true; data: T } | { ok: false; response: NextResponse
 export async function requireUser(): Promise<AuthResult<JWTPayload>> {
   const payload = await verifyToken();
   if (!payload) return { ok: false, response: jsonError("Unauthorized", 401) };
+  /* Fail closed on zombie sessions: a deleted user's token must not keep
+   * working for its full 7-day lifetime (and must not crash writes with P2025). */
+  const exists = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true },
+  });
+  if (!exists) return { ok: false, response: jsonError("Unauthorized", 401) };
   return { ok: true, data: payload };
 }
 
@@ -98,6 +105,34 @@ export async function requireGoalAccess(
 
 type GoalWithSection = { id: string; section: string };
 
+/**
+ * Resolve the per-assignment capabilities (canCheck / canEdit) a user holds on
+ * a goal, mirroring the client's GoalCard logic:
+ *  - admins can do everything
+ *  - assigned members inherit only their assignment's flags
+ *  - unassigned members without role-based edit permission can do nothing
+ *  - unassigned members with canEditGoals get full access
+ * Enforced server-side so an assigned member whose flags are false can never
+ * act through the API even if the UI hides the control.
+ */
+export async function getGoalCapabilities(
+  userId: string,
+  role: string,
+  permissions: MemberPermissions,
+  goalId: string
+): Promise<{ canCheck: boolean; canEdit: boolean }> {
+  if (role === ROLE_ADMIN) return { canCheck: true, canEdit: true };
+  const assignment = await prisma.goalAssignment.findUnique({
+    where: { goalId_userId: { goalId, userId } },
+    select: { canCheck: true, canEdit: true },
+  });
+  if (assignment) {
+    return { canCheck: assignment.canCheck, canEdit: assignment.canEdit };
+  }
+  if (permissions.canEditGoals) return { canCheck: true, canEdit: true };
+  return { canCheck: false, canEdit: false };
+}
+
 /* ─── Input validation helpers ────────────────────────────────────────────── */
 
 /** Trimmed non-empty string within max length, or null */
@@ -125,6 +160,36 @@ export function asPositiveInt(value: unknown): number | null {
 /** Strict boolean, or null */
 export function asBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
+}
+
+/* bcrypt only uses the first 72 bytes of the key — silently truncate would
+ * make two passwords sharing a 72-byte prefix authenticate identically. */
+const PASSWORD_MIN_LEN = 6;
+const PASSWORD_MAX_LEN = 200;
+const PASSWORD_MAX_BYTES = 72;
+
+/** Validate a plaintext password: length bounds plus the bcrypt 72-byte cap. */
+export function asValidPassword(
+  value: unknown
+): { ok: true; password: string } | { ok: false; message: string } {
+  const password = typeof value === "string" ? value : null;
+  if (!password) return { ok: false, message: "Password is required" };
+  if (password.length < PASSWORD_MIN_LEN) {
+    return {
+      ok: false,
+      message: `Password must be at least ${PASSWORD_MIN_LEN} characters`,
+    };
+  }
+  if (password.length > PASSWORD_MAX_LEN) {
+    return {
+      ok: false,
+      message: `Password must be at most ${PASSWORD_MAX_LEN} characters`,
+    };
+  }
+  if (Buffer.byteLength(password, "utf8") > PASSWORD_MAX_BYTES) {
+    return { ok: false, message: "Password is too long (maximum 72 bytes)" };
+  }
+  return { ok: true, password };
 }
 
 /** Valid Date parsed from ISO string, or null */

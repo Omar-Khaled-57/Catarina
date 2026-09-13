@@ -838,17 +838,20 @@ html.dark [data-sonner-toast] [data-title] {
 /* Loose files lie directly in the drawer rather than inside an envelope. */
 .drawer-file {
   --drawer-content-lift: 0px;
+  --drawer-file-floor-offset: clamp(6px, calc(var(--drawer-h) * 0.14), 12px);
   --file-depth: calc(
     (var(--chest-d) * -0.76) + (var(--file-index) * var(--drawer-content-step))
   );
   position: absolute;
-  bottom: 13px;
+  bottom: var(--drawer-file-floor-offset);
   left: 50%;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 3px;
-  width: 136px;
-  min-height: 86px;
+  /* Match the envelope footprint and scale with the available drawer height. */
+  width: clamp(82px, calc(var(--drawer-h) * 1.55), 118px);
+  height: min(76px, calc(var(--drawer-h) - var(--drawer-file-floor-offset) - 5px));
+  min-height: 0;
   padding: 8px;
   overflow: hidden;
   border: 1px solid rgba(43, 53, 66, 0.2);
@@ -886,8 +889,10 @@ html.dark [data-sonner-toast] [data-title] {
 }
 
 .section-chest--single-drawer .drawer-file {
-  top: 48px;
+  top: 42px;
   bottom: auto;
+  width: 118px;
+  height: 78px;
 }
 
 .section-chest--single-drawer .chest-drawer.is-open .drawer-file {
@@ -993,10 +998,10 @@ html.dark [data-sonner-toast] [data-title] {
 @media (max-width: 420px) {
   .drawer-file {
     --file-depth: calc(
-      (var(--chest-d) * -0.76) + (var(--file-index) * 25px)
+      (var(--chest-d) * -0.78) + (var(--file-index) * 39px)
     );
-    width: 94px;
-    min-height: 62px;
+    width: clamp(68px, calc(var(--drawer-h) * 1.55), 92px);
+    height: min(62px, calc(var(--drawer-h) - var(--drawer-file-floor-offset) - 3px));
   }
 }
 

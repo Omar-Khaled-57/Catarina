@@ -7,12 +7,13 @@ import bcrypt from "bcryptjs";
 import {
   requireUser,
   asString,
+  asValidPassword,
   jsonError,
 } from "@/lib/api-helpers";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { MAX_IMAGE_SIZE, validateImageDataUri } from "@/lib/image";
 
-const PASSWORD_MIN = 6;
-const PASSWORD_MAX = 200; // guards against bcrypt DoS on absurd inputs
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function PUT(req: Request) {
   const auth = await requireUser();
@@ -33,16 +34,18 @@ export async function PUT(req: Request) {
 
   if (body.email !== undefined) {
     const email = asString(body.email, 200);
-    if (!email) return jsonError("Invalid email", 400);
-    data.email = email;
+    if (!email || !EMAIL_RE.test(email)) return jsonError("Valid email is required", 400);
+    data.email = email.toLowerCase(); /* normalize like register/login */
   }
 
   if (body.pfp !== undefined) {
     if (body.pfp === "") {
       data.pfp = null; /* allow clearing the picture */
     } else {
-      const pfp = asString(body.pfp, 2_000_000);
-      if (pfp === null) return jsonError("Invalid profile picture", 400);
+      const pfp = asString(body.pfp, MAX_IMAGE_SIZE);
+      if (pfp === null || !validateImageDataUri(pfp)) {
+        return jsonError("Invalid profile picture", 400);
+      }
       data.pfp = pfp;
     }
   }
@@ -64,16 +67,10 @@ export async function PUT(req: Request) {
       return jsonError("Too many password attempts, try again shortly", 429);
     }
 
-    const currentPassword = asString(body.currentPassword, PASSWORD_MAX);
-    const newPassword = asString(body.newPassword, PASSWORD_MAX);
-    if (!newPassword) {
-      return jsonError("Invalid new password", 400);
-    }
-    if (newPassword.length < PASSWORD_MIN) {
-      return jsonError(
-        `New password must be at least ${PASSWORD_MIN} characters`,
-        400
-      );
+    const currentPassword = asString(body.currentPassword, 200);
+    const newPw = asValidPassword(body.newPassword);
+    if (!newPw.ok) {
+      return jsonError(newPw.message, 400);
     }
     if (!currentPassword) {
       return jsonError("Current password is required to change password", 400);
@@ -92,7 +89,7 @@ export async function PUT(req: Request) {
       return jsonError("Current password is incorrect", 403);
     }
 
-    data.password = await bcrypt.hash(newPassword, 12);
+    data.password = await bcrypt.hash(newPw.password, 12);
   }
 
   if (Object.keys(data).length === 0) {
@@ -110,11 +107,33 @@ export async function PUT(req: Request) {
     }
   }
 
-  const user = await prisma.user.update({
-    where: { id: auth.data.userId },
-    data,
-    select: { id: true, name: true, email: true, pfp: true, bio: true },
-  });
+  try {
+    const user = await prisma.user.update({
+      where: { id: auth.data.userId },
+      data,
+      select: { id: true, name: true, email: true, pfp: true, bio: true },
+    });
 
-  return NextResponse.json({ user });
+    return NextResponse.json({ user });
+  } catch (error) {
+    /* The check above can race; catch the unique violation directly. */
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+    ) {
+      return jsonError("Email already in use", 409);
+    }
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2025"
+    ) {
+      return jsonError("User not found", 404);
+    }
+    console.error("[PROFILE_UPDATE]", error);
+    return jsonError("Failed to update profile", 500);
+  }
 }

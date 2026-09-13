@@ -1,4 +1,6 @@
-// DELETE /api/months/[id] — Delete a planning month (admin only)
+// DELETE /api/months/[id] — Hide an active planning month (admin only)
+// Soft-delete: sets isArchived = true so goals, steps, comments and archives
+// stay intact and the month remains browsable in the archive report.
 
 import { NextResponse } from "next/server";
 import { requireAdmin, jsonError } from "@/lib/api-helpers";
@@ -14,18 +16,24 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.month.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code?: string }).code === "P2025"
-    ) {
-      return jsonError("Month not found", 404);
+    const existing = await prisma.month.findUnique({
+      where: { id },
+      select: { isArchived: true },
+    });
+    if (!existing) return jsonError("Month not found", 404);
+
+    /* Re-archiving an already-archived month is a no-op success */
+    if (existing.isArchived) {
+      return NextResponse.json({ success: true, archived: true });
     }
-    console.error("Error deleting month:", error);
-    return jsonError("Failed to delete month", 500);
+
+    await prisma.month.update({
+      where: { id },
+      data: { isArchived: true },
+    });
+    return NextResponse.json({ success: true, archived: true });
+  } catch (error) {
+    console.error("Error archiving month:", error);
+    return jsonError("Failed to archive month", 500);
   }
 }

@@ -21,14 +21,17 @@ export async function POST(req: Request) {
         { status: 429 }
       );
     }
-    const { email, password } = await req.json();
+    const { email: emailRaw, password } = await req.json();
 
-    if (!email || !password) {
+    if (!emailRaw || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 }
       );
     }
+
+    /* Normalize case so login matches the lowercased emails stored by register */
+    const email = String(emailRaw).trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -48,28 +51,9 @@ export async function POST(req: Request) {
     } | null;
 
     if (!user) {
-      /* Check if email exists as a rejected approval */
-      const rejectedApproval = await prisma.approval.findFirst({
-        where: { email, status: "REJECTED" },
-      }) as { id: string } | null;
-      if (rejectedApproval) {
-        return NextResponse.json(
-          { error: "Your signup request was rejected by an admin." },
-          { status: 403 }
-        );
-      }
-
-      /* Check if email exists as a pending approval */
-      const pendingApproval = await prisma.approval.findFirst({
-        where: { email, status: "PENDING" },
-      }) as { id: string } | null;
-      if (pendingApproval) {
-        return NextResponse.json(
-          { error: "Your account is still pending admin approval." },
-          { status: 403 }
-        );
-      }
-
+      /* Rejected/pending approvals, wrong password, unknown email — all get
+       * the same generic error so the endpoint can't be used to enumerate
+       * accounts or probe approval state. */
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }

@@ -228,6 +228,10 @@ function Row({
       onKeyDown={
         onClick
           ? (e: React.KeyboardEvent) => {
+              /* Only activate the row itself — never when a nested control
+                 (checkbox / rename / delete) is focused, else Enter or Space
+                 fires both controls. */
+              if (e.target !== e.currentTarget) return;
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 onClick();
@@ -389,7 +393,7 @@ function FileDetail({
   const [draft, setDraft] = useState(file.content ?? "");
 
   const commitName = () => onRename(value.trim() || file.name);
-  const commitContent = () => onUpdateContent(draft.trim());
+  const commitContent = () => onUpdateContent(draft);
 
   const url = file.content;
   const isUrl =
@@ -424,6 +428,7 @@ function FileDetail({
               e.preventDefault();
               e.stopPropagation();
               commitName();
+              commitContent(); /* mirror the Done button — Enter must not drop textarea edits */
               onDone();
             }
             if (e.key === "Escape") {
@@ -621,10 +626,31 @@ function FileForm({
   const [upload, setUpload] = useState<File | null>(null);
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
 
+  const urlRef = useRef<string | null>(null);
+  const submittedRef = useRef(false);
+  /* Bumped on every file pick so a slow async text read can never overwrite a
+     newer upload target. */
+  const uploadGenRef = useRef(0);
+
+  const revokePreview = () => {
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
+  };
+
+  useEffect(
+    () => () => {
+      if (!submittedRef.current) revokePreview();
+    },
+    [],
+  );
+
   const TypeIcon = ITEM_ICONS[type];
   const defaultName = `file ${existingCount + 1}`;
 
   const handleUpload = (file: File | null) => {
+    const gen = ++uploadGenRef.current;
     setUpload(file);
     if (!file) return;
     if (!name.trim()) setName(file.name);
@@ -632,38 +658,65 @@ function FileForm({
     const ext = lower.includes(".") ? `.${lower.split(".").pop() ?? ""}` : "";
 
     if (file.type.startsWith("image/")) {
+      revokePreview();
       setType("IMAGE");
-      setUploadUrl(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      urlRef.current = url;
+      setUploadUrl(url);
       setContent("");
     } else if (file.type.startsWith("video/")) {
+      revokePreview();
       setType("VIDEO");
-      setUploadUrl(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      urlRef.current = url;
+      setUploadUrl(url);
       setContent("");
     } else if (
       file.type.startsWith("text/") ||
       TEXT_EXTENSIONS.includes(ext) ||
       CODE_EXTENSIONS.includes(ext)
     ) {
+      revokePreview();
       setUploadUrl(null);
       setContent("");
       void file.text().then((text) => {
+        /* A newer upload superseded this read — drop the stale result. */
+        if (uploadGenRef.current !== gen) return;
         setContent(text);
         setType(CODE_EXTENSIONS.includes(ext) ? "CODE" : "FILE");
       });
     } else {
+      revokePreview();
       setUploadUrl(null);
       setContent("");
       setType("FILE");
     }
   };
 
+  /* When the user switches the type away from a media preview, the temporary
+     blob URL becomes garbage — release it so the page doesn't hold it. */
+  const switchType = (t: (typeof FILE_TYPES)[number]) => {
+    if (type === t) return;
+    if (
+      uploadUrl &&
+      (type === "IMAGE" || type === "VIDEO") &&
+      t !== "IMAGE" &&
+      t !== "VIDEO"
+    ) {
+      revokePreview();
+      setUploadUrl(null);
+    }
+    setType(t);
+  };
+
   const submit = () => {
+    submittedRef.current = true;
     const finalName = name.trim() || defaultName;
     const contentValue =
       (type === "IMAGE" || type === "VIDEO") && uploadUrl
         ? uploadUrl
-        : content.trim()
-          ? content.trim()
+        : content
+          ? content
           : undefined;
     onCreate({
       name: finalName,
@@ -720,7 +773,7 @@ function FileForm({
               <button
                 key={t}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => switchType(t)}
                 aria-pressed={isActive}
                 className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all duration-150 ease-out ${
                   isActive

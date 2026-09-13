@@ -12,6 +12,7 @@ import {
   jsonError,
 } from "@/lib/api-helpers";
 import { notifySection, notifyMany } from "@/lib/notify";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { ROLE_ADMIN } from "@/lib/constants";
 
 export async function GET(req: Request) {
@@ -23,12 +24,13 @@ export async function GET(req: Request) {
   const section = searchParams.get("section");
   const since = searchParams.get("since");
 
+  const ctx = await getUserContext(auth.data.userId);
+
   const where: Record<string, unknown> = {};
   if (monthId) where.monthId = monthId;
 
-  /* Non-admins can only read goals in their own sections */
-  if (auth.data.role !== ROLE_ADMIN) {
-    const ctx = await getUserContext(auth.data.userId);
+  /* Non-admins can only read goals in their own sections (live role, not JWT snapshot) */
+  if (ctx.role !== ROLE_ADMIN) {
     if (section && !ctx.sections.includes(section)) {
       return jsonError("Forbidden", 403);
     }
@@ -140,6 +142,18 @@ export async function POST(req: Request) {
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
+  /* Light per-user mutation cap so a misbehaving client can't spam goals. */
+  const limited = await checkRateLimit(
+    `mutation:goals:${auth.data.userId}`,
+    30,
+    5 * 60_000
+  );
+  if (limited.limited) {
+    return jsonError("Too many goal creations, try again shortly", 429);
+  }
+
+  const ctx = await getUserContext(auth.data.userId);
+
   try {
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -166,8 +180,7 @@ export async function POST(req: Request) {
     if (!monthExists) return jsonError("Month not found", 400);
 
     /* Section restriction: members can only create goals in their assigned sections */
-    if (auth.data.role !== ROLE_ADMIN) {
-      const ctx = await getUserContext(auth.data.userId);
+    if (ctx.role !== ROLE_ADMIN) {
       if (!ctx.sections.includes(section)) {
         return jsonError("You can only create goals in your assigned sections", 403);
       }
@@ -194,7 +207,7 @@ export async function POST(req: Request) {
         section,
         monthId,
         authorId: auth.data.userId,
-        deadlineSetByAdmin: auth.data.role === ROLE_ADMIN,
+        deadlineSetByAdmin: ctx.role === ROLE_ADMIN,
       },
       include: {
         comments: { select: { id: true } },

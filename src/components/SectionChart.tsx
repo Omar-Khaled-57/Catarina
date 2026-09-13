@@ -61,7 +61,6 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
   const targetPcts = sections.map((s) => s.percentage);
   const [animPcts, setAnimPcts] = useState(() => targetPcts.map(() => 0));
   const fromPctsRef = useRef(targetPcts.map(() => 0));
-  const rafRef = useRef<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hasAnimated = useRef(false);
 
@@ -73,26 +72,30 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
     const el = wrapperRef.current;
     if (!el) return;
 
+    let raf: number | null = null;
+    let delayTimer: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+
     function runBarAnimation() {
       const from = fromPctsRef.current;
       const to = targetPcts;
 
-      setTimeout(() => {
+      delayTimer = setTimeout(() => {
+        if (disposed) return;
         const startTime = performance.now();
         const tick = (now: number) => {
+          if (disposed) return;
           const t = Math.min((now - startTime) / DURATION, 1);
           setAnimPcts(to.map((v, i) => from[i] + (v - from[i]) * swingOut(t)));
           if (t < 1) {
-            rafRef.current = requestAnimationFrame(tick);
+            raf = requestAnimationFrame(tick);
           } else {
             fromPctsRef.current = to;
             setAnimPcts(to);
           }
         };
-        rafRef.current = requestAnimationFrame(tick);
+        raf = requestAnimationFrame(tick);
       }, DELAY);
-
-      return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
     }
 
     const observer = new IntersectionObserver(
@@ -107,7 +110,12 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      if (delayTimer) clearTimeout(delayTimer);
+      if (raf) cancelAnimationFrame(raf);
+    };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
@@ -118,19 +126,25 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
     const to = targetPcts;
     if (to.every((t, i) => t === from[i])) return;
 
+    let raf: number | null = null;
+    let disposed = false;
     const startTime = performance.now();
     const tick = (now: number) => {
+      if (disposed) return;
       const t = Math.min((now - startTime) / DURATION, 1);
       setAnimPcts(to.map((v, i) => from[i] + (v - from[i]) * swingOut(t)));
       if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
+        raf = requestAnimationFrame(tick);
       } else {
         fromPctsRef.current = to;
         setAnimPcts(to);
       }
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      disposed = true;
+      if (raf) cancelAnimationFrame(raf);
+    };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [targetPcts.join(",")]);
 
@@ -157,10 +171,12 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
         >
           {/* ── Gradient defs ─────────────────────────────────────────── */}
           <defs>
-            {sections.map(({ section, color }) => {
-              const id = section.toLowerCase();
+            {sections.map(({ section, color }, i) => {
+              /* Index-prefixed: guarantees a unique SVG id even if two section
+                 keys ever collided after lowercasing. */
+              const id = `sec-${i}-${section.toLowerCase()}`;
               return (
-                <g key={id}>
+                <g key={`${i}-${section}`}>
                   {/* Front face gradient */}
                   <linearGradient id={`fg-${id}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%"   stopColor={color} stopOpacity="0.95" />
@@ -218,7 +234,8 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
           {sections.map(({ section, label, color }, i) => {
             const clamped = Math.min(Math.max(animPcts[i] ?? 0, 0), 100);
             const barH    = Math.max((clamped / 100) * CHART_H, MIN_BAR_H);
-            const id      = section.toLowerCase();
+            /* Must match the id computed in the <defs> block */
+            const id      = `sec-${i}-${section.toLowerCase()}`;
 
             /* Front face corners */
             const x0 = PAD_L + i * slotW + barPad; // left edge

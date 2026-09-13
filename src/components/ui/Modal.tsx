@@ -5,6 +5,8 @@
  * Uses React Portal to render into document.body, bypassing
  * backdrop-filter ancestors that break position:fixed.
  * Uses Framer Motion for enter/exit animations.
+ * Supports stacked modals: Escape closes only the top-most dialog (one per
+ * press), scroll-lock is ref-counted, and focus returns to the opener.
  */
 
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
@@ -20,6 +22,10 @@ interface ModalProps {
   maxWidth?: string;
 }
 
+/* Global stack of open modals — top of stack is the dialog that receives
+ * Escape (avoids closing multiple stacked dialogs on a single keypress). */
+const modalStack: Array<{ close: () => void }> = [];
+
 export default function Modal({
   isOpen,
   onClose,
@@ -31,6 +37,11 @@ export default function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const handleScrollHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
@@ -48,11 +59,45 @@ export default function Modal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      const top = modalStack[modalStack.length - 1];
+      if (top) top.close();
     };
     window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]);
+
+    /* Register this dialog as the newest (top-most). Scroll lock is
+     * ref-counted across all open modals, and focus is restored to the
+     * opener only when this dialog still owns focus (so closing a lower
+     * modal never steals focus from one opened above it). */
+    const close = () => onCloseRef.current();
+    modalStack.push({ close });
+    if (modalStack.length === 1) {
+      document.body.style.overflow = "hidden";
+    }
+    const opener = document.activeElement as HTMLElement | null;
+    const dialogEl = dialogRef.current;
+
+    return () => {
+      const idx = modalStack.findIndex((m) => m.close === close);
+      const own = idx >= 0 ? modalStack[idx] : null;
+      if (idx >= 0) modalStack.splice(idx, 1);
+      if (own) {
+        const active = document.activeElement as HTMLElement | null;
+        const inThisDialog = dialogEl?.contains(active);
+        if (
+          inThisDialog &&
+          opener &&
+          document.body.contains(opener)
+        ) {
+          opener.focus();
+        }
+      }
+      if (modalStack.length === 0) {
+        document.body.style.overflow = "";
+      }
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !dialogRef.current) return;
@@ -86,17 +131,6 @@ export default function Modal({
     };
     window.addEventListener("keydown", handleTab);
     return () => window.removeEventListener("keydown", handleTab);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [isOpen]);
 
   if (!mounted) return null;

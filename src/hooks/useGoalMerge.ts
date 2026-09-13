@@ -39,6 +39,14 @@ export function useGoalMerge<T extends Mergeable>({
 
   const getIsNewGoalIds = useCallback(() => isNewGoalIdsRef.current, []);
 
+  /* Clear glow/pulse timers on unmount to avoid setState-after-unmount. */
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+      if (clearPulseTimerRef.current) clearTimeout(clearPulseTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (generation === 0) return;
 

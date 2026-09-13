@@ -31,18 +31,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return true;
     const stored = localStorage.getItem("catarina-theme");
-    if (stored) {
-      document.documentElement.className = stored;
-      return stored === "dark";
-    }
-    document.documentElement.className = "dark";
-    return true;
+    const mode = stored === "light" ? "light" : "dark";
+    const root = document.documentElement;
+    root.classList.remove("light", "dark"); /* preserve any other classes on <html> */
+    root.classList.add(mode);
+    return mode === "dark";
   });
 
   /* Sync document class when isDark changes (via toggle) */
   useEffect(() => {
-    const mode = isDark ? "dark" : "light";
-    document.documentElement.className = mode;
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(isDark ? "dark" : "light");
   }, [isDark]);
 
   /* Toggle between dark and light themes */

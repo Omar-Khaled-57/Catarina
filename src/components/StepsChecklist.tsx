@@ -17,6 +17,7 @@ interface StepsChecklistProps {
   steps: GoalData["steps"];
   color: string;
   canToggle: boolean;
+  canEdit: boolean;
   onStepsChange: (steps: GoalData["steps"]) => void;
   onAllDone: () => void;
 }
@@ -26,6 +27,7 @@ export default function StepsChecklist({
   steps,
   color,
   canToggle,
+  canEdit,
   onStepsChange,
   onAllDone,
 }: StepsChecklistProps) {
@@ -41,38 +43,52 @@ export default function StepsChecklist({
   const doneCount = steps.filter((s) => s.done).length;
 
   const toggleStep = async (stepId: string, done: boolean) => {
+    const prev = steps;
     const updated = steps.map((s) => (s.id === stepId ? { ...s, done: !done } : s));
     onStepsChange(updated);
-    await fetch(`/api/steps/${stepId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done: !done }),
-    });
-    if (updated.length > 0 && updated.every((s) => s.done)) {
-      onAllDone();
+    try {
+      const res = await fetch(`/api/steps/${stepId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done: !done }),
+      });
+      if (!res.ok) throw new Error(`steps: ${res.status}`);
+      if (updated.length > 0 && updated.every((s) => s.done)) {
+        onAllDone();
+      }
+    } catch {
+      onStepsChange(prev); /* rollback on failure */
     }
   };
 
   const addStep = async () => {
     if (!newText.trim()) return;
-    const res = await fetch(`/api/goals/${goalId}/steps`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: newText.trim(), order: steps.length }),
-    });
-    if (!res.ok) {
-      toast.error("Failed to add step");
-      return;
+    const pendingText = newText.trim();
+    try {
+      const res = await fetch(`/api/goals/${goalId}/steps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: pendingText, order: steps.length }),
+      });
+      if (!res.ok) throw new Error(`steps: ${res.status}`);
+      const { step } = await res.json();
+      onStepsChange([...steps, step]);
+      setNewText("");
+      setIsAdding(false);
+    } catch {
+      toast.error("Failed to add step"); /* keep the draft so it's not lost */
     }
-    const { step } = await res.json();
-    onStepsChange([...steps, step]);
-    setNewText("");
-    setIsAdding(false);
   };
 
   const deleteStep = async (stepId: string) => {
+    const prev = steps;
     onStepsChange(steps.filter((s) => s.id !== stepId));
-    await fetch(`/api/steps/${stepId}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/steps/${stepId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`steps: ${res.status}`);
+    } catch {
+      onStepsChange(prev); /* rollback on failure */
+    }
   };
 
   return (
@@ -147,7 +163,7 @@ export default function StepsChecklist({
                   >
                     {step.text}
                   </span>
-                  {canToggle && (
+                  {canEdit && (
                     <button
                       onClick={() => deleteStep(step.id)}
                       className="opacity-0 group-hover/step:opacity-100 text-text-muted hover:text-danger transition-all text-[10px]"
@@ -173,7 +189,7 @@ export default function StepsChecklist({
                     className="flex-1 text-xs bg-transparent border-b border-accent/50 text-text placeholder:text-text-muted/40 focus:outline-none py-0.5"
                   />
                 </div>
-              ) : canToggle ? (
+              ) : canEdit ? (
                 <button
                   onClick={() => setIsAdding(true)}
                   className="flex items-center gap-2 text-[11px] text-text-muted hover:text-text px-2 py-1.5 rounded-lg hover:bg-surface-2/50 transition-colors"

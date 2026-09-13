@@ -2,10 +2,12 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Download, ExternalLink, FileText } from "lucide-react";
 import type { DirItem, EnvelopeData } from "./types";
 import { downloadItem } from "@/lib/download";
+
+const NOTICE_MS = 2600;
 
 export default function Envelope({
   envelope,
@@ -23,7 +25,30 @@ export default function Envelope({
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const files = envelope.items ?? [];
+
+  const clearNotice = () => {
+    if (noticeTimer.current) {
+      clearTimeout(noticeTimer.current);
+      noticeTimer.current = null;
+    }
+    setNotice(null);
+  };
+
+  const showNotice = (msg: string) => {
+    clearNotice();
+    setNotice(msg);
+    noticeTimer.current = setTimeout(() => {
+      noticeTimer.current = null;
+      setNotice(null);
+    }, NOTICE_MS);
+  };
+
+  /* Clear the notice timer on unmount to avoid a setState-after-unmount */
+  useEffect(() => () => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+  }, []);
 
   const openEnvelope = () => {
     if (!raised) {
@@ -39,16 +64,16 @@ export default function Envelope({
     } else {
       setIsOpen(true);
     }
-    setNotice(null);
+    clearNotice();
   };
 
   const handleFile = async (file: DirItem) => {
     if (file.type === "CODE") {
       try {
         await navigator.clipboard.writeText(file.content ?? file.name);
-        setNotice(`Copied ${file.name}`);
+        showNotice(`Copied ${file.name}`);
       } catch {
-        setNotice(`Copy ${file.name} from the browser`);
+        showNotice(`Copy ${file.name} from the browser`);
       }
       return;
     }
@@ -56,7 +81,7 @@ export default function Envelope({
       window.open(file.content, "_blank", "noopener,noreferrer");
       return;
     }
-    setNotice(`Opened ${file.name}`);
+    showNotice(`Opened ${file.name}`);
   };
 
   return (

@@ -11,8 +11,15 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    /* Fail fast with an actionable message instead of a confusing adapter crash. */
+    throw new Error(
+      "DATABASE_URL is not set. Add it to your environment (.env / .env.local) — e.g. a Turso libsql:// connection string or a local sqlite:// file."
+    );
+  }
   const adapter = new PrismaLibSql({
-    url: process.env.DATABASE_URL!,
+    url,
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
   return new PrismaClient({ adapter });

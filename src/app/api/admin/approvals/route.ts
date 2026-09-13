@@ -14,6 +14,16 @@ export async function GET() {
   const approvals = await prisma.approval.findMany({
     where: { status: "PENDING" },
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      section: true,
+      pfp: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   return NextResponse.json({ approvals });
@@ -95,7 +105,16 @@ export async function PUT(req: Request) {
       refType: "user",
     });
 
-    return NextResponse.json({ user, message: "User approved and created" });
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        pfp: user.pfp,
+        role: user.role,
+      },
+      message: "User approved and created",
+    });
   } else {
     /* Reject */
     await prisma.approval.update({

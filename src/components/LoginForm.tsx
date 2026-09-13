@@ -44,31 +44,37 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [sections, setSections] = useState<DynamicSection[]>(FALLBACK_SECTIONS);
 
-  /* Fetch dynamic sections */
-  useEffect(() => {
-    fetch("/api/sections")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.sections?.length) {
-          setSections(data.sections.map((s: DynamicSection) => ({
-            key: s.key,
-            label: s.label,
-            color: s.color,
-            prefix: s.prefix,
-          })));
-        }
-      })
-      .catch(() => {
-        /* Falls back to FALLBACK_SECTIONS — non-critical */
-      });
-  }, []);
-
   /* Form state */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [section, setSection] = useState<string>(FALLBACK_SECTIONS[0].key);
   const [pfp, setPfp] = useState<File | null>(null);
+
+  /* Fetch dynamic sections */
+  useEffect(() => {
+    fetch("/api/sections")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.sections?.length) {
+          const mapped = data.sections.map((s: DynamicSection) => ({
+            key: s.key,
+            label: s.label,
+            color: s.color,
+            prefix: s.prefix,
+          }));
+          setSections(mapped);
+          /* Default section is initially a fallback key; if it isn't in the
+             live list, re-anchor it so registration sends a valid section. */
+          setSection((prev) =>
+            mapped.some((s: DynamicSection) => s.key === prev) ? prev : mapped[0].key
+          );
+        }
+      })
+      .catch(() => {
+        /* Falls back to FALLBACK_SECTIONS — non-critical */
+      });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

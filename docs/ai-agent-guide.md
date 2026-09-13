@@ -127,7 +127,7 @@ then `node --env-file=.env turso-push.mjs`. The CLI never touches Turso.
 | Notifications | `GET /api/notifications?unread=&since=` → `{notifications, unreadCount}` · `PATCH {id,read?,pinned?}|{markAllRead}` · `DELETE {id}|{clearRead}` · `POST /api/updates/seen` |
 | Upload | `POST /api/upload` (FormData `file`, RL 20/min, base64 data-URI response) |
 | Sections | `GET /api/sections` (active only) · admin: `GET/POST /api/admin/sections`, `PUT/DELETE /api/admin/sections/[id]` (soft delete) |
-| Months | `GET /api/months` · `POST /api/months/create` (carry-over unfinished goals) · `DELETE /api/months/[id]` (admin) |
+| Months | `GET /api/months` · `POST /api/months/create` (carry-over unfinished goals) · `DELETE /api/months/[id]` (admin, soft-archives: sets isArchived, data preserved) |
 | Goals | `GET /api/goals` · `POST /api/goals` · `GET/PUT/DELETE /api/goals/[id]` · `PATCH /api/goals/[id]/toggle` · `GET/POST /api/goals/[id]/steps` · `GET/PUT /api/goals/[id]/assignments` (admin) · `GET/POST /api/goals/[id]/comments` |
 | Steps | `PUT/DELETE /api/steps/[stepId]` |
 | Users | `GET /api/users?section=` (assignment picker) · admin: `GET /api/admin/users`, `POST /api/admin/users/create`, `PUT/DELETE /api/admin/users/[userId]`, `PUT /api/admin/users/[userId]/sections`, `POST /api/admin/users/[userId]/promote` |

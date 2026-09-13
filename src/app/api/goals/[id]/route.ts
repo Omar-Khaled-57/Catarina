@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireAdmin, requireGoalAccess, getUserContext, validateGoalFields, jsonError } from "@/lib/api-helpers";
+import { requireUser, requireAdmin, requireGoalAccess, getUserContext, getGoalCapabilities, validateGoalFields, jsonError } from "@/lib/api-helpers";
 import { ROLE_ADMIN } from "@/lib/constants";
 
 interface Params {
@@ -16,7 +16,8 @@ export async function GET(_req: Request, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const goal = await prisma.goal.findUnique({
@@ -57,7 +58,8 @@ export async function PUT(req: Request, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const access = await requireGoalAccess(auth.data.userId, auth.data.role, id);
+  const ctx = await getUserContext(auth.data.userId);
+  const access = await requireGoalAccess(auth.data.userId, ctx.role, id);
   if (!access.ok) return access.response;
 
   const body = await req.json().catch(() => null);
@@ -69,7 +71,7 @@ export async function PUT(req: Request, { params }: Params) {
   if (!fields.ok) return jsonError(fields.message, 400);
 
   /* Non-admins cannot change the deadline */
-  if (auth.data.role !== ROLE_ADMIN && fields.data.deadline) {
+  if (ctx.role !== ROLE_ADMIN && fields.data.deadline) {
     const existing = await prisma.goal.findUnique({
       where: { id },
       select: { deadline: true },
@@ -82,12 +84,16 @@ export async function PUT(req: Request, { params }: Params) {
     }
   }
 
-  /* Members need canEditGoals to modify a goal's content */
-  if (auth.data.role !== ROLE_ADMIN) {
-    const ctx = await getUserContext(auth.data.userId);
-    if (!ctx.permissions.canEditGoals) {
-      return jsonError("You don't have permission to edit goals", 403);
-    }
+  /* Mirror the UI: goal edits require admin, a canEdit assignment, or the
+   * role-level canEditGoals permission (for unassigned members). */
+  const cap = await getGoalCapabilities(
+    auth.data.userId,
+    ctx.role,
+    ctx.permissions,
+    id
+  );
+  if (!cap.canEdit) {
+    return jsonError("You don't have permission to edit this goal", 403);
   }
 
   const goal = await prisma.goal.update({
@@ -99,7 +105,7 @@ export async function PUT(req: Request, { params }: Params) {
       ...(fields.data.target !== undefined && { target: fields.data.target }),
       ...(fields.data.deadline !== undefined && {
         deadline: fields.data.deadline,
-        deadlineSetByAdmin: auth.data.role === ROLE_ADMIN,
+        deadlineSetByAdmin: ctx.role === ROLE_ADMIN,
       }),
     },
   });

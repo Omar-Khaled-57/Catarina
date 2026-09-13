@@ -43,7 +43,7 @@ export default function MonthSelector({
         if (!res.ok) throw new Error("Failed to load months");
         return res.json();
       })
-      .then((data) => setMonths(data.months || []))
+      .then((data) => setMonths((data.months || []).filter((m: MonthData) => !m.isArchived)))
       .catch(() => {});
   }, []);
 

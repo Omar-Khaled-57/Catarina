@@ -5,7 +5,7 @@
  * Card-based layout with editable progress, steps, and colorful notes.
  */
 
-import { useState, useEffect, useCallback, useMemo, use } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, use } from "react";
 import { notFound, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -39,6 +39,7 @@ export default function SectionPage({
   const permissions = user?.permissions || { canEditGoals: false, canDeleteGoals: false, canCreateGoals: true, canManageMembers: false, canCreateMonths: false };
 
   const [sectionColor, setSectionColor] = useState("var(--accent)");
+  const [sectionPrefixes, setSectionPrefixes] = useState<Record<string, string> | undefined>(undefined);
 
   /* Goal highlight from notification deep link */
   const [highlightGoalId, setHighlightGoalId] = useState<string | null>(null);
@@ -58,8 +59,18 @@ export default function SectionPage({
         } else {
           notFound();
         }
+        /* Share real DB prefixes with goal cards (fallback: first 3 letters) */
+        const prefixMap: Record<string, string> = {};
+        for (const s of secs as { key: string; prefix?: string }[]) {
+          prefixMap[s.key] = s.prefix?.trim() || s.key.slice(0, 3);
+        }
+        setSectionPrefixes(prefixMap);
       })
-      .catch(() => notFound());
+      .catch(() => {
+        /* Network/server error — keep the default accent instead of a
+           misleading "not found" page (invalid sections 404 via the branch
+           above). */
+      });
   }, [section]);
 
   const [monthId, setMonthId] = useState<string | null>(null);
@@ -87,19 +98,23 @@ export default function SectionPage({
 
   const color = sectionColor;
 
-  /* Fetch goals for selected month + section */
+  /* Fetch goals for selected month + section — guard against out-of-order
+     * responses when the user switches months mid-flight. */
+  const fetchSeqRef = useRef(0);
   const fetchGoals = useCallback(
     async (mId: string) => {
+      const seq = ++fetchSeqRef.current;
       setIsLoading(true);
       try {
         const res = await fetch(`/api/goals?monthId=${mId}&section=${section}`);
         if (!res.ok) throw new Error("Failed to load goals");
         const data = await res.json();
+        if (fetchSeqRef.current !== seq) return;
         setGoals(data.goals || []);
       } catch {
-        setGoals([]);
+        if (fetchSeqRef.current === seq) setGoals([]);
       } finally {
-        setIsLoading(false);
+        if (fetchSeqRef.current === seq) setIsLoading(false);
       }
     },
     [section]
@@ -114,7 +129,12 @@ export default function SectionPage({
       })
       .then((data) => {
         if (data.months?.length > 0) {
-          const latest = data.months[data.months.length - 1];
+          /* Prefer the latest non-archived month so an archived one isn't
+             auto-selected as the working month. */
+          const latestActive = [...data.months]
+            .reverse()
+            .find((m: { isArchived?: boolean }) => !m.isArchived);
+          const latest = latestActive ?? data.months[data.months.length - 1];
           setMonthId(latest.id);
           fetchGoals(latest.id);
         } else {
@@ -125,30 +145,58 @@ export default function SectionPage({
   }, [fetchGoals]);
 
   /* ─── Goal Highlight from Deep Link ─────────────────────────────────────── */
+  /* Runs only when the `goalId` search param changes — depending on `goals`
+     would re-fire on every realtime merge, re-scrolling mid-use. The goal
+     element is waited for via a short polling loop. */
   useEffect(() => {
     const goalId = searchParams.get("goalId");
-    if (!goalId || goals.length === 0) return;
+    if (!goalId) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggered by URL-driven deep link, not cascading render
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL-driven deep link, not cascading render
     setHighlightGoalId(goalId);
 
-    /* Scroll to the goal element */
-    const el = document.getElementById(`goal-${goalId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    let cancelled = false;
+    let scrollTimer: ReturnType<typeof setInterval> | null = null;
+    let clearTimer: ReturnType<typeof setTimeout> | null = null;
+    const startedAt = Date.now();
 
-    /* Clear highlight after 5.1s (6 pulses × 0.85s) */
-    const t = setTimeout(() => {
+    const clearHighlight = () => {
       setHighlightGoalId(null);
       /* Remove goalId from URL without reload */
       const url = new URL(window.location.href);
       url.searchParams.delete("goalId");
       window.history.replaceState({}, "", url.toString());
-    }, 5100);
+    };
 
-    return () => clearTimeout(t);
-  }, [searchParams, goals]);
+    const attempt = () => {
+      if (cancelled || clearTimer) return;
+      const el = document.getElementById(`goal-${goalId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        clearTimer = setTimeout(clearHighlight, 5100);
+        if (scrollTimer) {
+          clearInterval(scrollTimer);
+          scrollTimer = null;
+        }
+      } else if (Date.now() - startedAt > 6000) {
+        /* Give up waiting for the goal to appear */
+        clearHighlight();
+        if (scrollTimer) {
+          clearInterval(scrollTimer);
+          scrollTimer = null;
+        }
+      }
+    };
+
+    scrollTimer = setInterval(attempt, 200);
+    attempt();
+
+    return () => {
+      cancelled = true;
+      if (scrollTimer) clearInterval(scrollTimer);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
+  }, [searchParams]);
 
   /* ─── Realtime Sync ──────────────────────────────────────────────────────── */
   const { generation, snapshotRef } = useRealtimeSync({
@@ -307,6 +355,9 @@ export default function SectionPage({
           prev.map((g) => (g.id === goalId ? prevGoal : g))
         );
       }
+      /* Re-throw so GoalForm can surface the failure distinctly instead of
+       * silently keeping the modal open for a duplicate-create retry. */
+      throw new Error("Failed to save assignments");
     }
   };
 
@@ -396,13 +447,24 @@ export default function SectionPage({
       prev.map((g) => (g.id === goalId ? { ...g, done: true } : g))
     );
     try {
-      await fetch(`/api/goals/${goalId}/toggle`, {
+      const res = await fetch(`/api/goals/${goalId}/toggle`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ done: true }),
       });
+      if (!res.ok) {
+        setGoals((prev) =>
+          prev.map((g) => (g.id === goalId ? { ...g, done: false } : g))
+        );
+        toast.error("Failed to auto-complete goal");
+      } else {
+        suppressNextToast();
+      }
     } catch {
-      fetchGoals(monthId!);
+      setGoals((prev) =>
+        prev.map((g) => (g.id === goalId ? { ...g, done: false } : g))
+      );
+      toast.error("Failed to auto-complete goal");
     }
   };
 
@@ -674,6 +736,7 @@ export default function SectionPage({
                 onComment={openComment}
                 onProgressChange={handleProgressChange}
                 onAutoComplete={handleAutoComplete}
+                sectionPrefixes={sectionPrefixes}
                 isNew={getIsNewGoalIds().has(goal.id)}
                 highlight={highlightGoalId === goal.id}
               />
