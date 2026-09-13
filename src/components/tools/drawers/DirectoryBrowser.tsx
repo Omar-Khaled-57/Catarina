@@ -378,12 +378,14 @@ function CopyButton({
 function FileDetail({
   file,
   color,
+  fetchContent,
   onRename,
   onUpdateContent,
   onDone,
 }: {
   file: DirItem;
   color: string;
+  fetchContent?: (fileId: string) => Promise<string>;
   onRename: (name: string) => void;
   onUpdateContent: (content: string) => void;
   onDone: () => void;
@@ -391,6 +393,31 @@ function FileDetail({
   const ItemIcon = ITEM_ICONS[file.type];
   const [value, setValue] = useState(file.name);
   const [draft, setDraft] = useState(file.content ?? "");
+  const isTextish =
+    file.type !== "IMAGE" && file.type !== "VIDEO" && file.type !== "LINK";
+  const [contentLoading, setContentLoading] = useState(
+    () => !!fetchContent && isTextish && !file.content,
+  );
+
+  /* Drive-backed text items arrive without content (lazily fetched on open). */
+  useEffect(() => {
+    if (!fetchContent || !isTextish || file.content) return;
+    let cancelled = false;
+    fetchContent(file.id)
+      .then((text) => {
+        if (!cancelled) setDraft(text);
+      })
+      .catch(() => {
+        /* Leave the textarea empty — the user can still type content. */
+      })
+      .finally(() => {
+        if (!cancelled) setContentLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id, fetchContent]);
 
   const commitName = () => onRename(value.trim() || file.name);
   const commitContent = () => onUpdateContent(draft);
@@ -503,7 +530,14 @@ function FileDetail({
               <span className="text-[11px] font-semibold tracking-wide text-text-muted uppercase">
                 Content
               </span>
-              <CopyButton value={draft} disabled={!draft.trim()} />
+              <div className="flex items-center gap-2">
+                {contentLoading && (
+                  <span className="text-[11px] text-text-muted italic">
+                    Loading from Drive…
+                  </span>
+                )}
+                <CopyButton value={draft} disabled={!draft.trim()} />
+              </div>
             </div>
             <textarea
               value={draft}
@@ -612,12 +646,14 @@ function EditorRow({
 function FileForm({
   existingCount,
   color,
+  cloudMode,
   onCreate,
   onCancel,
 }: {
   existingCount: number;
   color: string;
-  onCreate: (item: Omit<DirItem, "id">) => void;
+  cloudMode?: boolean;
+  onCreate: (item: Omit<DirItem, "id"> & { file?: File }) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState("");
@@ -722,6 +758,7 @@ function FileForm({
       name: finalName,
       type,
       ...(contentValue ? { content: contentValue } : {}),
+      ...(upload ? { file: upload } : {}),
     });
   };
 
@@ -807,7 +844,11 @@ function FileForm({
         <span className="font-medium text-text">
           Upload image, video or any file
         </span>
-        <span>Stored locally for now — cloud storage comes later</span>
+        <span>
+          {cloudMode
+            ? "Uploads straight into Google Drive"
+            : "Stored locally for now — cloud storage comes later"}
+        </span>
         <input
           type="file"
           className="sr-only"
@@ -1003,6 +1044,8 @@ export default function DirectoryBrowser({
   color,
   activeProject,
   focusTarget,
+  cloudMode = false,
+  fetchContent,
   onOpenProject,
   onAddProject,
   onAddEnvelope,
@@ -1020,13 +1063,15 @@ export default function DirectoryBrowser({
   color: string;
   activeProject: DemoProject | null;
   focusTarget: { envelopeId: string | null; fileId: string } | null;
+  cloudMode?: boolean;
+  fetchContent?: (fileId: string) => Promise<string>;
   onOpenProject: (id: string | null) => void;
   onAddProject: () => void;
   onAddEnvelope: (projectId: string) => void;
   onCreateFile: (
     projectId: string,
     envId: string | null,
-    item: Omit<DirItem, "id">,
+    item: Omit<DirItem, "id"> & { file?: File },
   ) => void;
   onRenameProject: (id: string, name: string) => void;
   onRenameEnvelope: (
@@ -1262,6 +1307,7 @@ export default function DirectoryBrowser({
               <FileDetail
                 file={runningFile}
                 color={color}
+                fetchContent={cloudMode ? fetchContent : undefined}
                 onRename={(name) =>
                   activeProject &&
                   onRenameItem(
@@ -1736,6 +1782,7 @@ onClick={() =>
                     : looseFiles.length
                 }
                 color={color}
+                cloudMode={cloudMode}
                 onCreate={(item) => {
                   if (activeProject) onCreateFile(activeProject.id, dialog.envId, item);
                   closeDialog();

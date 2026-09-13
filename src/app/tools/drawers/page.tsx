@@ -144,6 +144,10 @@ const DEMO_SECTIONS: DemoSection[] = [
 ];
 
 export default function DrawersPage() {
+  const driveEnabled = Boolean(
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+  );
+
   return (
     <div className="space-y-20 overflow-x-clip">
       <header className="space-y-2">
@@ -152,7 +156,7 @@ export default function DrawersPage() {
             The Drawers
           </h1>
           <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent uppercase">
-            Visual demo
+            {driveEnabled ? "Google Drive storage" : "Visual demo"}
           </span>
         </div>
         <p className="max-w-2xl text-sm text-text-muted">
@@ -162,7 +166,7 @@ export default function DrawersPage() {
         </p>
       </header>
 
-      <DrawersWorkshop sections={DEMO_SECTIONS} />
+      <DrawersWorkshop sections={DEMO_SECTIONS} driveEnabled={driveEnabled} />
     </div>
   );
 }

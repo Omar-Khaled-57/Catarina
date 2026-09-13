@@ -14,8 +14,9 @@
  * animates. The backdrop fades separately as a sibling.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Check, Loader2, PlugZap } from "lucide-react";
 import SectionChest from "@/components/tools/drawers/SectionChest";
 import DirectoryBrowser from "@/components/tools/drawers/DirectoryBrowser";
 import type {
@@ -31,10 +32,21 @@ let demoIdSeq = 0;
 
 type FocusTarget = { envelopeId: string | null; fileId: string } | null;
 
+type DriveState = {
+  enabled: boolean;
+  connected: boolean;
+  googleEmail: string | null;
+  syncing: boolean;
+};
+
+type CreateItem = Omit<DirItem, "id"> & { file?: File };
+
 export default function DrawersWorkshop({
   sections: initialSections,
+  driveEnabled = false,
 }: {
   sections: DemoSection[];
+  driveEnabled?: boolean;
 }) {
   const [sections, setSections] = useState<DemoSection[]>(initialSections);
   const [colors, setColors] = useState<Record<string, string>>(() =>
@@ -382,6 +394,368 @@ export default function DrawersWorkshop({
     }));
   };
 
+  /* ---- Google Drive layer -------------------------------------------------
+     When a connection is live, every mutation goes through the Drive API and
+     the section tree is re-synced afterwards. Without a connection (or when
+     Drive isn't configured) the in-memory demo behaves exactly as before. */
+
+  const [drive, setDrive] = useState<DriveState>({
+    enabled: driveEnabled,
+    connected: false,
+    googleEmail: null,
+    syncing: false,
+  });
+  const [driveNotice, setDriveNotice] = useState<string | null>(null);
+  const sectionFolderIds = useRef<Record<string, string>>({});
+  const noticeTimer = useRef<number | null>(null);
+
+  const driveMode = drive.enabled && drive.connected;
+
+  const notify = (message: string | null) => {
+    setDriveNotice(message);
+    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+    if (message) {
+      noticeTimer.current = window.setTimeout(() => setDriveNotice(null), 5000);
+    }
+  };
+
+  useEffect(
+    () => () => {
+      if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
+
+  const api = async (path: string, init?: RequestInit): Promise<Response> => {
+    const isForm = init?.body instanceof FormData;
+    const res = await fetch(path, {
+      ...init,
+      headers: isForm
+        ? undefined
+        : { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(data?.error ?? `Request failed (${res.status})`);
+    }
+    return res;
+  };
+
+  const refreshSection = async (sectionKey: string) => {
+    const res = await api(
+      `/api/drive/tree?section=${encodeURIComponent(sectionKey)}`,
+    );
+    const data = (await res.json()) as {
+      section: DemoSection;
+      sectionFolderId: string;
+    };
+    sectionFolderIds.current[sectionKey] = data.sectionFolderId;
+    setSections((prev) =>
+      prev.map((s) =>
+        s.key === sectionKey ? { ...data.section, key: s.key } : s,
+      ),
+    );
+  };
+
+  const runDrive = async (
+    label: string,
+    sectionKey: string,
+    action: () => Promise<Response>,
+  ) => {
+    try {
+      await action();
+      await refreshSection(sectionKey);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : `Failed to ${label}.`);
+    }
+  };
+
+  const sectionCount = (sectionKey: string) =>
+    sections.find((s) => s.key === sectionKey)?.projects.length ?? 0;
+  const projectCount = (sectionKey: string, projectId: string) =>
+    sections
+      .find((s) => s.key === sectionKey)
+      ?.projects.find((p) => p.id === projectId);
+  const looseFileCount = (sectionKey: string, projectId: string) =>
+    projectCount(sectionKey, projectId)?.items?.length ?? 0;
+  const envelopeCount = (sectionKey: string, projectId: string) =>
+    projectCount(sectionKey, projectId)?.envelopes.length ?? 0;
+
+  const driveAddProject = (sectionKey: string) => {
+    const parentId = sectionFolderIds.current[sectionKey];
+    if (!parentId) return;
+    const name = `Drawer ${sectionCount(sectionKey) + 1}`;
+    void runDrive("create drawer", sectionKey, () =>
+      api("/api/drive/folders", {
+        method: "POST",
+        body: JSON.stringify({ parentId, name }),
+      }),
+    );
+  };
+
+  const driveRenameFolder = (sectionKey: string, id: string, name: string) => {
+    void runDrive("rename", sectionKey, () =>
+      api(`/api/drive/folders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      }),
+    );
+  };
+
+  const driveDeleteFolder = (sectionKey: string, id: string) => {
+    void runDrive("delete", sectionKey, () =>
+      api(`/api/drive/folders/${id}`, { method: "DELETE" }),
+    );
+  };
+
+  const driveAddEnvelope = (sectionKey: string, projectId: string) => {
+    const name = `Envelope ${envelopeCount(sectionKey, projectId) + 1}`;
+    void runDrive("create envelope", sectionKey, () =>
+      api("/api/drive/folders", {
+        method: "POST",
+        body: JSON.stringify({ parentId: projectId, name }),
+      }),
+    );
+  };
+
+  const driveQuickAddItem = (sectionKey: string, projectId: string) => {
+    const name = `file ${looseFileCount(sectionKey, projectId) + 1}`;
+    void runDrive("create file", sectionKey, () =>
+      api("/api/drive/files/json", {
+        method: "POST",
+        body: JSON.stringify({ parentId: projectId, name, type: "FILE" }),
+      }),
+    );
+  };
+
+  const driveCreateFile = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    item: CreateItem,
+  ) => {
+    const parentId = envelopeId ?? projectId;
+    const action = () => {
+      if (item.file) {
+        const form = new FormData();
+        form.set("parentId", parentId);
+        form.set("name", item.name);
+        form.set("file", item.file);
+        return api("/api/drive/files", { method: "POST", body: form });
+      }
+      const isLink = item.type === "LINK";
+      return api("/api/drive/files/json", {
+        method: "POST",
+        body: JSON.stringify({
+          parentId,
+          name: item.name,
+          type: item.type,
+          ...(!isLink && item.content ? { content: item.content } : {}),
+          ...(isLink && item.content ? { link: item.content } : {}),
+        }),
+      });
+    };
+    void runDrive("create file", sectionKey, action);
+  };
+
+  const driveRenameItem = (
+    sectionKey: string,
+    _projectId: string,
+    _envelopeId: string | null,
+    itemId: string,
+    name: string,
+  ) => {
+    void runDrive("rename", sectionKey, () =>
+      api(`/api/drive/files/${itemId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      }),
+    );
+  };
+
+  const driveUpdateFileContent = (
+    sectionKey: string,
+    _projectId: string,
+    _envelopeId: string | null,
+    itemId: string,
+    content: string,
+  ) => {
+    void runDrive("save content", sectionKey, () =>
+      api(`/api/drive/files/${itemId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ content }),
+      }),
+    );
+  };
+
+  const driveRemoveItem = (
+    sectionKey: string,
+    _projectId: string,
+    _envelopeId: string | null,
+    itemId: string,
+  ) => {
+    void runDrive("delete", sectionKey, () =>
+      api(`/api/drive/files/${itemId}`, { method: "DELETE" }),
+    );
+  };
+
+  const driveGroupItems = (
+    sectionKey: string,
+    projectId: string,
+    itemIds: string[],
+  ) => {
+    const name = `Envelope ${envelopeCount(sectionKey, projectId) + 1}`;
+    void (async () => {
+      try {
+        const res = await api("/api/drive/folders", {
+          method: "POST",
+          body: JSON.stringify({ parentId: projectId, name }),
+        });
+        const { id: envelopeId } = (await res.json()) as { id: string };
+        for (const fileId of itemIds) {
+          await api(`/api/drive/files/${fileId}/move`, {
+            method: "POST",
+            body: JSON.stringify({ parentId: envelopeId, oldParentId: projectId }),
+          });
+        }
+        await refreshSection(sectionKey);
+      } catch (error) {
+        notify(error instanceof Error ? error.message : "Failed to group files.");
+      }
+    })();
+  };
+
+  const connectDrive = async () => {
+    try {
+      const res = await api("/api/drive/auth-url");
+      const { url } = (await res.json()) as { url?: string };
+      if (url) window.location.assign(url);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Failed to connect.");
+    }
+  };
+
+  const disconnectDrive = async () => {
+    try {
+      await api("/api/drive/disconnect", { method: "POST" });
+      setDrive((d) => ({ ...d, connected: false, googleEmail: null }));
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Failed to disconnect.");
+    }
+  };
+
+  const fetchDriveContent = async (fileId: string): Promise<string> => {
+    const res = await api(`/api/drive/files/${fileId}/content`);
+    return res.text();
+  };
+
+  useEffect(() => {
+    if (!driveEnabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = (await api("/api/drive/status").then((r) => r.json())) as {
+          enabled: boolean;
+          connected: boolean;
+          googleEmail: string | null;
+        };
+        if (cancelled) return;
+        if (!status.connected) {
+          setDrive({ enabled: status.enabled, connected: false, googleEmail: null, syncing: false });
+          return;
+        }
+        setDrive({ enabled: true, connected: true, googleEmail: status.googleEmail, syncing: true });
+        for (const key of initialSections.map((s) => s.key)) {
+          if (cancelled) return;
+          await refreshSection(key).catch(() => undefined);
+        }
+        if (!cancelled) setDrive((d) => ({ ...d, syncing: false }));
+      } catch {
+        if (!cancelled) setDrive((d) => ({ ...d, enabled: true, syncing: false }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driveEnabled]);
+
+  /* Handlers choose between the Drive API and the local demo. */
+  const handleAddProject = (sectionKey: string) => {
+    if (driveMode) return driveAddProject(sectionKey);
+    addProject(sectionKey);
+  };
+  const handleRemoveProject = (sectionKey: string, id: string) => {
+    if (driveMode) return driveDeleteFolder(sectionKey, id);
+    removeProject(sectionKey, id);
+  };
+  const handleAddEnvelope = (sectionKey: string, projectId: string) => {
+    if (driveMode) return driveAddEnvelope(sectionKey, projectId);
+    addEnvelope(sectionKey, projectId);
+  };
+  const handleAddItem = (sectionKey: string, projectId: string) => {
+    if (driveMode) return driveQuickAddItem(sectionKey, projectId);
+    addItem(sectionKey, projectId);
+  };
+  const handleRenameProject = (sectionKey: string, id: string, name: string) => {
+    if (driveMode) return driveRenameFolder(sectionKey, id, name);
+    renameProject(sectionKey, id, name);
+  };
+  const handleRenameEnvelope = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    name: string,
+  ) => {
+    if (driveMode) {
+      if (envelopeId) driveRenameFolder(sectionKey, envelopeId, name);
+      return;
+    }
+    if (envelopeId) renameEnvelope(sectionKey, projectId, envelopeId, name);
+  };
+  const handleCreateFile = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    item: CreateItem,
+  ) => {
+    if (driveMode) return driveCreateFile(sectionKey, projectId, envelopeId, item);
+    createFile(sectionKey, projectId, envelopeId, item);
+  };
+  const handleRenameItem = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    itemId: string,
+    name: string,
+  ) => {
+    if (driveMode) return driveRenameItem(sectionKey, projectId, envelopeId, itemId, name);
+    renameItem(sectionKey, projectId, envelopeId, itemId, name);
+  };
+  const handleUpdateFileContent = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    itemId: string,
+    content: string,
+  ) => {
+    if (driveMode) return driveUpdateFileContent(sectionKey, projectId, envelopeId, itemId, content);
+    updateFileContent(sectionKey, projectId, envelopeId, itemId, content);
+  };
+  const handleRemoveItem = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    itemId: string,
+  ) => {
+    if (driveMode) return driveRemoveItem(sectionKey, projectId, envelopeId, itemId);
+    removeFile(sectionKey, projectId, envelopeId, itemId);
+  };
+  const handleGroupItems = (sectionKey: string, projectId: string, itemIds: string[]) => {
+    if (driveMode) return driveGroupItems(sectionKey, projectId, itemIds);
+    groupItems(sectionKey, projectId, itemIds);
+  };
+
   const toggleOpen = (sectionKey: string, id: string | null) => {
     setOpenIds((prev) => {
       if (id === null) return { ...prev, [sectionKey]: null };
@@ -423,6 +797,56 @@ export default function DrawersWorkshop({
 
   return (
     <>
+      {driveEnabled && (
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-3 text-sm">
+          {drive.connected ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+                <Check className="size-3.5" />
+                Google Drive
+              </span>
+              {drive.googleEmail && (
+                <span className="text-xs text-text-muted">
+                  {drive.googleEmail}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={disconnectDrive}
+                className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-text"
+              >
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-text-muted">
+                Files stay in your browser for now.
+              </span>
+              <button
+                type="button"
+                onClick={connectDrive}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-transform duration-150 ease-out hover:scale-[1.03] hover:brightness-110 active:scale-95"
+              >
+                <PlugZap className="size-3.5" />
+                Connect Google Drive
+              </button>
+            </>
+          )}
+          {drive.syncing && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-text-muted italic">
+              <Loader2 className="size-3.5 animate-spin" />
+              Syncing drawers…
+            </span>
+          )}
+          {driveNotice && (
+            <span className="text-xs font-medium text-red-600 dark:text-red-400">
+              {driveNotice}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="grid items-end justify-items-center gap-20 lg:grid-cols-2">
         {sections.map((section) => {
           const hiddenInGrid = focusedKey === section.key;
@@ -439,10 +863,10 @@ export default function DrawersWorkshop({
                 projects={section.projects}
                 openId={openIds[section.key] ?? null}
                 onOpenProject={(id) => toggleOpen(section.key, id)}
-                onAddProject={() => addProject(section.key)}
-                onRemoveProject={(id) => removeProject(section.key, id)}
-                onAddEnvelope={(pid) => addEnvelope(section.key, pid)}
-                onAddItem={(pid) => addItem(section.key, pid)}
+                onAddProject={() => handleAddProject(section.key)}
+                onRemoveProject={(id) => handleRemoveProject(section.key, id)}
+                onAddEnvelope={(pid) => handleAddEnvelope(section.key, pid)}
+                onAddItem={(pid) => handleAddItem(section.key, pid)}
                 onFocus={() => enterFocus(section.key)}
                 onFocusProject={(pid, envId, fileId) =>
                   focusProject(section.key, pid, envId, fileId)
@@ -501,10 +925,10 @@ export default function DrawersWorkshop({
                   projects={focused.projects}
                   openId={focusedOpenId}
                   onOpenProject={(id) => toggleOpen(focused.key, id)}
-                  onAddProject={() => addProject(focused.key)}
-                  onRemoveProject={(id) => removeProject(focused.key, id)}
-                  onAddEnvelope={(pid) => addEnvelope(focused.key, pid)}
-                  onAddItem={(pid) => addItem(focused.key, pid)}
+                  onAddProject={() => handleAddProject(focused.key)}
+                  onRemoveProject={(id) => handleRemoveProject(focused.key, id)}
+                  onAddEnvelope={(pid) => handleAddEnvelope(focused.key, pid)}
+                  onAddItem={(pid) => handleAddItem(focused.key, pid)}
                   onFocus={null}
                 />
               </motion.div>
@@ -522,30 +946,32 @@ export default function DrawersWorkshop({
                     color={colors[focused.key] ?? focused.color}
                     activeProject={activeProject}
                     focusTarget={focusTarget}
+                    cloudMode={driveMode}
+                    fetchContent={driveMode ? fetchDriveContent : undefined}
                     onOpenProject={(id) => toggleOpen(focused.key, id)}
-                    onAddProject={() => addProject(focused.key)}
-                    onAddEnvelope={(pid) => addEnvelope(focused.key, pid)}
+                    onAddProject={() => handleAddProject(focused.key)}
+                    onAddEnvelope={(pid) => handleAddEnvelope(focused.key, pid)}
                     onCreateFile={(pid, envId, item) =>
-                      createFile(focused.key, pid, envId, item)
+                      handleCreateFile(focused.key, pid, envId, item)
                     }
                     onRenameProject={(id, name) =>
-                      renameProject(focused.key, id, name)
+                      handleRenameProject(focused.key, id, name)
                     }
                     onRenameEnvelope={(pid, envId, name) =>
-                      renameEnvelope(focused.key, pid, envId, name)
+                      handleRenameEnvelope(focused.key, pid, envId, name)
                     }
                     onRenameItem={(pid, envId, itemId, name) =>
-                      renameItem(focused.key, pid, envId, itemId, name)
+                      handleRenameItem(focused.key, pid, envId, itemId, name)
                     }
                     onUpdateFileContent={(pid, envId, itemId, content) =>
-                      updateFileContent(focused.key, pid, envId, itemId, content)
+                      handleUpdateFileContent(focused.key, pid, envId, itemId, content)
                     }
                     onRemoveItem={(pid, envId, itemId) =>
-                      removeFile(focused.key, pid, envId, itemId)
+                      handleRemoveItem(focused.key, pid, envId, itemId)
                     }
-                    onDeleteProject={(id) => removeProject(focused.key, id)}
+                    onDeleteProject={(id) => handleRemoveProject(focused.key, id)}
                     onGroupItems={(pid, itemIds) =>
-                      groupItems(focused.key, pid, itemIds)
+                      handleGroupItems(focused.key, pid, itemIds)
                     }
                     onClose={exitFocus}
                   />

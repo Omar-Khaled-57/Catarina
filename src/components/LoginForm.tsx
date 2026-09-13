@@ -17,6 +17,7 @@ import SectionDropdown from "@/components/SectionDropdown";
 import { FALLBACK_SECTIONS } from "@/types";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
 
 interface DynamicSection {
   key: string;
@@ -108,7 +109,7 @@ export default function LoginForm() {
   const toggleMode = () => setIsRegister((prev) => !prev);
 
   return (
-    <div id="main-content" className="flex min-h-screen items-center justify-center p-4 pt-16 pb-48">
+    <div id="main-content" className="flex min-h-screen flex-col items-center justify-center p-4 pt-16 pb-24">
       {/* Background glow effect */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/5 blur-[120px] rounded-full" />
@@ -281,6 +282,25 @@ export default function LoginForm() {
             </button>
           </motion.div>
         </motion.div>
+
+        {/* Legal */}
+        <p className="mt-5 text-center text-[11px] text-text-muted/60">
+          By continuing you agree to Catarina&apos;s{" "}
+          <Link
+            href="/terms"
+            className="font-medium text-text-muted underline underline-offset-2 transition-colors hover:text-accent"
+          >
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="font-medium text-text-muted underline underline-offset-2 transition-colors hover:text-accent"
+          >
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

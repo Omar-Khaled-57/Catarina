@@ -36,26 +36,42 @@ export default function Footer() {
             </span>
           </div>
 
-          {/* Center: Links */}
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-text-muted">
-            <Link
-              href="/dashboard"
-              className="hover:text-accent transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/tools"
-              className="hover:text-accent transition-colors"
-            >
-              Cabinet
-            </Link>
-            <Link
-              href="/dashboard/archive"
-              className="hover:text-accent transition-colors"
-            >
-              Archive
-            </Link>
+          {/* Center: Links, with legal links underneath them */}
+          <div className="flex flex-col items-center justify-center gap-2 text-xs text-text-muted">
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/dashboard"
+                className="hover:text-accent transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/tools"
+                className="hover:text-accent transition-colors"
+              >
+                Cabinet
+              </Link>
+              <Link
+                href="/dashboard/archive"
+                className="hover:text-accent transition-colors"
+              >
+                Archive
+              </Link>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 border-t border-border/60 pt-2 text-text-muted/80">
+              <Link
+                href="/privacy"
+                className="hover:text-accent transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                className="hover:text-accent transition-colors"
+              >
+                Terms of Service
+              </Link>
+            </div>
           </div>
 
           {/* Right: Tagline */}
