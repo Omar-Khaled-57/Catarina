@@ -77,7 +77,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="glass sticky top-0 z-40 border-b border-border px-4 py-3 sm:px-6 lg:px-8 relative">
+      <nav aria-label="Main navigation" className="glass sticky top-0 z-40 border-b border-border px-4 py-3 sm:px-6 lg:px-8 relative">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           {/* Left: Logo + App Name */}
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
@@ -104,6 +104,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors duration-200",
                     isActive
@@ -263,6 +264,7 @@ export default function Navbar() {
                         <Link
                           href={link.href}
                           onClick={() => setIsMenuOpen(false)}
+                          aria-current={isActive ? "page" : undefined}
                           className={cn(
                             "flex items-center px-3 py-2.5 text-sm font-semibold rounded-xl transition-colors",
                             isActive

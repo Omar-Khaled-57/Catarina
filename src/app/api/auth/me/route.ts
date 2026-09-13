@@ -1,4 +1,6 @@
-// Returns 401 if no valid token is present
+/* Returns 200 with { user: null } when signed out — keeps unauthenticated
+   browsers free of console 401 noise (Lighthouse "browser errors" audit).
+   Clients treat user:null the same as a 401. */
 
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
@@ -29,7 +31,7 @@ function classifyUpdate(oldV: string, newV: string): "major" | "minor" | "patch"
 export async function GET() {
   const payload = await verifyToken();
   if (!payload) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json({ user: null, hasUpdate: false });
   }
 
   /* Read current version from package.json */

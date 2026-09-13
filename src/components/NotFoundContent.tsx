@@ -42,7 +42,7 @@ export default function NotFoundContent() {
   const ctx = getPathContext(pathname);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <main id="main-content" className="flex min-h-screen items-center justify-center p-4">
       <div className="text-center">
         <Image
           src="/rina/404.webp"
@@ -75,6 +75,6 @@ export default function NotFoundContent() {
           </button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

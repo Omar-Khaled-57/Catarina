@@ -6,6 +6,13 @@
 
 import DrawersWorkshop from "@/components/tools/drawers/DrawersWorkshop";
 import type { DemoSection } from "@/components/tools/drawers/types";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Drawers",
+  description:
+    "Catarina's drawers — organized project envelopes and files for every team section, with optional Google Drive backup.",
+};
 
 /* Offline SVG placeholder images so IMAGE items show a real preview in the
  * focus-mode browser and the chest thumbnails — no network needed. */

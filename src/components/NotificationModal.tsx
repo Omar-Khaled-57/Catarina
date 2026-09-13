@@ -341,7 +341,7 @@ export default function NotificationModal({
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] font-mono text-text-muted/60 -mt-1">ID: {goalData.id}</p>
+                  <p className="text-[10px] font-mono text-text-muted -mt-1">ID: {goalData.id}</p>
 
                   {/* Description */}
                   {goalData.description && (
@@ -368,21 +368,21 @@ export default function NotificationModal({
                   {/* Meta grid */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-lg bg-surface-2/60 px-3 py-2">
-                      <p className="text-text-muted/60 mb-0.5">Section</p>
+                      <p className="text-text-muted mb-0.5">Section</p>
                       <p className="font-semibold text-text">{goalData.section}</p>
                     </div>
                     <div className="rounded-lg bg-surface-2/60 px-3 py-2">
-                      <p className="text-text-muted/60 mb-0.5">Deadline</p>
+                      <p className="text-text-muted mb-0.5">Deadline</p>
                       <p className="font-semibold text-text">
                         {new Date(goalData.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
                     </div>
                     <div className="rounded-lg bg-surface-2/60 px-3 py-2">
-                      <p className="text-text-muted/60 mb-0.5">Comments</p>
+                      <p className="text-text-muted mb-0.5">Comments</p>
                       <p className="font-semibold text-text">{goalData.comments.length}</p>
                     </div>
                     <div className="rounded-lg bg-surface-2/60 px-3 py-2">
-                      <p className="text-text-muted/60 mb-0.5">Steps</p>
+                      <p className="text-text-muted mb-0.5">Steps</p>
                       <p className="font-semibold text-text">{goalData.steps.filter((s) => s.done).length} / {goalData.steps.length}</p>
                     </div>
                   </div>
@@ -467,7 +467,7 @@ export default function NotificationModal({
 
           {/* Timestamp */}
           <div className="pt-2 border-t border-border/40">
-            <p className="text-xs text-text-muted/70" title={fullDate(notification.createdAt)}>
+            <p className="text-xs text-text-muted" title={fullDate(notification.createdAt)}>
               {timeAgo(notification.createdAt)}
             </p>
           </div>

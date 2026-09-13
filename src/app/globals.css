@@ -38,7 +38,8 @@
   --danger: #FF4D6A;
   --warning: #FFB830;
   --text: #F0F6FF;
-  --text-muted: #5A7A99;
+  /* #6B90B3: ≥4.5:1 vs #060B14, #0D1824, and #142035 (dark) */
+  --text-muted: #6B90B3;
   --chest-steel-frame: #6a6a6a;
   --chest-steel-side: #323232;
   --chest-steel-top: #464646;
@@ -54,13 +55,15 @@ html.light {
   --surface: #FFFFFF;
   --surface-2: #E2E8F0;
   --border: rgba(0, 232, 162, 0.3);
-  --accent: #00C47A;
-  --accent-2: #00E8A2;
+  /* Ink-tuned for ≥4.5:1 as text on #F0F6FF/#FFFFFF/#E2E8F0 (light) */
+  --accent: #007449;
+  --accent-2: #00623D;
   --accent-glow: rgba(0, 196, 122, 0.25);
-  --danger: #E11D48;
-  --warning: #D97706;
+  --danger: #C1123C;
+  --warning: #B45309;
   --text: #060B14;
-  --text-muted: #5A7A99;
+  /* #4A6A8C: ≥4.5:1 vs #F0F6FF, #FFFFFF, and #E2E8F0 (light) */
+  --text-muted: #4A6A8C;
   --chest-steel-frame: #8a8a8a;
   --chest-steel-side: #4a4a4a;
   --chest-steel-top: #5c5c5c;
@@ -1218,5 +1221,19 @@ html.dark [data-sonner-toast] [data-title] {
   .in-view-visible {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ─── Reduced Motion ────────────────────────────────────────────────────── */
+/* Honor the OS-level "reduce motion" preference app-wide (framer-motion
+   animations included), an accessibility requirement. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

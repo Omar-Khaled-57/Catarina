@@ -947,7 +947,7 @@ function SearchResults({
         <p className="text-sm text-text-muted">
           No matches for “{query.trim()}”
         </p>
-        <p className="max-w-xs text-xs text-text-muted/80">
+        <p className="max-w-xs text-xs text-text-muted">
           Try an English or Arabic keyword — spelling variants count (ة≈ه, أ≈ا)
           and you can even type on the wrong keyboard layout (اخةث finds home).
         </p>

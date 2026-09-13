@@ -15,9 +15,9 @@ export default function Footer() {
   return (
     <footer className="border-t border-border bg-surface/50 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="grid justify-items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
           {/* Left: Logo + Branding */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 sm:justify-self-start sm:justify-start">
             <Image
               src="/icons/logo.webp"
               alt="Catarina"
@@ -58,7 +58,7 @@ export default function Footer() {
                 Archive
               </Link>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-4 border-t border-border/60 pt-2 text-text-muted/80">
+            <div className="flex flex-wrap items-center justify-center gap-4 border-t border-border/60 pt-2 text-text-muted">
               <Link
                 href="/privacy"
                 className="hover:text-accent transition-colors"
@@ -75,7 +75,7 @@ export default function Footer() {
           </div>
 
           {/* Right: Tagline */}
-          <p className="text-[11px] text-text-muted/60">
+          <p className="text-[11px] text-text-muted sm:justify-self-end">
             Built with care for {teamName}
           </p>
         </div>

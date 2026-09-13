@@ -121,10 +121,10 @@ export default function RootLayout({
                 },
               }}
               icons={{
-                success: <Image src="/rina/happy.webp" alt="Success" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
-                error: <Image src="/rina/bug-fix.webp" alt="Error" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
-                info: <Image src="/rina/think.webp" alt="Info" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
-                warning: <Image src="/rina/cry.webp" alt="Warning" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" />,
+                success: <Image src="/rina/happy.webp" alt="" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" aria-hidden="true" />,
+                error: <Image src="/rina/bug-fix.webp" alt="" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" aria-hidden="true" />,
+                info: <Image src="/rina/think.webp" alt="" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" aria-hidden="true" />,
+                warning: <Image src="/rina/cry.webp" alt="" width={100} height={100} className="w-full h-full object-contain drop-shadow-md shrink-0" aria-hidden="true" />,
               }}
             />
           </AuthProvider>

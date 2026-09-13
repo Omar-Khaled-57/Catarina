@@ -27,7 +27,7 @@ export default function PfpUpload({
       <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-border shrink-0">
         {currentPfp ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={currentPfp} alt="PFP" className="h-full w-full object-cover" />
+          <img src={currentPfp} alt="Profile picture preview" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-surface-2">
             <User size={24} className="text-text-muted" />

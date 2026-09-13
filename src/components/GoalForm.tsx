@@ -310,7 +310,7 @@ const wasOpenRef = useRef(false);
           </div>
           <div>
             <label htmlFor="goal-month" className="block text-xs font-semibold text-text-muted mb-1">
-              Month {goalId && <span className="font-normal text-text-muted/60">(fixed after creation)</span>}
+              Month {goalId && <span className="font-normal text-text-muted">(fixed after creation)</span>}
             </label>
             {/* A goal's month is fixed at creation — allow choosing only when it's a new goal. */}
             <select

@@ -109,7 +109,7 @@ export default function LoginForm() {
   const toggleMode = () => setIsRegister((prev) => !prev);
 
   return (
-    <div id="main-content" className="flex min-h-screen flex-col items-center justify-center p-4 pt-16 pb-24">
+    <main id="main-content" className="flex min-h-screen flex-col items-center justify-center p-4 pt-16 pb-24">
       {/* Background glow effect */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/5 blur-[120px] rounded-full" />
@@ -238,7 +238,7 @@ export default function LoginForm() {
                 >
                   <div>
                     <label htmlFor="login-pfp" className="block text-sm font-medium text-text-muted mb-1.5">
-                      Profile Picture <span className="text-text-muted/60">(optional)</span>
+                      Profile Picture <span className="text-text/70">(optional)</span>
                     </label>
                     <input
                       id="login-pfp"
@@ -284,7 +284,7 @@ export default function LoginForm() {
         </motion.div>
 
         {/* Legal */}
-        <p className="mt-5 text-center text-[11px] text-text-muted/60">
+        <p className="mt-5 text-center text-[11px] text-text/70">
           By continuing you agree to Catarina&apos;s{" "}
           <Link
             href="/terms"
@@ -302,6 +302,6 @@ export default function LoginForm() {
           .
         </p>
       </div>
-    </div>
+    </main>
   );
 }

@@ -381,7 +381,7 @@ export default function NotificationPanel({
                     <AudioPlayer src={n.refId} />
                   )}
                   <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium text-text-muted/70">{timeAgo(n.createdAt)}</p>
+                    <p className="text-xs font-medium text-text-muted">{timeAgo(n.createdAt)}</p>
                     <div className="flex items-center gap-1 sm:hidden">
                       <button
                         onClick={(e) => {

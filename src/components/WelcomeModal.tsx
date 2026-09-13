@@ -63,7 +63,7 @@ export default function WelcomeModal() {
             <p className="text-sm text-text-muted mb-2 leading-relaxed">
               Your account has been approved. You&apos;re now part of the team.
             </p>
-            <p className="text-xs text-text-muted/70 mb-6 leading-relaxed">
+            <p className="text-xs text-text-muted mb-6 leading-relaxed">
               Tap your <strong className="text-text-muted">profile picture</strong> in the navbar to customize your name, email, password, and photo anytime.
             </p>
 

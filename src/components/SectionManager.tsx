@@ -310,7 +310,7 @@ function SectionFormModal({
             disabled={!isNew}
             className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text font-mono placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all disabled:opacity-50"
           />
-          <p className="text-[10px] text-text-muted/60 mt-1">Uppercase letters only. Used internally.</p>
+          <p className="text-[10px] text-text-muted mt-1">Uppercase letters only. Used internally.</p>
         </div>
 
         {/* Prefix */}
@@ -325,7 +325,7 @@ function SectionFormModal({
             placeholder="e.g. DES-, HR-, FIN-"
             className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text font-mono placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
-          <p className="text-[10px] text-text-muted/60 mt-1">Goals will be numbered like {prefix || "XXX-"}001, {prefix || "XXX-"}002, etc.</p>
+          <p className="text-[10px] text-text-muted mt-1">Goals will be numbered like {prefix || "XXX-"}001, {prefix || "XXX-"}002, etc.</p>
         </div>
 
         {/* Color */}

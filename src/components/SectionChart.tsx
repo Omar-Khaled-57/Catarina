@@ -295,7 +295,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                   x={centerX}
                   y={yT - dy - 7}
                   textAnchor="middle"
-                  fill={color}
+                  fill="var(--text)"
                   fontSize="11.5"
                   fontWeight="700"
                   style={{ filter: clamped > 0.5 ? `drop-shadow(0 0 6px ${color}80)` : undefined }}
@@ -319,7 +319,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                   x={centerX}
                   y={baseY + 32}
                   textAnchor="middle"
-                  fill={color}
+                  fill="var(--text)"
                   fontSize="9"
                   fontWeight="700"
                   letterSpacing="0.8"
