@@ -15,10 +15,12 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, Loader2, PlugZap } from "lucide-react";
+import { Check, File, Loader2, Pause, Play, X } from "lucide-react";
 import SectionChest from "@/components/tools/drawers/SectionChest";
 import DirectoryBrowser from "@/components/tools/drawers/DirectoryBrowser";
+import { useFocusTrap } from "@/components/tools/drawers/useFocusTrap";
 import type {
   DemoSection,
   DemoProject,
@@ -32,23 +34,67 @@ let demoIdSeq = 0;
 
 type FocusTarget = { envelopeId: string | null; fileId: string } | null;
 
-type DriveState = {
-  enabled: boolean;
-  connected: boolean;
-  googleEmail: string | null;
+type CloudState = {
+  /** Workspace fetched from the server — the drawers are the team cloud. */
+  ready: boolean;
+  /** The initial workspace request has not settled yet. */
+  loading: boolean;
   syncing: boolean;
+  /** The latest write failure stays visible until the next sync attempt. */
+  error: string | null;
+};
+
+type UploadStatus = "running" | "paused" | "failed";
+
+/** A large (chunked) upload tracked by the UI so it can show progress and be
+ *  paused, resumed or cancelled mid-flight. */
+type UploadTask = {
+  id: string; // server uploadId
+  name: string;
+  type: string;
+  size: number;
+  chunkSize: number;
+  chunkCount: number;
+  uploaded: number; // parts persisted server-side so far
+  status: UploadStatus;
+  error: string | null;
+  file: File; // kept so a resumed upload can slice the remaining parts
+  sectionKey: string;
+  projectId: string;
+  envelopeId: string | null;
 };
 
 type CreateItem = Omit<DirItem, "id"> & { file?: File };
 
+/* Vercel caps function request bodies at ~4.5MB, so a single base64 file can
+   only be ~3MB raw. Bigger files are split into 3MB parts; each part rides in
+   its own mutation and is assembled server-side (see src/lib/workspaceFiles). */
+const INLINE_FILE_BYTES = 3 * 1024 * 1024;
+const MAX_FILE_BYTES = 300 * 1024 * 1024;
+
+function fileToDataUri(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("Could not read the file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function DrawersWorkshop({
   sections: initialSections,
-  driveEnabled = false,
 }: {
   sections: DemoSection[];
-  driveEnabled?: boolean;
 }) {
   const [sections, setSections] = useState<DemoSection[]>(initialSections);
+  /* Live snapshot for optimistic updates: a queued mutation needs the tree as
+     of the moment it reaches the head of the queue, so it can roll back to
+     exactly the pre-action state if the request fails. */
+  const sectionsRef = useRef(sections);
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
   const [colors, setColors] = useState<Record<string, string>>(() =>
     Object.fromEntries(initialSections.map((s) => [s.key, s.color])),
   );
@@ -56,6 +102,8 @@ export default function DrawersWorkshop({
   const [openIds, setOpenIds] = useState<Record<string, string | null>>({});
   const [focusTarget, setFocusTarget] = useState<FocusTarget>(null);
   const reduce = useReducedMotion();
+  const focusOverlayRef = useRef<HTMLDivElement | null>(null);
+  const focusTriggerRef = useRef<HTMLElement | null>(null);
 
   const transition = reduce ? { duration: 0.01 } : playSpring;
   const exitTransition = reduce ? { duration: 0.01 } : exitTween;
@@ -218,6 +266,30 @@ export default function DrawersWorkshop({
                           ? { ...e, name: trimmed || e.name }
                           : e,
                       ),
+                    }
+                  : p,
+              ),
+            }
+          : s,
+      ),
+    );
+  };
+
+  const removeEnvelope = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string,
+  ) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.key === sectionKey
+          ? {
+              ...s,
+              projects: s.projects.map((p) =>
+                p.id === projectId
+                  ? {
+                      ...p,
+                      envelopes: p.envelopes.filter((e) => e.id !== envelopeId),
                     }
                   : p,
               ),
@@ -394,28 +466,27 @@ export default function DrawersWorkshop({
     }));
   };
 
-  /* ---- Google Drive layer -------------------------------------------------
-     When a connection is live, every mutation goes through the Drive API and
-     the section tree is re-synced afterwards. Without a connection (or when
-     Drive isn't configured) the in-memory demo behaves exactly as before. */
+  /* ---- Team cloud layer --------------------------------------------------
+     Signed-in users share one team workspace backed by the Turso DB; every
+     mutation goes through /api/drawers/mutate and returns the refreshed
+     section. Guests keep the in-memory demo seeded from the page. */
 
-  const [drive, setDrive] = useState<DriveState>({
-    enabled: driveEnabled,
-    connected: false,
-    googleEmail: null,
+  const [cloud, setCloud] = useState<CloudState>({
+    ready: false,
+    loading: true,
     syncing: false,
+    error: null,
   });
-  const [driveNotice, setDriveNotice] = useState<string | null>(null);
-  const sectionFolderIds = useRef<Record<string, string>>({});
+  const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
-  const driveMode = drive.enabled && drive.connected;
+  const cloudMode = cloud.ready;
 
   const notify = (message: string | null) => {
-    setDriveNotice(message);
+    setNotifyMessage(message);
     if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
     if (message) {
-      noticeTimer.current = window.setTimeout(() => setDriveNotice(null), 5000);
+      noticeTimer.current = window.setTimeout(() => setNotifyMessage(null), 5000);
     }
   };
 
@@ -441,33 +512,124 @@ export default function DrawersWorkshop({
     return res;
   };
 
-  const refreshSection = async (sectionKey: string) => {
-    const res = await api(
-      `/api/drive/tree?section=${encodeURIComponent(sectionKey)}`,
-    );
-    const data = (await res.json()) as {
-      section: DemoSection;
-      sectionFolderId: string;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/drawers/workspace");
+        if (!res.ok) {
+          if (!cancelled) {
+            // Guest → keep the seeded local demo without leaving a stale
+            // connecting indicator in the header.
+            setCloud({ ready: false, loading: false, syncing: false, error: null });
+          }
+          return;
+        }
+        const data = (await res.json()) as { sections: DemoSection[] };
+        if (cancelled) return;
+        setSections((prev) => {
+          const order = prev.map((s) => s.key.toUpperCase());
+          return [...data.sections].sort((a, b) => {
+            const ia = order.indexOf(a.key.toUpperCase());
+            const ib = order.indexOf(b.key.toUpperCase());
+            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+          });
+        });
+        setCloud({ ready: true, loading: false, syncing: false, error: null });
+      } catch {
+        if (!cancelled) {
+          setCloud({ ready: false, loading: false, syncing: false, error: null });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-    sectionFolderIds.current[sectionKey] = data.sectionFolderId;
-    setSections((prev) =>
-      prev.map((s) =>
-        s.key === sectionKey ? { ...data.section, key: s.key } : s,
-      ),
+  }, []);
+
+  /* Mutations are serialized through a promise chain: the server applies each
+     drawer action as a read-modify-write of the section tree, so two requests
+     in flight can overwrite each other's changes. Queueing them keeps the last
+     click winning. Tree writes from upload completion go through the same chain. */
+  const mutateTailRef = useRef<Promise<void>>(Promise.resolve());
+  const syncingCountRef = useRef(0);
+
+  const setSyncing = (delta: 1 | -1) => {
+    syncingCountRef.current = Math.max(0, syncingCountRef.current + delta);
+    const syncing = syncingCountRef.current > 0;
+    setCloud((c) =>
+      c.ready ? { ...c, syncing, ...(syncing ? { error: null } : {}) } : c,
     );
   };
 
-  const runDrive = async (
+  const markCloudFailure = (error: unknown, fallback: string) => {
+    const message = error instanceof Error ? error.message : fallback;
+    setCloud((c) => (c.ready ? { ...c, error: message } : c));
+    notify(message);
+  };
+
+  /** Queue a tree-writing request behind any in-flight mutation. Rejects if
+   *  the request fails, so callers that must know the outcome (e.g. upload
+   *  completion) can react. */
+  const enqueueMutation = (run: () => Promise<void>): Promise<void> => {
+    const task = mutateTailRef.current.then(async () => {
+      setSyncing(1);
+      try {
+        await run();
+      } finally {
+        setSyncing(-1);
+      }
+    });
+    /* A failed mutation must not stall the chain. */
+    mutateTailRef.current = task.catch(() => undefined);
+    return task;
+  };
+
+  const applySection = (section: DemoSection) =>
+    setSections((prev) =>
+      prev.map((s) => (s.key === section.key ? section : s)),
+    );
+
+  const runCloud = (
     label: string,
     sectionKey: string,
-    action: () => Promise<Response>,
-  ) => {
-    try {
-      await action();
-      await refreshSection(sectionKey);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : `Failed to ${label}.`);
-    }
+    payload: Record<string, unknown>,
+    optimistic?: { apply: () => void; rollback: () => void },
+  ) =>
+    enqueueMutation(async () => {
+      /* Optimistic UI: mutate the visible tree the moment this mutation
+         reaches the head of the queue, then let the server's authoritative
+         section reconcile it. Reverts on failure so a dead request can't
+         leave a phantom drawer. */
+      optimistic?.apply();
+      try {
+        const res = await api("/api/drawers/mutate", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        const { section } = (await res.json()) as { section: DemoSection };
+        applySection(section);
+      } catch (error) {
+        optimistic?.rollback();
+        markCloudFailure(error, `Failed to ${label}.`);
+      }
+    });
+
+  /** Optimistic wrapper: snapshot the tree now, apply a local change instantly
+   *  (same transform the guest/demo path uses), and restore the snapshot if the
+   *  queued request fails — so every drawer action feels instant and a dead
+   *  request can never leave a phantom change behind. */
+  const optimistic = (mutate: () => void) => {
+    let snapshot: DemoSection[] | null = null;
+    return {
+      apply: () => {
+        snapshot = sectionsRef.current;
+        mutate();
+      },
+      rollback: () => {
+        if (snapshot) setSections(snapshot);
+      },
+    };
   };
 
   const sectionCount = (sectionKey: string) =>
@@ -481,224 +643,453 @@ export default function DrawersWorkshop({
   const envelopeCount = (sectionKey: string, projectId: string) =>
     projectCount(sectionKey, projectId)?.envelopes.length ?? 0;
 
-  const driveAddProject = (sectionKey: string) => {
-    const parentId = sectionFolderIds.current[sectionKey];
-    if (!parentId) return;
-    const name = `Drawer ${sectionCount(sectionKey) + 1}`;
-    void runDrive("create drawer", sectionKey, () =>
-      api("/api/drive/folders", {
-        method: "POST",
-        body: JSON.stringify({ parentId, name }),
-      }),
+  const cloudAddProject = (sectionKey: string) =>
+    runCloud(
+      "create drawer",
+      sectionKey,
+      {
+        action: "createProject",
+        sectionKey,
+        name: `Drawer ${sectionCount(sectionKey) + 1}`,
+      },
+      optimistic(() => addProject(sectionKey)),
     );
-  };
 
-  const driveRenameFolder = (sectionKey: string, id: string, name: string) => {
-    void runDrive("rename", sectionKey, () =>
-      api(`/api/drive/folders/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name }),
-      }),
+  const cloudRenameProject = (sectionKey: string, id: string, name: string) =>
+    runCloud(
+      "rename",
+      sectionKey,
+      { action: "renameProject", sectionKey, projectId: id, name },
+      optimistic(() => renameProject(sectionKey, id, name)),
     );
-  };
 
-  const driveDeleteFolder = (sectionKey: string, id: string) => {
-    void runDrive("delete", sectionKey, () =>
-      api(`/api/drive/folders/${id}`, { method: "DELETE" }),
+  const cloudDeleteProject = (sectionKey: string, id: string) =>
+    runCloud(
+      "delete",
+      sectionKey,
+      { action: "deleteProject", sectionKey, projectId: id },
+      optimistic(() => removeProject(sectionKey, id)),
     );
-  };
 
-  const driveAddEnvelope = (sectionKey: string, projectId: string) => {
-    const name = `Envelope ${envelopeCount(sectionKey, projectId) + 1}`;
-    void runDrive("create envelope", sectionKey, () =>
-      api("/api/drive/folders", {
-        method: "POST",
-        body: JSON.stringify({ parentId: projectId, name }),
-      }),
+  const cloudAddEnvelope = (sectionKey: string, projectId: string) =>
+    runCloud(
+      "create envelope",
+      sectionKey,
+      {
+        action: "addEnvelope",
+        sectionKey,
+        projectId,
+        name: `Envelope ${envelopeCount(sectionKey, projectId) + 1}`,
+      },
+      optimistic(() => addEnvelope(sectionKey, projectId)),
     );
-  };
 
-  const driveQuickAddItem = (sectionKey: string, projectId: string) => {
-    const name = `file ${looseFileCount(sectionKey, projectId) + 1}`;
-    void runDrive("create file", sectionKey, () =>
-      api("/api/drive/files/json", {
-        method: "POST",
-        body: JSON.stringify({ parentId: projectId, name, type: "FILE" }),
-      }),
+  const cloudQuickAddItem = (sectionKey: string, projectId: string) =>
+    runCloud(
+      "create file",
+      sectionKey,
+      {
+        action: "createItem",
+        sectionKey,
+        projectId,
+        envelopeId: null,
+        item: {
+          name: `file ${looseFileCount(sectionKey, projectId) + 1}`,
+          type: "FILE",
+        },
+      },
+      optimistic(() => addItem(sectionKey, projectId)),
     );
-  };
 
-  const driveCreateFile = (
+  const cloudCreateFile = (
     sectionKey: string,
     projectId: string,
     envelopeId: string | null,
     item: CreateItem,
   ) => {
-    const parentId = envelopeId ?? projectId;
-    const action = () => {
-      if (item.file) {
-        const form = new FormData();
-        form.set("parentId", parentId);
-        form.set("name", item.name);
-        form.set("file", item.file);
-        return api("/api/drive/files", { method: "POST", body: form });
+    if (item.file) {
+      const file = item.file;
+      if (file.size > MAX_FILE_BYTES) {
+        notify(
+          `That file is too large (max ${MAX_FILE_BYTES / 1024 / 1024} MB).`,
+        );
+        return;
       }
-      const isLink = item.type === "LINK";
-      return api("/api/drive/files/json", {
-        method: "POST",
-        body: JSON.stringify({
-          parentId,
+      if (file.size <= INLINE_FILE_BYTES) {
+        void (async () => {
+          try {
+            const content = await fileToDataUri(file);
+            runCloud(
+              "create file",
+              sectionKey,
+              {
+                action: "createItem",
+                sectionKey,
+                projectId,
+                envelopeId,
+                item: { name: item.name, type: item.type, content },
+              },
+              optimistic(() =>
+                createFile(sectionKey, projectId, envelopeId, {
+                  name: item.name,
+                  type: item.type,
+                  content,
+                }),
+              ),
+            );
+          } catch (error) {
+            notify(error instanceof Error ? error.message : "Failed to read the file.");
+          }
+        })();
+        return;
+      }
+      void startBigUpload(sectionKey, projectId, envelopeId, file, item);
+      return;
+    }
+    runCloud(
+      "create file",
+      sectionKey,
+      {
+        action: "createItem",
+        sectionKey,
+        projectId,
+        envelopeId,
+        item: {
           name: item.name,
           type: item.type,
-          ...(!isLink && item.content ? { content: item.content } : {}),
-          ...(isLink && item.content ? { link: item.content } : {}),
+          ...(item.content ? { content: item.content } : {}),
+        },
+      },
+      optimistic(() =>
+        createFile(sectionKey, projectId, envelopeId, {
+          name: item.name,
+          type: item.type,
+          ...(item.content ? { content: item.content } : {}),
+        }),
+      ),
+    );
+  };
+
+  /* ---- Big-file uploads: progress, pause/resume, cancel -------------------
+     Files over 3MB are split into 3MB parts; each part rides in its own
+     mutation request (under Vercel's ~4.5MB body cap) and is stored server-side
+     on arrival, so a paused upload resumes from the exact part it stopped at
+     and a cancelled one is aborted server-side (parts + session dropped). */
+
+  const [uploads, setUploads] = useState<Record<string, UploadTask>>({});
+  const uploadsRef = useRef<Record<string, UploadTask>>({});
+  /* Per-upload control flags (paused/cancelled/pumping) live in a ref so the
+     pump loop can read the latest decision without stale closures. */
+  const uploadFlags = useRef<
+    Map<string, { paused: boolean; cancelled: boolean; pumping: boolean }>
+  >(new Map());
+
+  const addUpload = (task: UploadTask) => {
+    uploadsRef.current = { ...uploadsRef.current, [task.id]: task };
+    setUploads((prev) => (prev[task.id] ? prev : { ...prev, [task.id]: task }));
+  };
+
+  const patchUpload = (uploadId: string, patch: Partial<UploadTask>) => {
+    const current = uploadsRef.current[uploadId];
+    if (!current) return;
+    uploadsRef.current[uploadId] = { ...current, ...patch };
+    setUploads((prev) =>
+      prev[uploadId] ? { ...prev, [uploadId]: { ...prev[uploadId], ...patch } } : prev,
+    );
+  };
+
+  const dropUpload = (uploadId: string) => {
+    const next = { ...uploadsRef.current };
+    delete next[uploadId];
+    uploadsRef.current = next;
+    setUploads((prev) => {
+      const nextState = { ...prev };
+      delete nextState[uploadId];
+      return nextState;
+    });
+  };
+
+  const startBigUpload = async (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
+    file: File,
+    item: CreateItem,
+  ) => {
+    try {
+      const startRes = await api("/api/drawers/mutate", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "uploadStart",
+          sectionKey,
+          projectId,
+          envelopeId,
+          item: {
+            name: item.name,
+            type: item.type,
+            mime: file.type || "application/octet-stream",
+            size: file.size,
+          },
         }),
       });
-    };
-    void runDrive("create file", sectionKey, action);
+      const { uploadId, chunkSize, chunkCount } = (await startRes.json()) as {
+        uploadId: string;
+        chunkSize: number;
+        chunkCount: number;
+      };
+      uploadFlags.current.set(uploadId, {
+        paused: false,
+        cancelled: false,
+        pumping: false,
+      });
+      addUpload({
+        id: uploadId,
+        name: file.name,
+        type: item.type,
+        size: file.size,
+        chunkSize,
+        chunkCount,
+        uploaded: 0,
+        status: "running",
+        error: null,
+        file,
+        sectionKey,
+        projectId,
+        envelopeId,
+      });
+      void pumpUpload(uploadId);
+    } catch (error) {
+      markCloudFailure(error, "Failed to start the upload.");
+    }
   };
 
-  const driveRenameItem = (
+  const pumpUpload = async (uploadId: string) => {
+    const flags = uploadFlags.current.get(uploadId);
+    if (!flags || flags.pumping) return;
+    flags.pumping = true;
+    try {
+      while (true) {
+        const task = uploadsRef.current[uploadId];
+        if (!task || flags.cancelled) return;
+        if (task.uploaded >= task.chunkCount) break;
+        if (flags.paused) break;
+
+        const i = task.uploaded;
+        const start = i * task.chunkSize;
+        const end = Math.min(start + task.chunkSize, task.size);
+        try {
+          const uri = await fileToDataUri(task.file.slice(start, end));
+          await api("/api/drawers/mutate", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "uploadChunk",
+              sectionKey: task.sectionKey,
+              uploadId,
+              index: i,
+              data: uri.slice(uri.indexOf(",") + 1),
+            }),
+          });
+        } catch (error) {
+          if (flags.cancelled || flags.paused) return;
+          markCloudFailure(error, "Upload interrupted.");
+          patchUpload(uploadId, {
+            status: "failed",
+            error: error instanceof Error ? error.message : "Upload interrupted.",
+          });
+          return;
+        }
+        patchUpload(uploadId, { uploaded: i + 1 });
+      }
+
+      const task = uploadsRef.current[uploadId];
+      if (!task || flags.cancelled) return;
+      if (flags.paused || task.uploaded < task.chunkCount) {
+        patchUpload(uploadId, { status: "paused" });
+        return;
+      }
+
+      /* Every part is stored — ask the server to assemble and register. It
+         rides the same mutation queue so the tree write can't race another
+         drawer action (both are read-modify-writes of the section). */
+      try {
+        await enqueueMutation(async () => {
+          const doneRes = await api("/api/drawers/mutate", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "uploadComplete",
+              sectionKey: task.sectionKey,
+              uploadId,
+            }),
+          });
+          const { section } = (await doneRes.json()) as { section: DemoSection };
+          applySection(section);
+        });
+        notify(`${task.name} is in the drawer.`);
+        window.setTimeout(() => dropUpload(uploadId), 1800);
+      } catch (error) {
+        markCloudFailure(error, "Could not finish the upload.");
+        patchUpload(uploadId, {
+          status: "failed",
+          error: error instanceof Error ? error.message : "Could not finish the upload.",
+        });
+      }
+    } finally {
+      const flags = uploadFlags.current.get(uploadId);
+      if (flags) flags.pumping = false;
+    }
+  };
+
+  const togglePauseUpload = (uploadId: string) => {
+    const flags = uploadFlags.current.get(uploadId);
+    const task = uploadsRef.current[uploadId];
+    if (!flags || !task || task.status === "failed") return;
+    if (flags.paused) {
+      flags.paused = false;
+      patchUpload(uploadId, { status: "running" });
+      void pumpUpload(uploadId);
+    } else {
+      flags.paused = true;
+      patchUpload(uploadId, { status: "paused" });
+    }
+  };
+
+  const cancelUpload = async (uploadId: string) => {
+    const flags = uploadFlags.current.get(uploadId);
+    if (flags) flags.cancelled = true;
+    const task = uploadsRef.current[uploadId];
+    if (task?.status !== "failed") {
+      try {
+        await api("/api/drawers/mutate", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "uploadAbort",
+            sectionKey: task?.sectionKey ?? "",
+            uploadId,
+          }),
+        });
+      } catch {
+        /* Session already gone / never owned — nothing to clean up. */
+      }
+    }
+    uploadFlags.current.delete(uploadId);
+    dropUpload(uploadId);
+  };
+
+  const formatMb = (bytes: number) =>
+    `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+  const cloudRenameEnvelope = (
     sectionKey: string,
-    _projectId: string,
-    _envelopeId: string | null,
+    projectId: string,
+    envelopeId: string,
+    name: string,
+  ) =>
+    runCloud(
+      "rename",
+      sectionKey,
+      { action: "renameEnvelope", sectionKey, projectId, envelopeId, name },
+      optimistic(() => renameEnvelope(sectionKey, projectId, envelopeId, name)),
+    );
+
+  const cloudDeleteEnvelope = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string,
+  ) =>
+    runCloud(
+      "delete envelope",
+      sectionKey,
+      { action: "deleteEnvelope", sectionKey, projectId, envelopeId },
+      optimistic(() => removeEnvelope(sectionKey, projectId, envelopeId)),
+    );
+
+  const cloudRenameItem = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string | null,
     itemId: string,
     name: string,
-  ) => {
-    void runDrive("rename", sectionKey, () =>
-      api(`/api/drive/files/${itemId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name }),
-      }),
+  ) =>
+    runCloud(
+      "rename",
+      sectionKey,
+      { action: "renameItem", sectionKey, projectId, envelopeId, itemId, name },
+      optimistic(() => renameItem(sectionKey, projectId, envelopeId, itemId, name)),
     );
-  };
 
-  const driveUpdateFileContent = (
+  const cloudUpdateFileContent = (
     sectionKey: string,
-    _projectId: string,
-    _envelopeId: string | null,
+    projectId: string,
+    envelopeId: string | null,
     itemId: string,
     content: string,
-  ) => {
-    void runDrive("save content", sectionKey, () =>
-      api(`/api/drive/files/${itemId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ content }),
-      }),
+  ) =>
+    runCloud(
+      "save content",
+      sectionKey,
+      {
+        action: "updateItemContent",
+        sectionKey,
+        projectId,
+        envelopeId,
+        itemId,
+        content,
+      },
+      optimistic(() =>
+        updateFileContent(sectionKey, projectId, envelopeId, itemId, content),
+      ),
     );
-  };
 
-  const driveRemoveItem = (
+  const cloudRemoveItem = (
     sectionKey: string,
-    _projectId: string,
-    _envelopeId: string | null,
+    projectId: string,
+    envelopeId: string | null,
     itemId: string,
-  ) => {
-    void runDrive("delete", sectionKey, () =>
-      api(`/api/drive/files/${itemId}`, { method: "DELETE" }),
+  ) =>
+    runCloud(
+      "delete",
+      sectionKey,
+      { action: "removeItem", sectionKey, projectId, envelopeId, itemId },
+      optimistic(() => removeFile(sectionKey, projectId, envelopeId, itemId)),
     );
-  };
 
-  const driveGroupItems = (
+  const cloudGroupItems = (
     sectionKey: string,
     projectId: string,
     itemIds: string[],
-  ) => {
-    const name = `Envelope ${envelopeCount(sectionKey, projectId) + 1}`;
-    void (async () => {
-      try {
-        const res = await api("/api/drive/folders", {
-          method: "POST",
-          body: JSON.stringify({ parentId: projectId, name }),
-        });
-        const { id: envelopeId } = (await res.json()) as { id: string };
-        for (const fileId of itemIds) {
-          await api(`/api/drive/files/${fileId}/move`, {
-            method: "POST",
-            body: JSON.stringify({ parentId: envelopeId, oldParentId: projectId }),
-          });
-        }
-        await refreshSection(sectionKey);
-      } catch (error) {
-        notify(error instanceof Error ? error.message : "Failed to group files.");
-      }
-    })();
-  };
+  ) =>
+    runCloud(
+      "group files",
+      sectionKey,
+      {
+        action: "groupItems",
+        sectionKey,
+        projectId,
+        itemIds,
+        name: `Envelope ${envelopeCount(sectionKey, projectId) + 1}`,
+      },
+      optimistic(() => groupItems(sectionKey, projectId, itemIds)),
+    );
 
-  const connectDrive = async () => {
-    try {
-      const res = await api("/api/drive/auth-url");
-      const { url } = (await res.json()) as { url?: string };
-      if (url) window.location.assign(url);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Failed to connect.");
-    }
-  };
-
-  const disconnectDrive = async () => {
-    try {
-      await api("/api/drive/disconnect", { method: "POST" });
-      setDrive((d) => ({ ...d, connected: false, googleEmail: null }));
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Failed to disconnect.");
-    }
-  };
-
-  const fetchDriveContent = async (fileId: string): Promise<string> => {
-    const res = await api(`/api/drive/files/${fileId}/content`);
-    return res.text();
-  };
-
-  useEffect(() => {
-    if (!driveEnabled) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const status = (await api("/api/drive/status").then((r) => r.json())) as {
-          enabled: boolean;
-          connected: boolean;
-          googleEmail: string | null;
-        };
-        if (cancelled) return;
-        if (!status.connected) {
-          setDrive({ enabled: status.enabled, connected: false, googleEmail: null, syncing: false });
-          return;
-        }
-        setDrive({ enabled: true, connected: true, googleEmail: status.googleEmail, syncing: true });
-        for (const key of initialSections.map((s) => s.key)) {
-          if (cancelled) return;
-          await refreshSection(key).catch(() => undefined);
-        }
-        if (!cancelled) setDrive((d) => ({ ...d, syncing: false }));
-      } catch {
-        if (!cancelled) setDrive((d) => ({ ...d, enabled: true, syncing: false }));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driveEnabled]);
-
-  /* Handlers choose between the Drive API and the local demo. */
+  /* Handlers choose between the cloud workspace and the local demo. */
   const handleAddProject = (sectionKey: string) => {
-    if (driveMode) return driveAddProject(sectionKey);
+    if (cloudMode) return cloudAddProject(sectionKey);
     addProject(sectionKey);
   };
   const handleRemoveProject = (sectionKey: string, id: string) => {
-    if (driveMode) return driveDeleteFolder(sectionKey, id);
+    if (cloudMode) return cloudDeleteProject(sectionKey, id);
     removeProject(sectionKey, id);
   };
   const handleAddEnvelope = (sectionKey: string, projectId: string) => {
-    if (driveMode) return driveAddEnvelope(sectionKey, projectId);
+    if (cloudMode) return cloudAddEnvelope(sectionKey, projectId);
     addEnvelope(sectionKey, projectId);
   };
   const handleAddItem = (sectionKey: string, projectId: string) => {
-    if (driveMode) return driveQuickAddItem(sectionKey, projectId);
+    if (cloudMode) return cloudQuickAddItem(sectionKey, projectId);
     addItem(sectionKey, projectId);
   };
   const handleRenameProject = (sectionKey: string, id: string, name: string) => {
-    if (driveMode) return driveRenameFolder(sectionKey, id, name);
+    if (cloudMode) return cloudRenameProject(sectionKey, id, name);
     renameProject(sectionKey, id, name);
   };
   const handleRenameEnvelope = (
@@ -707,11 +1098,19 @@ export default function DrawersWorkshop({
     envelopeId: string | null,
     name: string,
   ) => {
-    if (driveMode) {
-      if (envelopeId) driveRenameFolder(sectionKey, envelopeId, name);
+    if (cloudMode) {
+      if (envelopeId) cloudRenameEnvelope(sectionKey, projectId, envelopeId, name);
       return;
     }
     if (envelopeId) renameEnvelope(sectionKey, projectId, envelopeId, name);
+  };
+  const handleDeleteEnvelope = (
+    sectionKey: string,
+    projectId: string,
+    envelopeId: string,
+  ) => {
+    if (cloudMode) return cloudDeleteEnvelope(sectionKey, projectId, envelopeId);
+    removeEnvelope(sectionKey, projectId, envelopeId);
   };
   const handleCreateFile = (
     sectionKey: string,
@@ -719,7 +1118,7 @@ export default function DrawersWorkshop({
     envelopeId: string | null,
     item: CreateItem,
   ) => {
-    if (driveMode) return driveCreateFile(sectionKey, projectId, envelopeId, item);
+    if (cloudMode) return cloudCreateFile(sectionKey, projectId, envelopeId, item);
     createFile(sectionKey, projectId, envelopeId, item);
   };
   const handleRenameItem = (
@@ -729,7 +1128,7 @@ export default function DrawersWorkshop({
     itemId: string,
     name: string,
   ) => {
-    if (driveMode) return driveRenameItem(sectionKey, projectId, envelopeId, itemId, name);
+    if (cloudMode) return cloudRenameItem(sectionKey, projectId, envelopeId, itemId, name);
     renameItem(sectionKey, projectId, envelopeId, itemId, name);
   };
   const handleUpdateFileContent = (
@@ -739,7 +1138,7 @@ export default function DrawersWorkshop({
     itemId: string,
     content: string,
   ) => {
-    if (driveMode) return driveUpdateFileContent(sectionKey, projectId, envelopeId, itemId, content);
+    if (cloudMode) return cloudUpdateFileContent(sectionKey, projectId, envelopeId, itemId, content);
     updateFileContent(sectionKey, projectId, envelopeId, itemId, content);
   };
   const handleRemoveItem = (
@@ -748,11 +1147,11 @@ export default function DrawersWorkshop({
     envelopeId: string | null,
     itemId: string,
   ) => {
-    if (driveMode) return driveRemoveItem(sectionKey, projectId, envelopeId, itemId);
+    if (cloudMode) return cloudRemoveItem(sectionKey, projectId, envelopeId, itemId);
     removeFile(sectionKey, projectId, envelopeId, itemId);
   };
   const handleGroupItems = (sectionKey: string, projectId: string, itemIds: string[]) => {
-    if (driveMode) return driveGroupItems(sectionKey, projectId, itemIds);
+    if (cloudMode) return cloudGroupItems(sectionKey, projectId, itemIds);
     groupItems(sectionKey, projectId, itemIds);
   };
 
@@ -769,6 +1168,7 @@ export default function DrawersWorkshop({
   const enterFocus = (key: string) => {
     setFocusTarget(null);
     setFocusedKey(key);
+    focusTriggerRef.current = (document.activeElement as HTMLElement) ?? null;
   };
 
   const focusProject = (
@@ -786,6 +1186,29 @@ export default function DrawersWorkshop({
     setFocusedKey(null);
   };
 
+  /* Modal convention: the focus-mode dialog takes focus when it opens. Focus is
+     returned to the trigger once the overlay's exit animation completes. */
+  useEffect(() => {
+    if (!focusedKey) return;
+    const dialog = focusOverlayRef.current?.querySelector<HTMLElement>(
+      '[role="dialog"]',
+    );
+    dialog?.focus();
+  }, [focusedKey]);
+
+  const runningUpload = Object.values(uploads).find(
+    (task) => task.status === "running",
+  );
+  const pausedUpload = Object.values(uploads).find(
+    (task) => task.status === "paused",
+  );
+  const failedUpload = Object.values(uploads).find(
+    (task) => task.status === "failed",
+  );
+  const syncFailure = cloud.error ?? failedUpload?.error ?? null;
+  const isSyncing = cloud.syncing || !!runningUpload;
+  useFocusTrap(focusOverlayRef, focusedKey !== null);
+
   useEffect(() => {
     if (!focusedKey) return;
     const onKey = (event: KeyboardEvent) => {
@@ -797,57 +1220,55 @@ export default function DrawersWorkshop({
 
   return (
     <>
-      {driveEnabled && (
-        <div className="mb-8 flex flex-wrap items-center justify-center gap-3 text-sm">
-          {drive.connected ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-                <Check className="size-3.5" />
-                Google Drive
-              </span>
-              {drive.googleEmail && (
-                <span className="text-xs text-text-muted">
-                  {drive.googleEmail}
+      {(cloudMode || cloud.loading) && typeof document !== "undefined" &&
+        ["landscape", "portrait"].map((orientation) => {
+          const target = document.getElementById(
+            `drawers-cloud-status-${orientation}`,
+          );
+          if (!target) return null;
+          return createPortal(
+            <div className="drawers-cloud-status inline-flex flex-wrap items-center gap-3 text-sm">
+              {cloud.loading ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Connecting to the team cloud
+                </span>
+              ) : isSyncing ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Syncing to the team cloud
+                </span>
+              ) : syncFailure ? (
+                <span
+                  title={syncFailure}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-400/25 bg-slate-400/10 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                >
+                  <X className="size-3.5" />
+                  Failed to sync
+                </span>
+              ) : pausedUpload ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  <Pause className="size-3.5" />
+                  Upload paused
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+                  <Check className="size-3.5" />
+                  Synced to the team cloud
                 </span>
               )}
-              <button
-                type="button"
-                onClick={disconnectDrive}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-text"
-              >
-                Disconnect
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="text-sm text-text-muted">
-                Files stay in your browser for now.
-              </span>
-              <button
-                type="button"
-                onClick={connectDrive}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-transform duration-150 ease-out hover:scale-[1.03] hover:brightness-110 active:scale-95"
-              >
-                <PlugZap className="size-3.5" />
-                Connect Google Drive
-              </button>
-            </>
-          )}
-          {drive.syncing && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-text-muted italic">
-              <Loader2 className="size-3.5 animate-spin" />
-              Syncing drawers…
-            </span>
-          )}
-          {driveNotice && (
-            <span className="text-xs font-medium text-red-600 dark:text-red-400">
-              {driveNotice}
-            </span>
-          )}
-        </div>
-      )}
+              {notifyMessage && !syncFailure && !isSyncing && (
+                <span className="inline-flex items-center rounded-full border border-border bg-surface-2/60 px-2.5 py-1 text-xs font-medium text-text-muted">
+                  {notifyMessage}
+                </span>
+              )}
+            </div>,
+            target,
+            orientation,
+          );
+        })}
 
-      <div className="grid items-end justify-items-center gap-20 lg:grid-cols-2">
+      <div className="grid items-end justify-items-center gap-20 lg:grid-cols-2" inert={!!focusedKey || undefined}>
         {sections.map((section) => {
           const hiddenInGrid = focusedKey === section.key;
           return (
@@ -877,11 +1298,15 @@ export default function DrawersWorkshop({
         })}
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => {
+          focusTriggerRef.current?.focus?.();
+          focusTriggerRef.current = null;
+        }}>
         {focused && (
           <motion.div
             key="focus-overlay"
-            className="fixed inset-0 z-50 overflow-y-auto"
+            ref={focusOverlayRef}
+            className="focus-overlay fixed inset-0 z-50 min-h-dvh overflow-x-hidden overflow-y-auto overscroll-contain"
             initial="hidden"
             animate="show"
             exit="hidden"
@@ -891,7 +1316,7 @@ export default function DrawersWorkshop({
             }}
           >
             <motion.div
-              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              className="fixed inset-0 bg-black/70 backdrop-blur-md"
               onClick={exitFocus}
               variants={{
                 hidden: { opacity: 0, transition: exitTransition },
@@ -899,25 +1324,27 @@ export default function DrawersWorkshop({
               }}
             />
 
-            <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-10 px-5 py-12 md:min-h-full md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-8 md:px-6 md:py-24">
-              <motion.div
-                className="flex items-center justify-center"
-                style={{ transformStyle: "preserve-3d" }}
-                variants={{
-                  hidden: {
-                    x: -80,
-                    scale: 0.94,
-                    opacity: 0,
-                    transition: exitTransition,
-                  },
-                  show: {
-                    x: 0,
-                    scale: reduce ? 1 : 1.12,
-                    opacity: 1,
-                    transition,
-                  },
-                }}
-              >
+            <div className="focus-shell relative z-10 flex min-h-dvh w-full items-start justify-center">
+              <div className="focus-layout grid w-full items-start justify-items-center">
+                <motion.div
+                  className="focus-chest-stage mx-auto flex items-center justify-center"
+                  style={{ transformStyle: "preserve-3d" }}
+                  variants={{
+                    hidden: {
+                      scale: 0.94,
+                      opacity: 0,
+                      transition: exitTransition,
+                    },
+                    show: {
+                      /* The 3D chest already extends beyond its layout box.
+                         Avoid scaling it further, which could collide with the
+                         directory panel at narrow tablet widths. */
+                      scale: 1,
+                      opacity: 1,
+                      transition,
+                    },
+                  }}
+                >
                 <SectionChest
                   section={focused}
                   color={colors[focused.key] ?? focused.color}
@@ -933,54 +1360,138 @@ export default function DrawersWorkshop({
                 />
               </motion.div>
 
-              <motion.div
-                className="flex justify-center md:justify-start"
-                variants={{
-                  hidden: { x: 120, opacity: 0, transition: exitTransition },
-                  show: { x: 0, opacity: 1, transition },
-                }}
-              >
-                <div className="w-full max-w-lg">
-                  <DirectoryBrowser
-                    section={focused}
-                    color={colors[focused.key] ?? focused.color}
-                    activeProject={activeProject}
-                    focusTarget={focusTarget}
-                    cloudMode={driveMode}
-                    fetchContent={driveMode ? fetchDriveContent : undefined}
-                    onOpenProject={(id) => toggleOpen(focused.key, id)}
-                    onAddProject={() => handleAddProject(focused.key)}
-                    onAddEnvelope={(pid) => handleAddEnvelope(focused.key, pid)}
-                    onCreateFile={(pid, envId, item) =>
-                      handleCreateFile(focused.key, pid, envId, item)
-                    }
-                    onRenameProject={(id, name) =>
-                      handleRenameProject(focused.key, id, name)
-                    }
-                    onRenameEnvelope={(pid, envId, name) =>
-                      handleRenameEnvelope(focused.key, pid, envId, name)
-                    }
-                    onRenameItem={(pid, envId, itemId, name) =>
-                      handleRenameItem(focused.key, pid, envId, itemId, name)
-                    }
-                    onUpdateFileContent={(pid, envId, itemId, content) =>
-                      handleUpdateFileContent(focused.key, pid, envId, itemId, content)
-                    }
-                    onRemoveItem={(pid, envId, itemId) =>
-                      handleRemoveItem(focused.key, pid, envId, itemId)
-                    }
-                    onDeleteProject={(id) => handleRemoveProject(focused.key, id)}
-                    onGroupItems={(pid, itemIds) =>
-                      handleGroupItems(focused.key, pid, itemIds)
-                    }
-                    onClose={exitFocus}
-                  />
-                </div>
-              </motion.div>
+                <motion.div
+                  className="flex min-w-0 w-full justify-center"
+                  variants={{
+                    hidden: { x: 120, opacity: 0, transition: exitTransition },
+                    show: { x: 0, opacity: 1, transition },
+                  }}
+                >
+                  <div className="focus-directory-stage w-full min-w-0 max-w-xl">
+                    <DirectoryBrowser
+                      section={focused}
+                      color={colors[focused.key] ?? focused.color}
+                      activeProject={activeProject}
+                      focusTarget={focusTarget}
+                      onOpenProject={(id) => toggleOpen(focused.key, id)}
+                      onAddProject={() => handleAddProject(focused.key)}
+                      onAddEnvelope={(pid) => handleAddEnvelope(focused.key, pid)}
+                      onCreateFile={(pid, envId, item) =>
+                        handleCreateFile(focused.key, pid, envId, item)
+                      }
+                      onRenameProject={(id, name) =>
+                        handleRenameProject(focused.key, id, name)
+                      }
+                      onRenameEnvelope={(pid, envId, name) =>
+                        handleRenameEnvelope(focused.key, pid, envId, name)
+                      }
+                      onDeleteEnvelope={(pid, envId) =>
+                        handleDeleteEnvelope(focused.key, pid, envId)
+                      }
+                      onRenameItem={(pid, envId, itemId, name) =>
+                        handleRenameItem(focused.key, pid, envId, itemId, name)
+                      }
+                      onUpdateFileContent={(pid, envId, itemId, content) =>
+                        handleUpdateFileContent(focused.key, pid, envId, itemId, content)
+                      }
+                      onRemoveItem={(pid, envId, itemId) =>
+                        handleRemoveItem(focused.key, pid, envId, itemId)
+                      }
+                      onDeleteProject={(id) => handleRemoveProject(focused.key, id)}
+                      onGroupItems={(pid, itemIds) =>
+                        handleGroupItems(focused.key, pid, itemIds)
+                      }
+                      onClose={exitFocus}
+                    />
+                  </div>
+                </motion.div>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Upload tray — live progress for large files, with pause/resume + cancel */}
+      <div className="drawers-upload-tray pointer-events-none fixed inset-x-0 z-[70] px-4">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-2">
+          <AnimatePresence>
+            {Object.values(uploads).map((task) => {
+              const percent =
+                task.chunkCount > 0
+                  ? Math.min(100, Math.round((task.uploaded / task.chunkCount) * 100))
+                  : 0;
+              const uploadedBytes = Math.min(task.uploaded * task.chunkSize, task.size);
+              return (
+                <motion.div
+                  key={task.id}
+                  layout
+                  initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                  transition={reduce ? { duration: 0.01 } : { duration: 0.2, ease: "easeOut" }}
+                  className="pointer-events-auto w-full rounded-xl border border-border bg-surface/95 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-border bg-accent/10 text-accent">
+                      {task.status === "running" ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : task.status === "paused" ? (
+                        <Pause className="size-4 text-text-muted" />
+                      ) : (
+                        <File className="size-4 text-red-500 dark:text-red-400" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-text">
+                        {task.name}
+                      </span>
+                      <span className="block text-[11px] text-text-muted">
+                        {task.status === "failed"
+                          ? task.error ?? "Upload failed"
+                          : task.status === "paused"
+                            ? `Paused — ${percent}% uploaded`
+                            : `${percent}% · ${formatMb(uploadedBytes)} of ${formatMb(task.size)}`}
+                      </span>
+                    </span>
+                    {task.status !== "failed" && (
+                      <button
+                        type="button"
+                        onClick={() => togglePauseUpload(task.id)}
+                        aria-label={
+                          task.status === "paused" ? "Resume upload" : "Pause upload"
+                        }
+                        title={task.status === "paused" ? "Resume" : "Pause"}
+                        className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-text-muted transition-colors hover:border-accent/40 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        {task.status === "paused" ? (
+                          <Play className="size-3.5" />
+                        ) : (
+                          <Pause className="size-3.5" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void cancelUpload(task.id)}
+                      aria-label={`Cancel upload of ${task.name}`}
+                      title={task.status === "failed" ? "Dismiss" : "Cancel"}
+                      className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-text-muted transition-colors hover:border-red-500/40 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-accent/15">
+                    <div
+                      className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      </div>
     </>
   );
 }

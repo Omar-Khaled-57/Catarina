@@ -32,7 +32,6 @@ import {
   CalendarPlus,
   ArrowRightLeft,
   Shield,
-  Eye,
 } from "lucide-react";
 
 interface Notification {
@@ -330,15 +329,19 @@ export default function NotificationPanel({
             return (
               <div
                 key={n.id}
-                onClick={isCelebration ? () => {
-                  setCelebrationMonth(n.title);
-                  setCelebrationOpen(true);
+                onClick={() => {
+                  if (isCelebration) {
+                    setCelebrationMonth(n.title);
+                    setCelebrationOpen(true);
+                  } else {
+                    setSelectedNotification(n);
+                  }
                   if (!n.read) markRead(n.id);
-                } : undefined}
-                className={`flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-colors group/n ${
+                }}
+                className={`flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-colors group/n cursor-pointer hover:bg-surface-2/60 ${
                   n.read ? "opacity-60" : "bg-surface-2/40"
                 } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""} ${
-                  isCelebration ? "cursor-pointer hover:bg-surface-2/60 ring-1 ring-teal-500/20" : ""
+                  isCelebration ? "ring-1 ring-teal-500/20" : ""
                 }`}
               >
                 <div className={`shrink-0 ${
@@ -383,18 +386,6 @@ export default function NotificationPanel({
                   <div className="mt-1.5 flex items-center justify-between gap-2">
                     <p className="text-xs font-medium text-text-muted">{timeAgo(n.createdAt)}</p>
                     <div className="flex items-center gap-1 sm:hidden">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedNotification(n);
-                          if (!n.read) markRead(n.id);
-                        }}
-                        className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
-                        title="View"
-                        aria-label="View notification"
-                      >
-                        <Eye size={15} />
-                      </button>
                       {!n.read && (
                         <button
                           onClick={(e) => {
@@ -435,18 +426,6 @@ export default function NotificationPanel({
                 </div>
                 {/* Actions */}
                 <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover/n:opacity-100 transition-opacity shrink-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedNotification(n);
-                      if (!n.read) markRead(n.id);
-                    }}
-                    className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
-                    title="View"
-                    aria-label="View notification"
-                  >
-                    <Eye size={16} />
-                  </button>
                   {!n.read && (
                     <button
                       onClick={(e) => {

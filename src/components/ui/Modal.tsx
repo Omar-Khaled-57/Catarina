@@ -72,6 +72,7 @@ export default function Modal({
     const close = () => onCloseRef.current();
     modalStack.push({ close });
     if (modalStack.length === 1) {
+      document.documentElement.style.scrollbarGutter = "stable";
       document.body.style.overflow = "hidden";
     }
     const opener = document.activeElement as HTMLElement | null;
@@ -94,6 +95,7 @@ export default function Modal({
       }
       if (modalStack.length === 0) {
         document.body.style.overflow = "";
+        document.documentElement.style.scrollbarGutter = "";
       }
       window.removeEventListener("keydown", handleKey);
     };

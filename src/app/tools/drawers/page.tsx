@@ -1,159 +1,52 @@
 /**
- * Drawers — /tools/drawers. Demo-first: renders the 3D chests (one per section)
- * with pull-out project drawers, envelopes and a focus-mode directory browser.
- * Data wiring comes next.
+ * Drawers — /tools/drawers. The team workspace, fully cloud-backed. The section
+ * palette (which chests exist) comes from the live section registry; the drawer
+ * trees themselves are loaded from the shared workspace API by the client, so
+ * every teammate sees the same content.
  */
 
 import DrawersWorkshop from "@/components/tools/drawers/DrawersWorkshop";
+import StorageNote from "./storage-note";
 import type { DemoSection } from "@/components/tools/drawers/types";
+import { getSections } from "@/lib/sections";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Drawers",
   description:
-    "Catarina's drawers — organized project envelopes and files for every team section, with optional Google Drive backup.",
+    "Catarina's drawers — organized project envelopes and files for every team section, synced to the shared team cloud.",
 };
 
-/* Offline SVG placeholder images so IMAGE items show a real preview in the
- * focus-mode browser and the chest thumbnails — no network needed. */
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const imgPlaceholder = (label: string, from: string, to: string) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="600" height="400" fill="url(#g)"/><circle cx="300" cy="150" r="52" fill="rgba(255,255,255,0.25)"/><rect x="190" y="206" width="220" height="16" rx="8" fill="rgba(255,255,255,0.9)"/><rect x="240" y="230" width="120" height="10" rx="5" fill="rgba(255,255,255,0.5)"/><text x="300" y="286" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="600" fill="rgba(0,0,0,0.35)">${esc(label)}</text></svg>`.replace(
-      /\n/g,
-      "",
-    ),
-  )}`;
+/* ─── Storage note (edit me) ───────────────────────────────────────────────
+   The team workspace is backed by a Turso database on its free tier. If you
+   run Catarina on a different cloud, update these four values — the note at
+   the bottom of the page renders from them automatically. */
+const STORAGE_PROVIDER = "Turso (free tier)";
+const STORAGE_LIMITS = ["5 GB total storage", "500M rows read / 10M rows written per month", "300 MB per file, split into 3 MB parts and reassembled automatically"] as const;
+const STORAGE_NOTE =
+  "The team drawers on this page store files in the default cloud backend — " +
+  "a hosted SQLite database (" + STORAGE_PROVIDER + "). Everything you upload " +
+  "lives there, and the panel below always tells the truth about what fits. " +
+  "Changes appear instantly and sync in the background, so the small lag you " +
+  "sometimes feel is the cloud backend's round-trip time — it can differ from " +
+  "one hosting service to another.";
+const STORAGE_FULL_HINT =
+  "Storage filling up? The quick, zero-migration fix: park big media in " +
+  "whatever cloud you already use, then add a LINK item in the drawer that " +
+  "points at it. A link takes almost no space and teammates open it straight " +
+  "from focus mode — no big files, no cleanup.";
 
-const DEMO_SECTIONS: DemoSection[] = [
-  {
-    key: "art",
-    label: "Art",
-    color: "#7C3AED",
-    projects: [
-      {
-        id: "art-sprites",
-        name: "Character Sprites",
-        envelopes: [
-          {
-            id: "art-sprites-hero",
-            name: "Hero poses",
-            items: [
-              { id: "hero-note", type: "NOTE", name: "Pose checklist" },
-              {
-                id: "hero-sheet",
-                type: "IMAGE",
-                name: "Sprite sheet",
-                content: imgPlaceholder("Sprite sheet", "#F472B6", "#C026D3"),
-              },
-            ],
-          },
-          {
-            id: "art-sprites-npc",
-            name: "NPC faces",
-            items: [
-              { id: "npc-pack", type: "FILE", name: "faces.zip" },
-              {
-                id: "npc-mood",
-                type: "IMAGE",
-                name: "Mood reference",
-                content: imgPlaceholder("Mood reference", "#FBBF24", "#EA580C"),
-              },
-            ],
-          },
-          {
-            id: "art-sprites-masks",
-            name: "Masks",
-            items: [
-              { id: "mask-code", type: "CODE", name: "mask-names.json" },
-              { id: "mask-link", type: "LINK", name: "reference board" },
-            ],
-          },
-        ],
-      },
-      {
-        id: "art-brand",
-        name: "Brand Kit",
-        items: [
-          {
-            id: "art-brand-hero",
-            type: "IMAGE",
-            name: "Hero banner",
-            content: imgPlaceholder("Hero banner", "#A78BFA", "#4F46E5"),
-          },
-        ],
-        envelopes: [
-          { id: "art-brand-logos", name: "Logos" },
-          { id: "art-brand-palettes", name: "Palettes" },
-        ],
-      },
-    ],
-  },
-  {
-    key: "technical",
-    label: "Technical",
-    color: "#3B82F6",
-    projects: [
-      {
-        id: "tech-system",
-        name: "Design System",
-        envelopes: [
-          {
-            id: "tech-system-buttons",
-            name: "Buttons",
-            items: [
-              { id: "btn-docs", type: "NOTE", name: "Usage rules" },
-              { id: "btn-tokens", type: "CODE", name: "buttons.css" },
-            ],
-          },
-          { id: "tech-system-tokens", name: "Tokens" },
-          {
-            id: "tech-system-icons",
-            name: "Icons",
-            items: [
-              {
-                id: "icon-set",
-                type: "IMAGE",
-                name: "Icon set",
-                content: imgPlaceholder("Icon set", "#38BDF8", "#2563EB"),
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    key: "management",
-    label: "Management",
-    color: "#F59E0B",
-    projects: [
-      {
-        id: "mgmt-planning",
-        name: "Q3 Planning",
-        envelopes: [
-          {
-            id: "mgmt-planning-roadmap",
-            name: "Roadmap",
-            items: [{ id: "roadmap-doc", type: "FILE", name: "roadmap.pdf" }],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    key: "marketing",
-    label: "Marketing",
-    color: "#FF4D6A",
+export default async function DrawersPage() {
+  /* Live section palette — the chests themselves are the team's real sections
+     (from the registry). Drawer trees load from the workspace API, so there is
+     no demo data on this page anymore. */
+  const registry = await getSections();
+  const sections: DemoSection[] = registry.map((s) => ({
+    key: s.key,
+    label: s.label,
+    color: s.color,
     projects: [],
-  },
-];
-
-export default function DrawersPage() {
-  const driveEnabled = Boolean(
-    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-  );
+  }));
 
   return (
     <div className="space-y-20 overflow-x-clip">
@@ -162,18 +55,43 @@ export default function DrawersPage() {
           <h1 className="text-2xl font-bold tracking-tight text-text sm:text-3xl">
             The Drawers
           </h1>
-          <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent uppercase">
-            {driveEnabled ? "Google Drive storage" : "Visual demo"}
+          <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-bold tracking-wide text-accent uppercase">
+            Team workspace
           </span>
+          <div
+            id="drawers-cloud-status-landscape"
+            className="drawers-cloud-status-slot drawers-cloud-status-slot--landscape"
+          />
         </div>
-        <p className="max-w-2xl text-sm text-text-muted">
-          One chest per section, one pull-out drawer per project, envelopes for
-          sub-drawers. Pull one open, lift its contents, or add envelopes and
-          loose files to try the interaction.
+        <p className="max-w-full text-sm text-text-muted">
+          Every section of the studio keeps its work in a chest, and each
+          project pulls out like its own drawer — envelopes tuck the fiddly
+          sub-things inside, loose files ride on top. Drop a file, pin a link,
+          scratch a note: it lands in the shared cloud at once, so every
+          teammate opens the same drawer you just closed.
         </p>
+        <p className="max-w-full text-sm text-text-muted">
+          Deletes are permanent: a drawer, envelope or file you remove is gone
+          for the whole team for good — its stored bytes are purged from the
+          cloud, with no undo. Changes appear in the chest the moment you make
+          them, then sync in the background; how quickly that sync lands is up
+          to the cloud backend you&apos;re on, so it can differ from one hosting
+          service to another.
+        </p>
+        <div
+          id="drawers-cloud-status-portrait"
+          className="drawers-cloud-status-slot drawers-cloud-status-slot--portrait"
+        />
       </header>
 
-      <DrawersWorkshop sections={DEMO_SECTIONS} driveEnabled={driveEnabled} />
+      <DrawersWorkshop sections={sections} />
+
+      <StorageNote
+        provider={STORAGE_PROVIDER}
+        limits={STORAGE_LIMITS}
+        note={STORAGE_NOTE}
+        fullHint={STORAGE_FULL_HINT}
+      />
     </div>
   );
 }

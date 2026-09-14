@@ -11,7 +11,7 @@
 
 import type { CSSProperties } from "react";
 import { useState } from "react";
-import { Plus, Archive, Maximize2 } from "lucide-react";
+import { Plus, Trash2, Maximize2 } from "lucide-react";
 import Envelope from "@/components/tools/drawers/Envelope";
 import LooseFile from "@/components/tools/drawers/LooseFile";
 import type { DemoProject, DemoSection } from "@/components/tools/drawers/types";
@@ -139,14 +139,12 @@ export default function SectionChest({
                     aria-label={`${project.name} contents`}
                     style={
                       {
-                        "--drawer-content-step": `${Math.min(
-                          48,
-                          72 /
-                            Math.max(
-                              1,
-                              project.envelopes.length + (project.items?.length ?? 0) - 1,
-                            ),
-                        )}px`,
+                        "--drawer-content-count": Math.max(
+                          1,
+                          project.envelopes.length +
+                            (project.items?.length ?? 0) -
+                            1,
+                        ),
                       } as CSSProperties
                     }
                   >
@@ -183,8 +181,13 @@ export default function SectionChest({
                     <button type="button" className="chest-drawer__add" onClick={() => onAddItem(project.id)}>
                       <Plus size={10} /> File
                     </button>
-                    <button type="button" className="chest-drawer__remove" onClick={() => onRemoveProject(project.id)} aria-label={`Remove ${project.name}`}>
-                      <Archive size={12} />
+                    <button
+                      type="button"
+                      className="chest-drawer__remove"
+                      onClick={() => onRemoveProject(project.id)}
+                      aria-label={`Delete ${project.name}`}
+                    >
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 )}

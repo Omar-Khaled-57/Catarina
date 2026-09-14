@@ -34,6 +34,7 @@ export default function LooseFile({
       style={{ "--file-index": index } as React.CSSProperties}
       role="button"
       tabIndex={0}
+      aria-label={`Open ${file.name} in focus mode`}
       onClick={onOpenInFocus}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

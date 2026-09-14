@@ -34,7 +34,6 @@ model User {
   userSections    UserSection[]
   goalAssignments GoalAssignment[]
   notifications   Notification[]
-  driveConnection DriveConnection?
 
   @@index([role])
 }
@@ -205,6 +204,13 @@ model RateLimitEvent {
 
   @@index([key, ts])
   @@index([ts])
+
+  // Runtime (src/lib/rateLimit.ts) queries this table by its literal name —
+  // keep Prisma's DDL name in sync so prisma generate/push produce the table
+  // the code actually talks to (the scaffolded cloud_drawers migration once
+  // created a differently-cased "RateLimitEvent", silently fail-opening the
+  // limiter; see migration 20260914060000_align_rate_limit_events).
+  @@map("rate_limit_events")
 }
 
 // ─── SectionConfig Model ─────────────────────────────────────────────────────
@@ -233,21 +239,67 @@ model AppConfig {
   value String
 }
 
-// ─── DriveConnection Model ───────────────────────────────────────────────────
-// A user's Google Drive OAuth connection for the drawers feature.
-// Tokens are encrypted at rest (AES-256-GCM via lib/drive.ts) — only Google
-// should ever see a raw token, so the refresh token is never stored in plaintext.
-model DriveConnection {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  googleEmail           String
-  encryptedAccessToken  String   // AES-256-GCM payload (iv:tag:ciphertext, base64)
-  encryptedRefreshToken String
-  tokenExpiresAt        DateTime
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+// ─── DrawerSection Model ────────────────────────────────────────────────────
+// Cloud storage for The Drawers: one shared team workspace per section.
+// The full drawer tree (projects → envelopes → items, with text/link/image
+// content embedded) is stored as JSON so every authenticated teammate reads
+// and writes the same space — no OAuth or external storage service needed.
+model DrawerSection {
+  key       String   @id
+  tree      String   // JSON: DemoProject[] for this section
+  version   Int      @default(0) // optimistic-lock counter for whole-tree writes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+// ─── Drawer Uploads & Files ─────────────────────────────────────────────────
+// Chunked-upload backing for The Drawers (runtime logic in src/lib/workspaceFiles.ts).
+// Large files are uploaded as ≤3MB raw-byte parts (each base64 in its own
+// mutation request, safely under Vercel's ~4.5MB body cap), then ASSEMBLED
+// server-side into a single WorkspaceFile BLOB. The drawer tree only keeps a
+// `file://<id>` reference, so the shared JSON stays small on every read.
+// Accessed through the raw @libsql/client at runtime (like rate_limit_events);
+// Prisma just owns the DDL so both `migrate dev` (local) and `db push` (Turso)
+// create the tables.
+model WorkspaceUpload {
+  id          String  @id // uploadId (crypto.randomUUID)
+  sectionKey  String // owning section (runtime SQL inserts/selects it; keep in sync)
+  projectId   String
+  envelopeId  String?
+  name        String
+  type        String  // CODE | IMAGE | FILE | LINK | NOTE | VIDEO
+  mime        String
+  totalBytes  Int
+  chunkSize   Int     // server-decided part size in bytes
+  chunkCount  Int
+  createdBy   String
+  createdAt   Int     @default(0) // epoch ms
 
-  @@index([userId])
+  @@index([createdAt])
+  @@index([sectionKey])
+}
+
+model WorkspaceUploadChunk {
+  uploadId   String
+  chunkIndex Int
+  data       Bytes // raw decoded part (not base64)
+
+  @@id([uploadId, chunkIndex])
+}
+
+model WorkspaceFile {
+  id         String @id // fileId (crypto.randomUUID)
+  sectionKey String
+  projectId  String
+  envelopeId String?
+  itemId     String
+  name       String
+  mime       String
+  size       Int
+  data       Bytes // assembled raw bytes
+  createdBy  String
+  createdAt  Int    @default(0) // epoch ms
+
+  @@index([createdAt])
+  @@index([sectionKey])
 }

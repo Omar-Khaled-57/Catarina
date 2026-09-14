@@ -12,7 +12,7 @@
  * directory here, and clicking a project's directory opens its drawer.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -27,6 +27,7 @@ import {
   Folder,
   Image,
   Link2,
+  Loader2,
   Pencil,
   Plus,
   Search,
@@ -43,6 +44,7 @@ import type {
   EnvelopeData,
 } from "./types";
 import { downloadItem } from "@/lib/download";
+import { useFocusTrap } from "./useFocusTrap";
 
 const FILE_TYPES = ["CODE", "IMAGE", "FILE", "LINK", "NOTE", "VIDEO"] as const;
 const FILE_TYPE_LABELS: Record<(typeof FILE_TYPES)[number], string> = {
@@ -269,10 +271,10 @@ function Row({
         {label}
       </span>
       {meta && (
-        <span className="shrink-0 text-xs text-text-muted">{meta}</span>
+        <span className="hidden shrink-0 text-xs text-text-muted min-[400px]:inline">{meta}</span>
       )}
       {actions && (
-        <span className="-translate-x-1 opacity-0 transition-[transform,opacity] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100">
+        <span className="-translate-x-1 shrink-0 opacity-100 transition-[transform,opacity] duration-200 ease-out sm:opacity-0 sm:group-hover:translate-x-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-x-0 sm:group-focus-within:opacity-100">
           <span className="flex items-center gap-1"> {actions}</span>
         </span>
       )}
@@ -375,17 +377,70 @@ function CopyButton({
   );
 }
 
+/** Resolve a stored content string to something renderable. `file://<id>`
+ *  references are fetched (bas64-free, raw bytes) and turned into an object
+ *  URL; plain data:/blob:/https: content passes through unchanged. The object
+ *  URL is revoked when the content changes or the component unmounts. */
+function useResolvedSource(content: string | undefined): {
+  url: string;
+  loading: boolean;
+} {
+  const ref = useMemo(
+    () => (content && content.startsWith("file://") ? content.slice(7) : null),
+    [content],
+  );
+  const [meta, setMeta] = useState<{ ref: string | null; url: string }>({
+    ref: null,
+    url: "",
+  });
+
+  useEffect(() => {
+    if (!ref) return;
+    let active = true;
+    fetch(`/api/drawers/files/${encodeURIComponent(ref)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error();
+        return res.blob();
+      })
+      .then((blob) => {
+        if (!active) return;
+        const created = URL.createObjectURL(blob);
+        setMeta((prev) => (prev.ref === ref ? prev : { ref, url: created }));
+      })
+      .catch(() => {
+        if (!active) return;
+        setMeta((prev) => (prev.ref === ref ? prev : { ref, url: "" }));
+      });
+    return () => {
+      active = false;
+      /* Revoke this effect's object URL once its fetch result is stored (or if
+         the component unmounts / the ref changes before it resolves). */
+      setMeta((prev) => {
+        if (prev.ref === ref && prev.url) {
+          URL.revokeObjectURL(prev.url);
+          return { ref, url: "" };
+        }
+        return prev;
+      });
+    };
+  }, [ref]);
+
+  /* Until the fetch for the CURRENT ref settles, meta still refers to the
+     previous ref — so show a loader and an empty source. Plain (non-ref)
+     content always passes through — refs never touch it. */
+  if (ref === null) return { url: content ?? "", loading: false };
+  return { url: meta.ref === ref ? meta.url : "", loading: meta.ref !== ref };
+}
+
 function FileDetail({
   file,
   color,
-  fetchContent,
   onRename,
   onUpdateContent,
   onDone,
 }: {
   file: DirItem;
   color: string;
-  fetchContent?: (fileId: string) => Promise<string>;
   onRename: (name: string) => void;
   onUpdateContent: (content: string) => void;
   onDone: () => void;
@@ -393,49 +448,28 @@ function FileDetail({
   const ItemIcon = ITEM_ICONS[file.type];
   const [value, setValue] = useState(file.name);
   const [draft, setDraft] = useState(file.content ?? "");
-  const isTextish =
-    file.type !== "IMAGE" && file.type !== "VIDEO" && file.type !== "LINK";
-  const [contentLoading, setContentLoading] = useState(
-    () => !!fetchContent && isTextish && !file.content,
-  );
-
-  /* Drive-backed text items arrive without content (lazily fetched on open). */
-  useEffect(() => {
-    if (!fetchContent || !isTextish || file.content) return;
-    let cancelled = false;
-    fetchContent(file.id)
-      .then((text) => {
-        if (!cancelled) setDraft(text);
-      })
-      .catch(() => {
-        /* Leave the textarea empty — the user can still type content. */
-      })
-      .finally(() => {
-        if (!cancelled) setContentLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file.id, fetchContent]);
 
   const commitName = () => onRename(value.trim() || file.name);
   const commitContent = () => onUpdateContent(draft);
 
-  const url = file.content;
+  const rawContent = file.content ?? "";
+  const { url, loading: urlLoading } = useResolvedSource(rawContent);
+  const isRef = rawContent.startsWith("file://");
+  const hasRefUrl = isRef && !!url;
   const isUrl =
-    isPreviewableUrl(url ?? "") || /^(https?:|mailto:|tel:)/i.test(url ?? "");
+    !isRef &&
+    (isPreviewableUrl(rawContent) || /^(https?:|mailto:|tel:)/i.test(rawContent));
   const isMedia =
     (file.type === "IMAGE" || file.type === "VIDEO") &&
-    !!url &&
-    isPreviewableUrl(url);
+    !!rawContent &&
+    (isRef ? hasRefUrl : isPreviewableUrl(rawContent));
   const showsImagePreview = file.type === "IMAGE";
-  const isLink = file.type === "LINK" && !!url && isUrl;
+  const isLink = file.type === "LINK" && !!rawContent && isUrl;
   const canOpenExternally =
     file.type !== "CODE" &&
     file.type !== "NOTE" &&
     file.type !== "FILE" &&
-    !!url &&
+    !!rawContent &&
     isUrl;
 
   return (
@@ -455,7 +489,7 @@ function FileDetail({
               e.preventDefault();
               e.stopPropagation();
               commitName();
-              commitContent(); /* mirror the Done button — Enter must not drop textarea edits */
+              if (!isRef) commitContent(); /* mirror the Done button — Enter must not drop textarea edits */
               onDone();
             }
             if (e.key === "Escape") {
@@ -495,7 +529,12 @@ function FileDetail({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
         {isMedia || showsImagePreview ? (
           <div className="flex h-full min-h-0 w-full items-center justify-center">
-            {showsImagePreview ? (
+            {urlLoading ? (
+              <div className="flex flex-col items-center gap-2 text-xs text-text-muted">
+                <Loader2 className="size-5 animate-spin" />
+                Loading the file…
+              </div>
+            ) : showsImagePreview ? (
               // eslint-disable-next-line @next/next/no-img-element -- blob/data URLs need a plain <img>
               <img
                 src={isMedia ? url : "/media/banner.png"}
@@ -524,6 +563,25 @@ function FileDetail({
             </a>
             <CopyButton value={url} className="self-start" />
           </div>
+        ) : isRef ? (
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 p-6 text-center">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-border bg-accent/10">
+              <File className="size-6 text-accent" />
+            </div>
+            <p className="text-sm font-medium text-text">
+              Stored in the team cloud
+            </p>
+            <p className="max-w-md text-xs leading-relaxed text-text-muted">
+              This file&apos;s bytes live in the shared workspace. Use the
+              Download button in the header to get the original — its content
+              isn&apos;t editable in place, and the name still can be changed
+              above.
+            </p>
+            <p className="max-w-md text-xs leading-relaxed text-text-muted">
+              Deleting it is permanent: the stored copy is purged from the
+              cloud the moment you do, for everyone on the team, with no undo.
+            </p>
+          </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col text-left">
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -531,11 +589,6 @@ function FileDetail({
                 Content
               </span>
               <div className="flex items-center gap-2">
-                {contentLoading && (
-                  <span className="text-[11px] text-text-muted italic">
-                    Loading from Drive…
-                  </span>
-                )}
                 <CopyButton value={draft} disabled={!draft.trim()} />
               </div>
             </div>
@@ -576,7 +629,7 @@ function FileDetail({
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             commitName();
-            commitContent();
+            if (!isRef) commitContent();
             onDone();
           }}
           className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -646,13 +699,11 @@ function EditorRow({
 function FileForm({
   existingCount,
   color,
-  cloudMode,
   onCreate,
   onCancel,
 }: {
   existingCount: number;
   color: string;
-  cloudMode?: boolean;
   onCreate: (item: Omit<DirItem, "id"> & { file?: File }) => void;
   onCancel: () => void;
 }) {
@@ -845,9 +896,7 @@ function FileForm({
           Upload image, video or any file
         </span>
         <span>
-          {cloudMode
-            ? "Uploads straight into Google Drive"
-            : "Stored locally for now — cloud storage comes later"}
+          Saved into the team drawers — everyone sees updates
         </span>
         <input
           type="file"
@@ -1044,8 +1093,6 @@ export default function DirectoryBrowser({
   color,
   activeProject,
   focusTarget,
-  cloudMode = false,
-  fetchContent,
   onOpenProject,
   onAddProject,
   onAddEnvelope,
@@ -1055,6 +1102,7 @@ export default function DirectoryBrowser({
   onRenameItem,
   onUpdateFileContent,
   onRemoveItem,
+  onDeleteEnvelope,
   onDeleteProject,
   onGroupItems,
   onClose,
@@ -1063,8 +1111,6 @@ export default function DirectoryBrowser({
   color: string;
   activeProject: DemoProject | null;
   focusTarget: { envelopeId: string | null; fileId: string } | null;
-  cloudMode?: boolean;
-  fetchContent?: (fileId: string) => Promise<string>;
   onOpenProject: (id: string | null) => void;
   onAddProject: () => void;
   onAddEnvelope: (projectId: string) => void;
@@ -1096,6 +1142,7 @@ export default function DirectoryBrowser({
     envelopeId: string | null,
     itemId: string,
   ) => void;
+  onDeleteEnvelope: (projectId: string, envelopeId: string) => void;
   onDeleteProject: (id: string) => void;
   onGroupItems: (projectId: string, itemIds: string[]) => void;
   onClose: () => void;
@@ -1118,14 +1165,11 @@ export default function DirectoryBrowser({
   );
   const [edit, setEdit] = useState<EditTarget | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [armDeleteId, setArmDeleteId] = useState<string | null>(null);
-  const [armDeleteItem, setArmDeleteItem] = useState<{
-    envId: string | null;
-    id: string;
-  } | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<{ envId: string | null } | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const dialogTriggerRef = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
 
   const envelope =
@@ -1142,8 +1186,6 @@ export default function DirectoryBrowser({
   const clearTransient = () => {
     setOpenFile(null);
     setEdit(null);
-    setArmDeleteId(null);
-    setArmDeleteItem(null);
     setSelectMode(false);
     setSelected(new Set());
     setDialog(null);
@@ -1216,14 +1258,27 @@ export default function DirectoryBrowser({
       ? `search:${trimmedQuery}`
       : `view:${depth}:${envelopeId ?? "root"}`;
 
-  const closeDialog = () => setDialog(null);
+  const openDialog = (envId: { envId: string | null }) => {
+    dialogTriggerRef.current = (document.activeElement as HTMLElement) ?? null;
+    setDialog(envId);
+  };
+  const closeDialog = () => {
+    setDialog(null);
+    /* Focus goes home to whichever button opened the dialog. */
+    requestAnimationFrame(() => {
+      dialogTriggerRef.current?.focus?.();
+      dialogTriggerRef.current = null;
+    });
+  };
+  useFocusTrap(dialogRef, dialog !== null);
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`${section.label} directory`}
-      className="relative flex h-full max-h-[82vh] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-border bg-surface/85 shadow-2xl shadow-black/40 backdrop-blur-xl sm:min-h-[480px]"
+      tabIndex={-1}
+      className="directory-browser relative flex h-full w-full max-h-[82vh] min-h-[360px] min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface/85 shadow-2xl shadow-black/40 backdrop-blur-xl outline-none sm:min-h-[480px]"
     >
       <header className="flex items-center gap-2 border-b border-border px-5 py-3.5">
         <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
@@ -1307,7 +1362,6 @@ export default function DirectoryBrowser({
               <FileDetail
                 file={runningFile}
                 color={color}
-                fetchContent={cloudMode ? fetchContent : undefined}
                 onRename={(name) =>
                   activeProject &&
                   onRenameItem(
@@ -1371,7 +1425,6 @@ onClick={() =>
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setArmDeleteId(null);
                                 setEdit({ kind: "drawer", id: project.id });
                                 setEditValue(project.name);
                               }}
@@ -1384,24 +1437,11 @@ onClick={() =>
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (armDeleteId === project.id) {
-                                  onDeleteProject(project.id);
-                                  setArmDeleteId(null);
-                                } else {
-                                  setEdit(null);
-                                  setArmDeleteId(project.id);
-                                }
+                                setEdit(null);
+                                onDeleteProject(project.id);
                               }}
-                              className={`grid size-7 place-items-center rounded-lg transition-colors ${
-                                armDeleteId === project.id
-                                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                                  : "text-text-muted hover:bg-red-500/10 hover:text-red-600"
-                              }`}
-                              aria-label={
-                                armDeleteId === project.id
-                                  ? `Confirm delete ${project.name}`
-                                  : `Delete ${project.name}`
-                              }
+                              className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-600"
+                              aria-label={`Delete ${project.name}`}
                             >
                               <Trash2 className="size-3" />
                             </button>
@@ -1466,28 +1506,10 @@ onClick={() =>
                             onClick={(e) => {
                               e.stopPropagation();
                               setEdit(null);
-                              if (
-                                armDeleteItem?.id === item.id &&
-                                armDeleteItem.envId === envelope.id
-                              ) {
-                                onRemoveItem(activeProject!.id, envelope.id, item.id);
-                                setArmDeleteItem(null);
-                              } else {
-                                setArmDeleteItem({ envId: envelope.id, id: item.id });
-                              }
+                              onRemoveItem(activeProject!.id, envelope.id, item.id);
                             }}
-                            className={`grid size-7 place-items-center rounded-lg transition-colors ${
-                              armDeleteItem?.id === item.id &&
-                              armDeleteItem.envId === envelope.id
-                                ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                                : "text-text-muted hover:bg-red-500/10 hover:text-red-600"
-                            }`}
-                            aria-label={
-                              armDeleteItem?.id === item.id &&
-                              armDeleteItem.envId === envelope.id
-                                ? `Confirm delete ${item.name}`
-                                : `Delete ${item.name}`
-                            }
+                            className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-600"
+                            aria-label={`Delete ${item.name}`}
                           >
                             <Trash2 className="size-3" />
                           </button>
@@ -1546,18 +1568,32 @@ onClick={() =>
                       }`}
                       onClick={() => goToEnvelope(env.id)}
                       actions={
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEdit({ kind: "envelope", id: env.id });
-                            setEditValue(env.name);
-                          }}
-                          className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
-                          aria-label={`Rename ${env.name}`}
-                        >
-                          <Pencil className="size-3" />
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEdit({ kind: "envelope", id: env.id });
+                              setEditValue(env.name);
+                            }}
+                            className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+                            aria-label={`Rename ${env.name}`}
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEdit(null);
+                              onDeleteEnvelope(activeProject!.id, env.id);
+                            }}
+                            className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-600"
+                            aria-label={`Delete ${env.name}`}
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </>
                       }
                     />
                   ),
@@ -1617,28 +1653,10 @@ onClick={() =>
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEdit(null);
-                                if (
-                                  armDeleteItem?.id === item.id &&
-                                  armDeleteItem.envId === null
-                                ) {
-                                  onRemoveItem(activeProject!.id, null, item.id);
-                                  setArmDeleteItem(null);
-                                } else {
-                                  setArmDeleteItem({ envId: null, id: item.id });
-                                }
+                                onRemoveItem(activeProject!.id, null, item.id);
                               }}
-                              className={`grid size-7 place-items-center rounded-lg transition-colors ${
-                                armDeleteItem?.id === item.id &&
-                                armDeleteItem.envId === null
-                                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                                  : "text-text-muted hover:bg-red-500/10 hover:text-red-600"
-                              }`}
-                              aria-label={
-                                armDeleteItem?.id === item.id &&
-                                armDeleteItem.envId === null
-                                  ? `Confirm delete ${item.name}`
-                                  : `Delete ${item.name}`
-                              }
+                              className="grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-600"
+                              aria-label={`Delete ${item.name}`}
                             >
                               <Trash2 className="size-3" />
                             </button>
@@ -1654,7 +1672,7 @@ onClick={() =>
         </AnimatePresence>
       </div>
 
-      <footer className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-2.5 text-xs text-text-muted">
+      <footer className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-3 pb-4 text-xs text-text-muted">
         {runningFile ? (
           <span className="ml-auto">Editing {runningFile.name}</span>
         ) : depth === 2 ? (
@@ -1669,7 +1687,7 @@ onClick={() =>
             </button>
             <button
               type="button"
-              onClick={() => setDialog({ envId: envelope!.id })}
+              onClick={() => openDialog({ envId: envelope!.id })}
               className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <Plus className="size-3" />
@@ -1692,7 +1710,7 @@ onClick={() =>
             </button>
             <button
               type="button"
-              onClick={() => setDialog({ envId: null })}
+              onClick={() => openDialog({ envId: null })}
               className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-text transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <Plus className="size-3" />
@@ -1761,6 +1779,7 @@ onClick={() =>
             onClick={closeDialog}
           >
             <motion.div
+              ref={dialogRef}
               role="dialog"
               aria-modal="true"
               aria-label="New file"
@@ -1782,7 +1801,6 @@ onClick={() =>
                     : looseFiles.length
                 }
                 color={color}
-                cloudMode={cloudMode}
                 onCreate={(item) => {
                   if (activeProject) onCreateFile(activeProject.id, dialog.envId, item);
                   closeDialog();

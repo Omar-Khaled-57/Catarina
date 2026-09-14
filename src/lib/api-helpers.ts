@@ -53,6 +53,50 @@ export async function requireAdmin(): Promise<AuthResult<JWTPayload>> {
   return auth;
 }
 
+/**
+ * Whether a user may work in a section: admins bypass, everyone else must be
+ * a recorded member of that section. Mirrors the dashboard's per-section
+ * access so the drawers (a team workspace) can't be read/written by users the
+ * dashboard would not let into that section.
+ */
+export async function canAccessSection(
+  userId: string,
+  sectionKey: string,
+): Promise<boolean> {
+  const ctx = await getUserContext(userId);
+  if (ctx.role === ROLE_ADMIN) return true;
+  return ctx.sections.includes(sectionKey.toUpperCase());
+}
+
+/**
+ * Authenticate and load the full user context in ONE query. Equivalent to
+ * requireUser() + getUserContext(), but with a single findUnique — hot drawer
+ * mutations made several sequential Prisma calls to a remote Turso DB per
+ * request, and each was a network round trip.
+ */
+export async function requireUserContext(): Promise<
+  { ok: true; data: UserContext } | { ok: false; response: NextResponse }
+> {
+  const payload = await verifyToken();
+  if (!payload) return { ok: false, response: jsonError("Unauthorized", 401) };
+  /* Fail closed on zombie sessions: a deleted user's token must not keep
+   * working, and a user without databases rows can't be a member. */
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    include: { userSections: { select: { section: true } } },
+  });
+  if (!user) return { ok: false, response: jsonError("Unauthorized", 401) };
+  return {
+    ok: true,
+    data: {
+      id: user.id,
+      role: user.role,
+      sections: user.userSections.map((s) => s.section),
+      permissions: parsePermissions(user.permissions),
+    },
+  };
+}
+
 /* ─── User context ────────────────────────────────────────────────────────── */
 
 export interface UserContext {
