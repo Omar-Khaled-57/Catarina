@@ -21,6 +21,8 @@ export interface MemberPermissions {
   canManageMembers: boolean;
   /** Can create new planning months */
   canCreateMonths: boolean;
+  /** Can manage team tables (create, edit, delete) */
+  canManageTables: boolean;
 }
 
 /** Default permissions for a new MEMBER (conservative) */
@@ -30,6 +32,7 @@ export const DEFAULT_PERMISSIONS: MemberPermissions = {
   canDeleteGoals: false,
   canManageMembers: false,
   canCreateMonths: false,
+  canManageTables: true,
 };
 
 /** Admin gets everything — this is the canonical full set */
@@ -39,6 +42,7 @@ export const ADMIN_PERMISSIONS: MemberPermissions = {
   canDeleteGoals: true,
   canManageMembers: true,
   canCreateMonths: true,
+  canManageTables: true,
 };
 
 /**
@@ -80,4 +84,5 @@ export const PERMISSION_LABELS: Record<keyof MemberPermissions, string> = {
   canDeleteGoals: "Delete Goals",
   canManageMembers: "Manage Members",
   canCreateMonths: "Create Months",
+  canManageTables: "Manage Team Tables",
 };

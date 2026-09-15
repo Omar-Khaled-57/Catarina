@@ -9,7 +9,7 @@
  * Non-admin members see the report + export PDF.
  */
 
-import { useState, useEffect, useMemo, use } from "react";
+import { useState, useEffect, useMemo, useRef, use } from "react";
 import { notFound } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import SectionChart from "@/components/SectionChart";
@@ -19,6 +19,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { type GoalData } from "@/types";
 import { SECTIONS, SECTION_COLORS, SECTION_LABELS } from "@/lib/auth";
 import { PDF_PALETTE, type PdfTheme } from "@/lib/pdf-palette";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
+  themeSafeTextColor,
+  themeSafeGraphicColor,
+  themeSafePill,
+} from "@/lib/themeSafeColor";
 import {
   FileText, BarChart3, Layers, Sun, Moon, Download, X,
   CheckCircle2, Clock, Target, TrendingUp, ChevronRight
@@ -52,6 +58,18 @@ export default function ArchivedMonthView({
   const { monthId } = use(params);
   const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Your Team";
   const { user, isAdmin } = useAuth();
+  const { isDark } = useTheme();
+
+  /* Theme-safe section inks for the breakdown bars and pill tabs. */
+  const sectionTextOf = Object.fromEntries(
+    SECTIONS.map((s) => [s, themeSafeTextColor(SECTION_COLORS[s], isDark)]),
+  );
+  const sectionGraphicOf = Object.fromEntries(
+    SECTIONS.map((s) => [s, themeSafeGraphicColor(SECTION_COLORS[s], isDark)]),
+  );
+  const sectionPillOf = Object.fromEntries(
+    SECTIONS.map((s) => [s, themeSafePill(SECTION_COLORS[s], isDark)]),
+  );
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [monthInfo, setMonthInfo] = useState<{
     name: string;
@@ -69,6 +87,47 @@ export default function ArchivedMonthView({
   /* PDF export state */
   const [showExport, setShowExport] = useState(false);
   const [pdfTheme, setPdfTheme] = useState<PdfTheme>("dark");
+  const exportPanelRef = useRef<HTMLDivElement>(null);
+
+  /* Export dialog: Escape to close, Tab focus trap, focus restore on close. */
+  useEffect(() => {
+    if (!showExport) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const panel = exportPanelRef.current;
+    const getFocusables = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter((el) => !el.hasAttribute("disabled"));
+    const focusables = getFocusables();
+    focusables[0]?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowExport(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const els = getFocusables();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previous?.focus();
+    };
+  }, [showExport]);
 
   useEffect(() => {
     /* Reset per navigation — don't show the previous month's content (or its
@@ -141,10 +200,18 @@ export default function ArchivedMonthView({
   const handleExportPDF = () => {
     const p = PDF_PALETTE[pdfTheme];
 
+    /* Light-theme PDF sections use the app's light section inks so the
+       section bars, dots and % labels clear 3:1 / 4.5:1 on white. Dark-theme
+       PDFs lift the too-dim violets toward white the same way on-screen. */
+    const pdfSectionColor = (section: string) =>
+      pdfTheme === "light"
+        ? (PDF_PALETTE.light as unknown as Record<string, string>)[section.toLowerCase()]
+        : themeSafeTextColor(SECTION_COLORS[section], true);
+
     const sectionPages = SECTIONS.map((section) => {
       const sGoals = goalsBySection[section];
       const stats = sectionStats[section];
-      const color = SECTION_COLORS[section];
+      const color = pdfSectionColor(section);
       const label = SECTION_LABELS[section];
 
       const goalRows = sGoals
@@ -207,6 +274,14 @@ export default function ArchivedMonthView({
     const donutCx = donutOuter / 2;
     const donutCy = donutOuter / 2;
 
+    /* Header: mint header in dark PDFs takes dark ink; the dark-green header
+       in light PDFs needs white ink (both clear 4.5:1 text / 3:1 graphics). */
+    const headerGrad =
+      pdfTheme === "dark"
+        ? `linear-gradient(135deg, ${p.accent2} 0%, ${p.accent} 100%)`
+        : "linear-gradient(135deg, #00623D 0%, #007449 100%)";
+    const headerInk = pdfTheme === "dark" ? "rgba(6,11,20,0.85)" : "#FFFFFF";
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -225,10 +300,11 @@ export default function ArchivedMonthView({
       .page { background-color: ${p.bg} !important; }
     }
 
-    .header { background: linear-gradient(135deg, ${p.accent2} 0%, ${p.accent} 100%); padding: 30px 26px; border-radius: 14px; margin-bottom: 28px; }
-    .header-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(6,11,20,0.6); margin-bottom: 8px; }
-    .header-title { font-size: 30px; font-weight: 900; color: #060b14; line-height: 1.05; }
-    .header-sub { font-size: 13px; color: rgba(6,11,20,0.5); margin-top: 4px; }
+    /* Header ink/gradient (light PDFs need white ink on the deep-green header). */
+    .header { background: ${headerGrad}; padding: 30px 26px; border-radius: 14px; margin-bottom: 28px; }
+    .header-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: ${headerInk}; margin-bottom: 8px; }
+    .header-title { font-size: 30px; font-weight: 900; color: ${headerInk}; line-height: 1.05; }
+    .header-sub { font-size: 13px; color: ${headerInk}; margin-top: 4px; }
 
     .stats-row { display: flex; gap: 14px; margin-bottom: 24px; }
     .stat { flex: 1; border-radius: 14px; padding: 20px 16px; text-align: center; }
@@ -290,7 +366,7 @@ export default function ArchivedMonthView({
       <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${p.textMuted};margin-bottom:12px;">Section Breakdown</div>
       ${SECTIONS.map((section) => {
       const stats = sectionStats[section];
-      const color = SECTION_COLORS[section];
+      const color = pdfSectionColor(section);
       const label = SECTION_LABELS[section];
       return `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
@@ -347,7 +423,7 @@ export default function ArchivedMonthView({
         /* Bars */
         const bars = SECTIONS.map((section, i) => {
           const stats = sectionStats[section];
-          const color = SECTION_COLORS[section];
+          const color = pdfSectionColor(section);
           const label = SECTION_LABELS[section];
           const pct = stats.percentage;
           const barH = (pct / 100) * CHART_H;
@@ -373,7 +449,7 @@ export default function ArchivedMonthView({
           <defs>
             ${SECTIONS.map((section) => {
           const id = section.toLowerCase();
-          const color = SECTION_COLORS[section];
+          const color = pdfSectionColor(section);
           return `
               <linearGradient id="pfg-${id}" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="${color}" stop-opacity="0.95" />
@@ -479,7 +555,7 @@ export default function ArchivedMonthView({
         </div>
         <button
           onClick={() => setShowExport(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-bg shadow-[0_0_15px_var(--color-accent-glow)] transition-transform hover:scale-105 active:scale-95"
+          className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-ink shadow-[0_0_15px_var(--color-accent-glow)] transition-transform hover:scale-105 active:scale-95"
         >
           <Download size={16} />
           Export PDF
@@ -497,8 +573,9 @@ export default function ArchivedMonthView({
                 setActiveSection(SECTIONS[0]);
               }
             }}
+            aria-pressed={activeTab === tab.id}
             className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-4 py-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${activeTab === tab.id
-                ? "bg-accent text-bg shadow-md"
+                ? "bg-accent text-accent-ink shadow-md"
                 : "text-text-muted hover:text-text hover:bg-surface-2"
               }`}
           >
@@ -534,7 +611,7 @@ export default function ArchivedMonthView({
                 {
                   label: "Done",
                   value: globalStats.done,
-                  color: "#00E8A2",
+                  color: "var(--accent)",
                   bg: "bg-accent/10",
                   border: "border-accent/20",
                   icon: <CheckCircle2 size={18} />,
@@ -542,7 +619,7 @@ export default function ArchivedMonthView({
                 {
                   label: "Remaining",
                   value: globalStats.remaining,
-                  color: "#FFB830",
+                  color: "var(--warning)",
                   bg: "bg-warning/10",
                   border: "border-warning/20",
                   icon: <Clock size={18} />,
@@ -621,15 +698,16 @@ export default function ArchivedMonthView({
                 <div className="space-y-3">
                   {SECTIONS.map((section) => {
                     const stats = sectionStats[section];
-                    const color = SECTION_COLORS[section];
                     const label = SECTION_LABELS[section];
+                    const safeText = sectionTextOf[section];
+                    const safeGraphic = sectionGraphicOf[section];
                     return (
                       <div key={section}>
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             <div
                               className="h-2.5 w-2.5 rounded-[3px]"
-                              style={{ backgroundColor: color }}
+                              style={{ backgroundColor: safeGraphic }}
                             />
                             <span className="text-xs font-semibold text-text">
                               {label}
@@ -641,7 +719,7 @@ export default function ArchivedMonthView({
                             </span>
                             <span
                               className="text-xs font-bold"
-                              style={{ color }}
+                              style={{ color: safeText }}
                             >
                               {stats.percentage.toFixed(1)}%
                             </span>
@@ -652,7 +730,7 @@ export default function ArchivedMonthView({
                             className="h-full rounded-full transition-all duration-700"
                             style={{
                               width: `${stats.percentage}%`,
-                              backgroundColor: color,
+                              backgroundColor: safeGraphic,
                             }}
                           />
                         </div>
@@ -678,26 +756,28 @@ export default function ArchivedMonthView({
             {/* Section tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               {SECTIONS.map((section) => {
-                const color = SECTION_COLORS[section];
                 const label = SECTION_LABELS[section];
                 const isActive = activeSection === section;
+                const safeGraphic = sectionGraphicOf[section];
+                const { bg: pillBg, fg: pillFg } = sectionPillOf[section];
                 return (
                   <button
                     key={section}
                     onClick={() => setActiveSection(section)}
+                    aria-pressed={isActive}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${isActive
-                        ? "text-bg"
+                        ? ""
                         : "text-text-muted hover:text-text border-transparent hover:border-border/40"
                       }`}
                     style={
                       isActive
-                        ? { backgroundColor: color, borderColor: color }
+                        ? { backgroundColor: pillBg, borderColor: pillBg, color: pillFg }
                         : {}
                     }
                   >
                     <div
-                      className={`h-2 w-2 rounded-full ${isActive ? 'ring-2 ring-bg/50' : ''}`}
-                      style={{ backgroundColor: isActive ? 'var(--bg)' : color }}
+                      className={`h-2 w-2 rounded-full ${isActive ? '' : ''}`}
+                      style={{ backgroundColor: isActive ? pillFg : safeGraphic }}
                     />
                     {label}
                   </button>
@@ -736,17 +816,22 @@ export default function ArchivedMonthView({
       <AnimatePresence>
         {showExport && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
+            <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowExport(false)}
-              className="absolute inset-0 bg-bg/80 backdrop-blur-sm"
+              aria-label="Close export options"
+              className="absolute inset-0 cursor-pointer bg-bg/80 backdrop-blur-sm"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              ref={exportPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="export-pdf-title"
               className="relative w-full max-w-lg rounded-3xl bg-surface border border-border shadow-2xl overflow-hidden"
             >
               {/* Header */}
@@ -755,7 +840,7 @@ export default function ArchivedMonthView({
                   <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                     Export PDF
                   </p>
-                  <h2 className="text-lg font-black text-text mt-0.5">
+                  <h2 id="export-pdf-title" className="text-lg font-black text-text mt-0.5">
                     {monthLabel}
                     {monthSub && (
                       <span className="text-xs font-medium text-text-muted ml-2">
@@ -783,6 +868,7 @@ export default function ArchivedMonthView({
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setPdfTheme("dark")}
+                      aria-pressed={pdfTheme === "dark"}
                       className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${pdfTheme === "dark"
                           ? "border-accent bg-accent/5"
                           : "border-border/40 hover:border-border"
@@ -805,6 +891,7 @@ export default function ArchivedMonthView({
                     </button>
                     <button
                       onClick={() => setPdfTheme("light")}
+                      aria-pressed={pdfTheme === "light"}
                       className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${pdfTheme === "light"
                           ? "border-accent bg-accent/5"
                           : "border-border/40 hover:border-border"
@@ -855,7 +942,7 @@ export default function ArchivedMonthView({
                     handleExportPDF();
                     setShowExport(false);
                   }}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-bold text-bg shadow-[0_0_15px_var(--color-accent-glow)] transition-transform hover:scale-[1.02] active:scale-95"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-bold text-accent-ink shadow-[0_0_15px_var(--color-accent-glow)] transition-transform hover:scale-[1.02] active:scale-95"
                 >
                   <Download size={16} />
                   Save as PDF

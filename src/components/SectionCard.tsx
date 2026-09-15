@@ -14,6 +14,10 @@ import CountUp from "@/components/ui/CountUp";
 import { calcSectionStats } from "@/lib/utils";
 import { type DashboardGoal } from "@/types";
 import { Activity, Palette, Code2, Users } from "lucide-react";
+import {
+  useThemeSafeTextColor,
+  useThemeSafeGraphicColor,
+} from "@/lib/themeSafeColor";
 
 interface SectionCardProps {
   section: string;
@@ -29,6 +33,10 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
   const color = colorProp || "#00E8A2";
   const label = labelProp || section;
 
+  /* Accessible variants of the section color. */
+  const safeText = useThemeSafeTextColor(color);
+  const safeGraphic = useThemeSafeGraphicColor(color);
+
   return (
     <Link href={`/dashboard/${section.toLowerCase()}`}>
       <Card
@@ -38,21 +46,21 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
         } ${hasNewActivity ? "animate-section-pulse" : ""}`}
         aria-label={`${label}${hasNewActivity ? " — new activity" : ""}`}
         style={{
-          ...(highlight ? { boxShadow: `0 0 28px ${color}40`, borderColor: `${color}60`, "--tw-ring-color": `${color}50` } as React.CSSProperties : {}),
-          ...(hasNewActivity ? { borderColor: `${color}60`, "--pulse-color": `${color}80` } as React.CSSProperties : {}),
+          ...(highlight ? { boxShadow: `0 0 28px ${safeGraphic}40`, borderColor: `${safeGraphic}60`, "--tw-ring-color": `${safeGraphic}50` } as React.CSSProperties : {}),
+          ...(hasNewActivity ? { borderColor: `${safeGraphic}60`, "--pulse-color": `${safeGraphic}80` } as React.CSSProperties : {}),
         }}
       >
         {/* Section Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex min-w-0 items-center gap-3">
-            <SectionIcon section={section} color={color} />
+            <SectionIcon section={section} color={safeGraphic} />
             <h3 className="min-w-0 text-lg font-bold text-text break-words">{label}</h3>
           </div>
           <div className="flex shrink-0 flex-col-reverse items-end gap-1.5 sm:flex-row sm:items-center sm:gap-2">
             {highlight && (
               <span
                 className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}40` }}
+                style={{ backgroundColor: `${safeText}20`, color: safeText, border: `1px solid ${safeText}40` }}
               >
                 Your Section
               </span>
@@ -72,7 +80,7 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
             delay={300}
             duration={2200}
             className="text-4xl font-black"
-            style={{ color } as React.CSSProperties}
+            style={{ color: safeText } as React.CSSProperties}
           />
           <span className="text-sm text-text-muted ml-2">completion</span>
         </div>
@@ -80,7 +88,7 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
         {/* Progress Bar */}
         <ProgressBar
           value={stats.percentage}
-          color={color}
+          color={safeGraphic}
           className="mb-4"
           animateOnMount
           delay={300}
@@ -92,7 +100,7 @@ export default function SectionCard({ section, goals, highlight, color: colorPro
           <div className="flex items-center gap-1.5">
             <div
               className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: color }}
+              style={{ backgroundColor: safeGraphic }}
             />
             <span className="text-sm text-text-muted">
               Done: <CountUp value={stats.done} delay={500} duration={1600} className="font-semibold text-text" />

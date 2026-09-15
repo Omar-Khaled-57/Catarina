@@ -72,6 +72,7 @@ export interface UserData {
     canCreateGoals: boolean;
     canManageMembers: boolean;
     canCreateMonths: boolean;
+    canManageTables: boolean;
   };
 }
 
@@ -87,6 +88,32 @@ export interface AdminUserData {
   permissions: Record<string, boolean>;
   createdAt: string;
   _count: { goals: number; comments: number };
+}
+
+/** A floating sticker on a TeamTable grid canvas. */
+export interface StickerData {
+  id: string;
+  sprite: string;
+  x: number; // % of the canvas (0–100)
+  y: number; // % of the canvas (0–100)
+  w?: number; // width in px (default 56)
+  locked?: boolean;
+  mirrored?: boolean;
+  state?: "play" | "pause" | "frame2";
+}
+
+/** Table data shape from the API */
+export interface TableData {
+  id: string;
+  section: string;
+  name: string;
+  color: string;
+  cells: { cols: number; rows: unknown[][] };
+  stickers: StickerData[];
+  isDateBased: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Section default fallback data — used when DB is empty */

@@ -237,7 +237,7 @@ const wasOpenRef = useRef(false);
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Redesign landing page"
-            className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent"
+            className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text placeholder:text-text-muted focus:outline-none focus:border-accent"
             required
             maxLength={200}
           />
@@ -254,7 +254,7 @@ const wasOpenRef = useRef(false);
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add context, acceptance criteria, or links..."
             rows={3}
-            className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent resize-none"
+            className="w-full text-sm rounded-xl bg-surface-2 border border-border px-3 py-2 text-text placeholder:text-text-muted focus:outline-none focus:border-accent resize-none"
             maxLength={1000}
           />
         </div>
@@ -366,7 +366,9 @@ const wasOpenRef = useRef(false);
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     placeholder="Search users..."
-                    className="w-full text-xs rounded-lg bg-surface-2 border border-border pl-8 pr-3 py-2 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent"
+                    onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                    aria-label="Search users"
+                    className="w-full text-xs rounded-lg bg-surface-2 border border-border pl-8 pr-3 py-2 text-text placeholder:text-text-muted focus:outline-none focus:border-accent"
                   />
                 </div>
               </div>
@@ -394,7 +396,7 @@ const wasOpenRef = useRef(false);
                           onClick={() => toggleAssignment(u.id)}
                           className={`shrink-0 flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-all ${
                             assigned
-                              ? "border-accent bg-accent text-bg checkbox-pulse"
+                              ? "border-accent bg-accent text-accent-ink checkbox-pulse"
                               : "border-text-muted/30 hover:border-accent/50"
                           }`}
                           aria-label={`Assign ${u.name}`}
@@ -421,6 +423,8 @@ const wasOpenRef = useRef(false);
                             <button
                               type="button"
                               onClick={() => updateAssignment(u.id, "canCheck", !assignment?.canCheck)}
+                              aria-pressed={!!assignment?.canCheck}
+                              aria-label={`${u.name}: can check`}
                               className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-all ${
                                 assignment?.canCheck
                                   ? "border-accent bg-accent/15 text-accent"
@@ -432,6 +436,8 @@ const wasOpenRef = useRef(false);
                             <button
                               type="button"
                               onClick={() => updateAssignment(u.id, "canEdit", !assignment?.canEdit)}
+                              aria-pressed={!!assignment?.canEdit}
+                              aria-label={`${u.name}: can edit`}
                               className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-all ${
                                 assignment?.canEdit
                                   ? "border-art bg-art/15 text-art"

@@ -167,7 +167,7 @@ export default function LoginForm() {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your name"
                       required={isRegister}
-                      className="w-full rounded-xl bg-surface-2 border border-border px-4 pb-3 pt-2.5 text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors"
+                      className="w-full rounded-xl bg-surface-2 border border-border px-4 pb-3 pt-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
                     />
                   </div>
                 </motion.div>
@@ -186,7 +186,7 @@ export default function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors"
+                className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
               />
             </div>
 
@@ -203,7 +203,7 @@ export default function LoginForm() {
                 placeholder="Min 6 characters"
                 required
                 minLength={6}
-                className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors"
+                className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
               />
             </div>
 

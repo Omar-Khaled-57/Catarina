@@ -12,6 +12,11 @@ import EditableProgress from "@/components/EditableProgress";
 import StepsChecklist from "@/components/StepsChecklist";
 import { deadlineStatus, formatDateShort, getDefaultPfp } from "@/lib/utils";
 import {
+  useThemeSafeGraphicColor,
+  useThemeSafeTextColor,
+  useThemeSafePill,
+} from "@/lib/themeSafeColor";
+import {
   Check,
   Pencil,
   Trash2,
@@ -62,6 +67,11 @@ export default function GoalCard({
   const [isPulsing, setIsPulsing] = useState(false);
   const [localSteps, setLocalSteps] = useState(goal.steps);
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* Accessible variants of the section color for text, graphics and pills. */
+  const safeText = useThemeSafeTextColor(color);
+  const safeGraphic = useThemeSafeGraphicColor(color);
+  const { bg: pillBg, fg: pillFg } = useThemeSafePill(color);
   const prefersReducedMotion = useReducedMotion();
   const deadline = deadlineStatus(goal.deadline, goal.done);
 
@@ -135,7 +145,7 @@ export default function GoalCard({
       } ${highlight ? "goal-highlight" : ""}`}
     >
       {/* ── Color Accent Bar ──────────────────────────────────────────── */}
-      <div className="h-1 w-full" style={{ backgroundColor: color, opacity: 0.7 }} />
+      <div className="h-1 w-full" style={{ backgroundColor: safeGraphic, opacity: 0.7 }} />
 
       {/* ── Complete Stamp (45deg animated overlay) ──────────────────────── */}
       <AnimatePresence>
@@ -150,12 +160,12 @@ export default function GoalCard({
             <div
               className="border-4 rounded-xl px-6 py-2 -rotate-45 select-none"
               style={{
-                borderColor: color,
-                color,
-                backgroundColor: `${color}10`,
+                borderColor: safeGraphic,
+                color: safeText,
+                backgroundColor: `${safeText}10`,
               }}
             >
-              <span className="text-2xl font-black tracking-widest uppercase" style={{ textShadow: `0 0 20px ${color}40` }}>
+              <span className="text-2xl font-black tracking-widest uppercase" style={{ textShadow: `0 0 20px ${safeGraphic}40` }}>
                 COMPLETE
               </span>
             </div>
@@ -168,7 +178,7 @@ export default function GoalCard({
         <div className="flex items-center gap-3 mb-3">
           <span
             className="inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 rounded-md text-[10px] font-black tracking-tight"
-            style={{ backgroundColor: `${color}18`, color }}
+            style={{ backgroundColor: `${safeText}18`, color: safeText }}
           >
             {prefix}-{String(goal.goalNumber).padStart(3, "0")}
           </span>
@@ -185,14 +195,14 @@ export default function GoalCard({
             aria-label={goal.done ? "Mark as incomplete" : "Mark as done"}
             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
               goal.done
-                ? "border-transparent text-bg"
+                ? "border-transparent"
                 : "border-text-muted/40 hover:border-accent"
             } ${isPulsing ? "checkbox-pulse" : ""} ${
               !canToggle ? "opacity-30 cursor-not-allowed" : ""
             }`}
-            style={goal.done ? { backgroundColor: color } : {}}
+            style={goal.done ? { backgroundColor: pillBg, color: pillFg } : {}}
           >
-            {goal.done && <Check size={11} strokeWidth={3.5} />}
+            {goal.done && <Check size={11} strokeWidth={4} />}
           </button>
 
           {/* Title + Description */}
@@ -203,13 +213,13 @@ export default function GoalCard({
                   Carried Over
                 </span>
               )}
-              <h3
+              <h2
                 className={`font-bold text-[15px] leading-snug ${
                   goal.done ? "line-through text-text-muted" : "text-text"
                 }`}
               >
                 {goal.name}
-              </h3>
+              </h2>
             </div>
             {goal.description && (
               <p className="text-xs text-text-muted mt-1 leading-relaxed line-clamp-2">
@@ -225,13 +235,13 @@ export default function GoalCard({
               <button
                 onClick={() => onComment(goal.id)}
                 className="relative rounded-lg p-1.5 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
-                aria-label="Comments"
+                aria-label={`Comments (${goal.comments.length})`}
               >
                 <MessageSquare size={14} />
                 {goal.comments.length > 0 && (
                   <span
-                    className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg flex items-center justify-center"
-                    style={{ backgroundColor: color }}
+                    className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                    style={{ backgroundColor: pillBg, color: pillFg }}
                   >
                     {goal.comments.length}
                   </span>
@@ -319,8 +329,8 @@ export default function GoalCard({
                     <img src={getDefaultPfp(goal.section)!} alt={a.name} className="h-full w-full object-cover" />
                   ) : (
                     <div
-                      className="h-full w-full flex items-center justify-center text-[9px] font-bold text-bg"
-                      style={{ backgroundColor: color }}
+                      className="h-full w-full flex items-center justify-center text-[9px] font-bold"
+                      style={{ backgroundColor: pillBg, color: pillFg }}
                     >
                       {a.name.charAt(0)}
                     </div>

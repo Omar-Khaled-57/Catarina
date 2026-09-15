@@ -39,6 +39,7 @@ export function AudioPlayer({ src }: { src: string }) {
           e.stopPropagation();
           toggle();
         }}
+        aria-pressed={playing && !error}
         className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all"
       >
         {error ? <AlertTriangle size={14} /> : playing ? <Pause size={14} /> : <Play size={14} />}

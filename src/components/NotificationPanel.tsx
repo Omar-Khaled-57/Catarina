@@ -329,17 +329,8 @@ export default function NotificationPanel({
             return (
               <div
                 key={n.id}
-                onClick={() => {
-                  if (isCelebration) {
-                    setCelebrationMonth(n.title);
-                    setCelebrationOpen(true);
-                  } else {
-                    setSelectedNotification(n);
-                  }
-                  if (!n.read) markRead(n.id);
-                }}
-                className={`flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-colors group/n cursor-pointer hover:bg-surface-2/60 ${
-                  n.read ? "opacity-60" : "bg-surface-2/40"
+                className={`flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-colors group/n ${
+                  n.read ? "bg-surface-2/25" : "bg-surface-2/40"
                 } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""} ${
                   isCelebration ? "ring-1 ring-teal-500/20" : ""
                 }`}
@@ -353,79 +344,93 @@ export default function NotificationPanel({
                     /* Celebration types show an excited sticker badge instead of an image inline */
                     <Image
                       src="/rina/excited.webp"
-                      alt="Catarina excited"
+                      alt=""
                       width={100}
                       height={100}
+                      aria-hidden="true"
                       className="w-16 sm:w-[100px] min-w-[64px] sm:min-w-[100px] h-16 sm:h-[100px] rounded-xl drop-shadow-sm object-contain"
                     />
                   ) : imageSrc ? (
                     <Image
                       src={imageSrc}
-                      alt="Catarina"
+                      alt=""
+                      aria-hidden="true"
                       width={imgSize!.width}
                       height={imgSize!.height}
                       className={imgSize!.className}
                     />
                   ) : (
-                    <Icon size={20} />
+                    <Icon size={20} aria-hidden="true" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2">
-                    <p className={`min-w-0 break-words text-sm sm:text-base font-bold ${n.read ? "text-text-muted" : "text-text"}`}>
-                      {n.title}
-                    </p>
-                    {n.pinned && <Pin size={14} className="text-accent shrink-0" />}
-                  </div>
-                  <p className="text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3 break-words whitespace-pre-wrap">
-                    {n.message}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isCelebration) {
+                        setCelebrationMonth(n.title);
+                        setCelebrationOpen(true);
+                      } else {
+                        setSelectedNotification(n);
+                      }
+                      if (!n.read) markRead(n.id);
+                    }}
+                    className="block w-full text-left cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className={`min-w-0 break-words text-sm sm:text-base font-bold ${n.read ? "text-text-muted" : "text-text"}`}>
+                        {n.title}
+                      </span>
+                      {n.pinned && <Pin size={14} className="text-accent shrink-0" aria-hidden="true" />}
+                    </div>
+                    <span className="block text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3 break-words whitespace-pre-wrap">
+                      {n.message}
+                    </span>
+                    <span className="block text-xs font-medium text-text-muted mt-1.5">{timeAgo(n.createdAt)}</span>
+                  </button>
                   {n.refType === "audio" && n.refId && (
                     <AudioPlayer src={n.refId} />
                   )}
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium text-text-muted">{timeAgo(n.createdAt)}</p>
-                    <div className="flex items-center gap-1 sm:hidden">
-                      {!n.read && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markRead(n.id);
-                          }}
-                          className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
-                          title="Mark as read"
-                          aria-label="Mark as read"
-                        >
-                          <Check size={15} />
-                        </button>
-                      )}
+                  <div className="mt-1.5 flex items-center justify-end gap-1 sm:hidden">
+                    {!n.read && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          togglePin(n.id, n.pinned);
+                          markRead(n.id);
                         }}
                         className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
-                        title={n.pinned ? "Unpin" : "Pin"}
-                        aria-label={n.pinned ? "Unpin" : "Pin"}
+                        title="Mark as read"
+                        aria-label={`Mark as read: ${n.title}`}
                       >
-                        {n.pinned ? <PinOff size={15} /> : <Pin size={15} />}
+                        <Check size={15} />
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNotification(n.id);
-                        }}
-                        className="p-1.5 rounded-lg text-text-muted hover:text-danger transition-colors"
-                        title="Delete"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePin(n.id, n.pinned);
+                      }}
+                      className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
+                      title={n.pinned ? "Unpin" : "Pin"}
+                      aria-label={`${n.pinned ? "Unpin" : "Pin"}: ${n.title}`}
+                    >
+                      {n.pinned ? <PinOff size={15} /> : <Pin size={15} />}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotification(n.id);
+                      }}
+                      className="p-1.5 rounded-lg text-text-muted hover:text-danger transition-colors"
+                      title="Delete"
+                      aria-label={`Delete: ${n.title}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
                 {/* Actions */}
-                <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover/n:opacity-100 transition-opacity shrink-0">
+                <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover/n:opacity-100 group-focus-within/n:opacity-100 transition-opacity shrink-0">
                   {!n.read && (
                     <button
                       onClick={(e) => {
@@ -434,7 +439,7 @@ export default function NotificationPanel({
                       }}
                       className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
                       title="Mark as read"
-                      aria-label="Mark as read"
+                      aria-label={`Mark as read: ${n.title}`}
                     >
                       <Check size={16} />
                     </button>
@@ -446,7 +451,7 @@ export default function NotificationPanel({
                     }}
                     className="p-1.5 rounded-lg text-text-muted hover:text-accent transition-colors"
                     title={n.pinned ? "Unpin" : "Pin"}
-                    aria-label={n.pinned ? "Unpin" : "Pin"}
+                    aria-label={`${n.pinned ? "Unpin" : "Pin"}: ${n.title}`}
                   >
                     {n.pinned ? <PinOff size={16} /> : <Pin size={16} />}
                   </button>
@@ -457,7 +462,7 @@ export default function NotificationPanel({
                     }}
                     className="p-1.5 rounded-lg text-text-muted hover:text-danger transition-colors"
                     title="Delete"
-                    aria-label="Delete"
+                    aria-label={`Delete: ${n.title}`}
                   >
                     <Trash2 size={16} />
                   </button>

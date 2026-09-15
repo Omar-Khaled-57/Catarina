@@ -12,12 +12,14 @@ import { ChevronRight } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { ToolMeta } from "@/lib/tools";
 import { COMING_SOON_TEXT } from "@/lib/tools";
+import { useThemeSafeGraphicColor } from "@/lib/themeSafeColor";
 
 const cardSpring = { type: "spring", stiffness: 320, damping: 22 } as const;
 
 export default function ToolCard({ tool }: { tool: ToolMeta }) {
   const isLive = tool.status === "live";
   const Icon = tool.icon;
+  const safeAccent = useThemeSafeGraphicColor(tool.accent);
 
   if (!isLive) {
     return (
@@ -48,15 +50,15 @@ export default function ToolCard({ tool }: { tool: ToolMeta }) {
         whileHover={{ y: -4 }}
         whileTap={{ y: 0, scale: 0.99 }}
         transition={cardSpring}
-        style={{ "--tool-accent": tool.accent } as CSSProperties}
+        style={{ "--tool-accent": safeAccent } as CSSProperties}
         className="glass group flex h-full flex-col rounded-2xl border border-border p-5 transition-colors duration-200 group-hover:border-[color:var(--tool-accent)] group-hover:shadow-[0_0_24px_-8px_var(--tool-accent)]"
       >
         <div className="flex items-center gap-3">
           <div
             className="flex h-11 w-11 items-center justify-center rounded-xl"
             style={{
-              backgroundColor: `${tool.accent}1F`,
-              color: tool.accent,
+              backgroundColor: `${safeAccent}1F`,
+              color: safeAccent,
             }}
           >
             <Icon size={22} />
@@ -68,11 +70,13 @@ export default function ToolCard({ tool }: { tool: ToolMeta }) {
           />
         </div>
         <p className="mt-3 text-xs leading-relaxed text-text-muted">{tool.tagline}</p>
-        <div
-          aria-hidden="true"
-          className="mt-auto pt-4 h-1 w-10 rounded-full"
-          style={{ backgroundColor: tool.accent }}
-        />
+        <div className="mt-auto pt-8 sm:pt-4">
+          <div
+            aria-hidden="true"
+            className="h-1 w-10 rounded-full"
+            style={{ backgroundColor: safeAccent }}
+          />
+        </div>
       </motion.div>
     </Link>
   );

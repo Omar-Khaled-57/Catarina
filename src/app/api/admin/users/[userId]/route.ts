@@ -86,6 +86,7 @@ export async function PUT(req: Request, { params }: Params) {
       canDeleteGoals: false,
       canManageMembers: false,
       canCreateMonths: false,
+      canManageTables: false,
     };
     for (const key of PERMISSION_KEYS) {
       const value = (body.permissions as Record<string, unknown>)[key];

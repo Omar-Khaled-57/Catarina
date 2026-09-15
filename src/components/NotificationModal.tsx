@@ -394,7 +394,7 @@ export default function NotificationModal({
                       <div className="space-y-1">
                         {goalData.steps.map((s) => (
                           <div key={s.id} className="flex items-center gap-2 text-xs">
-                            <span className={`shrink-0 h-3.5 w-3.5 rounded border flex items-center justify-center ${s.done ? "bg-accent border-accent text-bg" : "border-text-muted/30"}`}>
+                            <span className={`shrink-0 h-3.5 w-3.5 rounded border flex items-center justify-center ${s.done ? "bg-accent border-accent text-accent-ink" : "border-text-muted/30"}`}>
                               {s.done && <span className="text-[8px] font-bold">✓</span>}
                             </span>
                             <span className={s.done ? "text-text-muted line-through" : "text-text"}>{s.text}</span>

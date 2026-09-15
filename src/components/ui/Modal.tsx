@@ -13,6 +13,13 @@ import { useEffect, useRef, useState, useCallback, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
+import {
+  modalStack,
+  pushModal,
+  popModal,
+  isTop,
+  getFocusables,
+} from "@/lib/modal-a11y";
 
 interface ModalProps {
   isOpen: boolean;
@@ -21,10 +28,6 @@ interface ModalProps {
   children: ReactNode;
   maxWidth?: string;
 }
-
-/* Global stack of open modals — top of stack is the dialog that receives
- * Escape (avoids closing multiple stacked dialogs on a single keypress). */
-const modalStack: Array<{ close: () => void }> = [];
 
 export default function Modal({
   isOpen,
@@ -57,10 +60,10 @@ export default function Modal({
 
   useEffect(() => {
     if (!isOpen) return;
+    const close = () => onCloseRef.current();
     const handleKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      const top = modalStack[modalStack.length - 1];
-      if (top) top.close();
+      if (isTop(close)) close();
     };
     window.addEventListener("keydown", handleKey);
 
@@ -68,19 +71,13 @@ export default function Modal({
      * ref-counted across all open modals, and focus is restored to the
      * opener only when this dialog still owns focus (so closing a lower
      * modal never steals focus from one opened above it). */
-    const close = () => onCloseRef.current();
-    modalStack.push({ close });
-    if (modalStack.length === 1) {
-      document.documentElement.style.scrollbarGutter = "stable";
-      document.body.style.overflow = "hidden";
-    }
+    pushModal({ close });
     const opener = document.activeElement as HTMLElement | null;
     const dialogEl = dialogRef.current;
 
     return () => {
-      const idx = modalStack.findIndex((m) => m.close === close);
-      const own = idx >= 0 ? modalStack[idx] : null;
-      if (idx >= 0) modalStack.splice(idx, 1);
+      const own = modalStack.find((m) => m.close === close) ?? null;
+      popModal({ close });
       if (own) {
         const active = document.activeElement as HTMLElement | null;
         const inThisDialog = dialogEl?.contains(active);
@@ -92,10 +89,6 @@ export default function Modal({
           opener.focus();
         }
       }
-      if (modalStack.length === 0) {
-        document.body.style.overflow = "";
-        document.documentElement.style.scrollbarGutter = "";
-      }
       window.removeEventListener("keydown", handleKey);
     };
   }, [isOpen]);
@@ -103,23 +96,21 @@ export default function Modal({
   useEffect(() => {
     if (!isOpen || !dialogRef.current) return;
     const dialog = dialogRef.current;
-    const focusableSelector =
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const focusable = dialog.querySelectorAll<HTMLElement>(focusableSelector);
+    const focusable = getFocusables(dialog);
     const first = focusable[0];
-    if (first) {
+    if (isTop(close) && first) {
       first.focus();
     }
 
     const handleTab = (e: KeyboardEvent) => {
-      if (!dialogRef.current) return;
-      const items = dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector);
+      if (e.key !== "Tab") return;
+      /* A dialog opened higher in the stack owns the keyboard now. */
+      if (!isTop(close)) return;
+      const items = getFocusables(dialogRef.current);
       if (items.length === 0) return;
       const firstEl = items[0];
       const lastEl = items[items.length - 1];
-      if (e.key !== "Tab") return;
-
-      if (!dialogRef.current.contains(document.activeElement)) {
+      if (!dialogRef.current?.contains(document.activeElement)) {
         e.preventDefault();
         firstEl.focus();
         return;
@@ -162,7 +153,7 @@ export default function Modal({
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
-            aria-label={title}
+            aria-label={title ?? "Dialog"}
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}

@@ -7,6 +7,7 @@
 
 import { cn } from "@/lib/utils";
 import { SECTION_COLORS } from "@/lib/auth";
+import { useThemeSafeTextColor } from "@/lib/themeSafeColor";
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -34,12 +35,15 @@ export default function Badge({
     section: undefined as string | undefined,
   };
 
+  const sectionColor =
+    color || (section ? SECTION_COLORS[section] : undefined) || "var(--accent)";
+  const safeText = useThemeSafeTextColor(sectionColor);
+
   if (variant === "section") {
-    const c = color || (section ? SECTION_COLORS[section] : undefined) || "var(--accent)";
     return (
       <span
         className={cn(base, className)}
-        style={{ backgroundColor: `${c}15`, color: c, border: `1px solid ${c}30` }}
+        style={{ backgroundColor: `${safeText}15`, color: safeText, border: `1px solid ${safeText}30` }}
       >
         {children}
       </span>

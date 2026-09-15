@@ -9,6 +9,8 @@ import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ColorPicker from "@/components/ColorPicker";
+import { useTheme } from "@/contexts/ThemeContext";
+import { themeSafeTextColor } from "@/lib/themeSafeColor";
 import { Plus, Pencil, Trash2, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -24,6 +26,7 @@ interface SectionConfig {
 }
 
 export default function SectionManager() {
+  const { isDark } = useTheme();
   const [sections, setSections] = useState<SectionConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -163,13 +166,13 @@ export default function SectionManager() {
                     Prefix: <span className="font-mono font-bold text-text">{s.prefix}</span>
                   </span>
                   <span className="text-[10px] text-text-muted">
-                    Color: <span className="font-mono" style={{ color: s.color }}>{s.color}</span>
+                    Color: <span className="font-mono" style={{ color: themeSafeTextColor(s.color, isDark) }}>{s.color}</span>
                   </span>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0">
                 <button
                   onClick={() => setEditingSection(s)}
                   className="p-1.5 rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 transition-colors"
@@ -227,7 +230,7 @@ export default function SectionManager() {
           </Button>
           <Button
             onClick={() => deletingSection && handleDelete(deletingSection.id)}
-            className="bg-danger hover:bg-danger/90 text-white"
+            className="bg-danger hover:bg-danger/90 text-white dark:text-bg"
           >
             Remove
           </Button>
@@ -285,45 +288,48 @@ function SectionFormModal({
       <div className="space-y-4">
         {/* Label */}
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="sm-label">
             Section Name
           </label>
           <input
+            id="sm-label"
             type="text"
             value={label}
             onChange={(e) => handleLabelChange(e.target.value)}
             placeholder="e.g. Design, HR, Finance"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>
 
         {/* Key */}
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="sm-key">
             Section Key
           </label>
           <input
+            id="sm-key"
             type="text"
             value={key}
             onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
             placeholder="e.g. DESIGN, HR, FINANCE"
             disabled={!isNew}
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text font-mono placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all disabled:opacity-50"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text font-mono placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all disabled:opacity-50"
           />
           <p className="text-[10px] text-text-muted mt-1">Uppercase letters only. Used internally.</p>
         </div>
 
         {/* Prefix */}
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="sm-prefix">
             Goal ID Prefix
           </label>
           <input
+            id="sm-prefix"
             type="text"
             value={prefix}
             onChange={(e) => setPrefix(e.target.value.toUpperCase())}
             placeholder="e.g. DES-, HR-, FIN-"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text font-mono placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text font-mono placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
           <p className="text-[10px] text-text-muted mt-1">Goals will be numbered like {prefix || "XXX-"}001, {prefix || "XXX-"}002, etc.</p>
         </div>

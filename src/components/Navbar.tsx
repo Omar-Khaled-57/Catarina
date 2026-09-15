@@ -132,6 +132,7 @@ export default function Navbar() {
               onClick={toggleTheme}
               className="rounded-lg p-2 text-text-muted hover:bg-surface-2 hover:text-text transition-colors"
               aria-label="Toggle theme"
+              aria-pressed={!isDark}
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -144,10 +145,13 @@ export default function Navbar() {
             >
               <Bell size={18} />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-bg bg-danger flex items-center justify-center" aria-live="polite">
+                <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold dark:text-bg text-white bg-danger flex items-center justify-center">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
+              <span aria-live="polite" className="sr-only">
+                {unreadCount > 0 ? `${unreadCount > 99 ? "99+" : unreadCount} unread notifications` : ""}
+              </span>
             </button>
 
             {/* User Info + PFP (desktop) */}
@@ -291,7 +295,7 @@ export default function Navbar() {
                     <Bell size={16} />
                     Notifications
                     {unreadCount > 0 && (
-                      <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full text-[10px] font-bold text-bg bg-danger flex items-center justify-center" aria-live="polite">
+                      <span aria-hidden="true" className="ml-auto h-5 min-w-[20px] px-1 rounded-full text-[10px] font-bold dark:text-bg text-white bg-danger flex items-center justify-center">
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}

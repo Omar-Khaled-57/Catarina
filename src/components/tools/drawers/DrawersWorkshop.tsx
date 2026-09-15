@@ -1320,8 +1320,10 @@ export default function DrawersWorkshop({
               show: { opacity: 1, transition: { duration: 0.25 } },
             }}
           >
-            <motion.div
-              className="fixed inset-0 bg-black/70 backdrop-blur-md"
+            <motion.button
+              type="button"
+              aria-label="Exit focus mode"
+              className="fixed inset-0 cursor-pointer bg-black/70 backdrop-blur-md"
               onClick={exitFocus}
               variants={{
                 hidden: { opacity: 0, transition: exitTransition },

@@ -11,6 +11,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { type GoalData } from "@/types";
 import { Check, Plus, ListChecks, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useThemeSafeTextColor,
+  useThemeSafePill,
+} from "@/lib/themeSafeColor";
 
 interface StepsChecklistProps {
   goalId: string;
@@ -41,6 +45,10 @@ export default function StepsChecklist({
   }, [isAdding]);
 
   const doneCount = steps.filter((s) => s.done).length;
+
+  /* Accessible variants of the section color. */
+  const safeText = useThemeSafeTextColor(color);
+  const { bg: pillBg, fg: pillFg } = useThemeSafePill(color);
 
   const toggleStep = async (stepId: string, done: boolean) => {
     const prev = steps;
@@ -95,6 +103,7 @@ export default function StepsChecklist({
     <div className="mt-3">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
         className="flex items-center gap-2 text-xs font-semibold text-text-muted hover:text-text transition-colors mb-2"
       >
         {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
@@ -103,7 +112,7 @@ export default function StepsChecklist({
         {steps.length > 0 && (
           <span
             className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-            style={{ backgroundColor: `${color}15`, color }}
+            style={{ backgroundColor: `${safeText}15`, color: safeText }}
           >
             {doneCount}/{steps.length}
           </span>
@@ -139,9 +148,9 @@ export default function StepsChecklist({
                             ? "border-transparent"
                             : "border-text-muted/30 hover:border-accent"
                         }`}
-                        style={step.done ? { backgroundColor: color, borderColor: color } : {}}
+                        style={step.done ? { backgroundColor: pillBg, borderColor: pillBg } : {}}
                       >
-                        {step.done && <Check size={10} strokeWidth={3} className="text-bg" />}
+                        {step.done && <Check size={10} strokeWidth={3} style={{ color: pillFg }} />}
                       </div>
                     </button>
                   ) : (
@@ -149,11 +158,10 @@ export default function StepsChecklist({
                       className={`h-4 w-4 rounded-md border-2 flex items-center justify-center ${
                         step.done ? "" : "border-text-muted/30"
                       }`}
-                      style={step.done ? { backgroundColor: color, borderColor: color } : {}}
-                      role="img"
-                      aria-label={step.done ? `Step completed: ${step.text}` : `Step pending: ${step.text}`}
+                      style={step.done ? { backgroundColor: pillBg, borderColor: pillBg } : {}}
+                      aria-hidden="true"
                     >
-                      {step.done && <Check size={10} strokeWidth={3} className="text-bg" />}
+                      {step.done && <Check size={10} strokeWidth={3} style={{ color: pillFg }} />}
                     </div>
                   )}
                   <span
@@ -166,7 +174,7 @@ export default function StepsChecklist({
                   {canEdit && (
                     <button
                       onClick={() => deleteStep(step.id)}
-                      className="opacity-0 group-hover/step:opacity-100 text-text-muted hover:text-danger transition-all text-[10px]"
+                      className="opacity-0 group-hover/step:opacity-100 focus-visible:opacity-100 group-focus-within/step:opacity-100 text-text-muted hover:text-danger transition-all text-[10px]"
                       aria-label={`Delete step: ${step.text}`}
                     >
                       ×
@@ -186,7 +194,8 @@ export default function StepsChecklist({
                     onKeyDown={(e) => { if (e.key === "Enter") addStep(); if (e.key === "Escape") { setIsAdding(false); setNewText(""); } }}
                     onBlur={() => { if (!newText.trim()) setIsAdding(false); }}
                     placeholder="Step description..."
-                    className="flex-1 text-xs bg-transparent border-b border-accent/50 text-text placeholder:text-text-muted/40 focus:outline-none py-0.5"
+                    aria-label="New step text"
+                    className="flex-1 text-xs bg-transparent border-b border-text-muted focus:border-accent text-text placeholder:text-text-muted transition-colors py-0.5 focus:outline-none"
                   />
                 </div>
               ) : canEdit ? (

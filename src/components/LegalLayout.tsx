@@ -33,7 +33,10 @@ export default function LegalLayout({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:py-14">
+    <main
+      id="main-content"
+      className="mx-auto w-full max-w-3xl px-5 py-10 sm:py-14"
+    >
       <div className="mb-6 flex items-center justify-between gap-4">
         <Link
           href="/"
@@ -91,6 +94,6 @@ export default function LegalLayout({
           {children}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

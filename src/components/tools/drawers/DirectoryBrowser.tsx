@@ -1786,19 +1786,28 @@ onClick={() =>
                 closeDialog();
               }
             }}
-            className="absolute inset-0 z-10 flex items-start justify-center overflow-hidden bg-black/30 p-3 backdrop-blur-[2px] sm:p-4"
+            className="absolute inset-0 z-10 flex items-start justify-center overflow-hidden p-3 backdrop-blur-[2px] sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={reduce ? { duration: 0.01 } : { duration: 0.18 }}
-            onClick={closeDialog}
           >
+            <motion.button
+              type="button"
+              aria-label="Close dialog"
+              onClick={closeDialog}
+              className="absolute inset-0 cursor-pointer bg-black/30"
+              initial={false}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 1 }}
+              transition={{ duration: 0 }}
+            />
             <motion.div
               ref={dialogRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="new-file-title"
-              className="flex max-h-full w-full max-w-sm"
+              className="relative z-[1] flex max-h-full w-full max-w-sm"
               initial={{ opacity: 0, y: 18, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
