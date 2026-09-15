@@ -1,4 +1,20 @@
 {
+  "0.6.0": {
+    "type": "minor",
+    "title": "The Cabinet — Drawers & Team Tables",
+    "entries": [
+      { "icon": "🗄️", "text": "The Cabinet — a playful new /tools hub in the navbar hosts Catarina's tools as cards, each with its own color and tagline." },
+      { "icon": "📁", "text": "Drawers — a shared team workspace per section: chests, projects, envelopes and loose files, synced instantly to the team cloud." },
+      { "icon": "📤", "text": "Chunked uploads — large files split into small parts and reassembled in storage, so anything fits without platform limits." },
+      { "icon": "📊", "text": "Team Tables — a free-form grid per section: add & delete rows and columns, merge a selection, split merged cells back." },
+      { "icon": "📅", "text": "Date mode — mark dates and Catarina lights up today's whole column (or row) in the table's accent color." },
+      { "icon": "🎨", "text": "Rina stickers — drop character stickers on any table; they dance, and you can pause, tilt, drag, lock and mirror them." },
+      { "icon": "🖨️", "text": "Themed PDF export — print a table dark or light, portrait or landscape (or let Catarina auto-fit), stickers optional." },
+      { "icon": "🔒", "text": "Manage Team Tables permission — a new per-member flag (on by default); admins always bypass it, everyone else reads." },
+      { "icon": "♿", "text": "Accessibility — drawers and the table editor ship with keyboard focus, focus traps, and clear element roles." },
+      { "icon": "🧹", "text": "Housekeeping — removed the standalone features showcase page and tidied dev scaffolding; README, changelog, and docs updated." }
+    ]
+  },
   "0.4.5": {
     "type": "patch",
     "title": "Self-Hosted Rate Limiting",

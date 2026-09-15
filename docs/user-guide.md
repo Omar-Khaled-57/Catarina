@@ -1,4 +1,4 @@
-# User Guide
+# <img src="../public/rina/wave.webp" width="90" align="center" /> User Guide
 
 Catarina is your team's planning board. Each department (a **section**) has its own workspace
 where goals are tracked month by month, with checklists, comments, and automatic notifications.
@@ -66,6 +66,32 @@ Open your avatar menu → **Admin** (admins only):
   - Deleting a user who owns goals is blocked unless those goals are reassigned/deleted first (data-loss guard).
 - **Approvals** — approve or reject pending signup requests.
 - **Sections** — create/edit/drop sections (key, label, color, goal prefix). The prefix must look like `MRK-`.
+
+## The Cabinet (`/tools`)
+
+<img src="../public/rina/excited.webp" width="72" align="right" /> The navbar's **Cabinet** entry opens a hub of extra team tools. Today it holds **Drawers** and **Team Tables** — both live on the same permissions model as the rest of the app (admins always get full access).
+
+### Drawers — the team workspace
+
+Each section owns a **chest**; open it and every project pulls out like a drawer.
+
+- **Chest → project → envelope/file** — projects hold *envelopes* (for the fiddly sub-things) and *loose files* (notes, links, code, images, videos) riding on top.
+- **Everything syncs instantly** — the whole team sees the same drawer you just closed; there's no "save" button.
+- **Add anything** — upload a file, paste a link, scratch a note. Large files are uploaded in chunks and reassembled automatically, so size isn't a worry.
+- **Deletes are permanent** — removing a drawer, envelope, or file purges it for everyone with no undo.
+
+### Team Tables — free-form grids
+
+Every section can keep as many **tables** as it likes. Anyone with the **Manage Team Tables** permission (on by default) can create and edit them; admins always can, and everyone else views read-only.
+
+- **Create a table** — from Cabinet → Table → create. It starts as a default 6×4 grid; name it and open it to edit.
+- **Edit cells** — click into any cell and type. Enter commits and moves down, Tab moves right, Escape closes the cell.
+- **Rows & columns** — add or delete rows/columns from the toolbar. Tap a cell edge to select a whole row/column; **hold or drag** an edge to resize it (double-click restores auto-size). Drag-select a rectangular region and hit **merge** to fuse cells; select a merged cell and hit **split** to break it apart.
+- **Date mode** — toggle it on and Catarina looks for dates in the first row or first column; today's whole column (or row) lights up in the table's accent color.
+- **Stickers** — open the sticker tray to drop Rina stickers anywhere on the grid. They dance; click to pause or tilt them, drag to reposition, and hover for lock/mirror/delete controls.
+- **Export PDF** — pick dark or light, portrait or landscape (or let Catarina auto-fit the page), and optionally include stickers on the print.
+
+> <img src="../public/rina/think.webp" width="44" align="center" /> **Note:** editing is limited to writers. A member without `canManageTables` sees tables read-only; admins are always writers.
 
 ## Habits that keep data safe
 

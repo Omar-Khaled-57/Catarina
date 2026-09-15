@@ -7,14 +7,14 @@
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
     <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
-    <img src="https://img.shields.io/badge/version-0.4.5-blue?style=flat-square" alt="Version 0.4.5" />
+    <img src="https://img.shields.io/badge/version-0.6.0-blue?style=flat-square" alt="Version 0.6.0" />
     <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
 </div>
 
-## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.4.5
+## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.6.0
 
-**Self-Hosted Rate Limiting** — Upstash Redis was dropped in favor of the Turso database the app already uses. Rate limiting is now a true sliding-window counter living in `rate_limit_events`, shared across every Vercel instance and immune to free-tier pausing.
+**The Cabinet — Drawers & Team Tables** — a new `/tools` hub hosts two freshly shipped team tools: **Drawers** (a shared, fully cloud-backed workspace per section) and **Team Tables** (free-form grids with merge/split, date-mode today highlighting, Rina stickers, and themed PDF exports).
 
 See [CHANGELOG.md](CHANGELOG.md) for full details.
 
@@ -203,6 +203,9 @@ In-app notification drawer with category tagging, pinning, read management, and 
 
 ### ✦ Installable Progressive Web App (PWA)
 Built with an offline-capable Service Worker and Web Manifest — installable on iOS, Android, macOS, and Windows.
+
+### ✦ The Cabinet — Drawers & Team Tables
+A dedicated tools hub at `/tools`. **Drawers** gives every section a shared cloud workspace — chests, projects, envelopes, and loose files that sync instantly (chunked uploads included). **Team Tables** provides free-form grids with cell merging, date-mode today highlighting, Rina stickers, and themed PDF exports.
 
 ---
 

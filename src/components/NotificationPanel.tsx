@@ -329,13 +329,28 @@ export default function NotificationPanel({
             return (
               <div
                 key={n.id}
-                className={`flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-colors group/n ${
-                  n.read ? "bg-surface-2/25" : "bg-surface-2/40"
+                className={`relative flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-3.5 rounded-xl transition-all group/n ${
+                  n.read ? "bg-surface-2/25 opacity-60 scale-[0.98]" : "bg-surface-2/40"
                 } ${isWelcome ? "ring-1 ring-accent/20 bg-accent/5" : ""} ${
                   isCelebration ? "ring-1 ring-teal-500/20" : ""
                 }`}
               >
-                <div className={`shrink-0 ${
+                {/* Whole-item click target so the whole notification opens */}
+                <button
+                  type="button"
+                  aria-label={n.title}
+                  onClick={() => {
+                    if (isCelebration) {
+                      setCelebrationMonth(n.title);
+                      setCelebrationOpen(true);
+                    } else {
+                      setSelectedNotification(n);
+                    }
+                    if (!n.read) markRead(n.id);
+                  }}
+                  className="absolute inset-0 rounded-xl cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                />
+                <div className={`relative pointer-events-none shrink-0 ${
                   imageSrc
                     ? (imageSrc === "/rina/bye.webp" ? "mt-0" : "mt-0.5")
                     : "mt-0.5"
@@ -364,34 +379,22 @@ export default function NotificationPanel({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isCelebration) {
-                        setCelebrationMonth(n.title);
-                        setCelebrationOpen(true);
-                      } else {
-                        setSelectedNotification(n);
-                      }
-                      if (!n.read) markRead(n.id);
-                    }}
-                    className="block w-full text-left cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className={`min-w-0 break-words text-sm sm:text-base font-bold ${n.read ? "text-text-muted" : "text-text"}`}>
-                        {n.title}
-                      </span>
-                      {n.pinned && <Pin size={14} className="text-accent shrink-0" aria-hidden="true" />}
-                    </div>
-                    <span className="block text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3 break-words whitespace-pre-wrap">
-                      {n.message}
+                  <div className="flex items-start gap-2">
+                    <span className={`min-w-0 break-words text-sm sm:text-base font-bold ${n.read ? "text-text-muted" : "text-text"}`}>
+                      {n.title}
                     </span>
-                    <span className="block text-xs font-medium text-text-muted mt-1.5">{timeAgo(n.createdAt)}</span>
-                  </button>
+                    {n.pinned && <Pin size={14} className="text-accent shrink-0" aria-hidden="true" />}
+                  </div>
+                  <span className="block text-xs sm:text-sm text-text-muted mt-1 leading-relaxed line-clamp-3 break-words whitespace-pre-wrap">
+                    {n.message}
+                  </span>
+                  <span className="block text-xs font-medium text-text-muted mt-1.5">{timeAgo(n.createdAt)}</span>
                   {n.refType === "audio" && n.refId && (
-                    <AudioPlayer src={n.refId} />
+                    <div className="relative">
+                      <AudioPlayer src={n.refId} />
+                    </div>
                   )}
-                  <div className="mt-1.5 flex items-center justify-end gap-1 sm:hidden">
+                  <div className="relative mt-1.5 flex items-center justify-end gap-1 sm:hidden">
                     {!n.read && (
                       <button
                         onClick={(e) => {
@@ -430,7 +433,7 @@ export default function NotificationPanel({
                   </div>
                 </div>
                 {/* Actions */}
-                <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover/n:opacity-100 group-focus-within/n:opacity-100 transition-opacity shrink-0">
+                <div className="relative hidden sm:flex items-center gap-1 opacity-0 group-hover/n:opacity-100 group-focus-within/n:opacity-100 transition-opacity shrink-0">
                   {!n.read && (
                     <button
                       onClick={(e) => {

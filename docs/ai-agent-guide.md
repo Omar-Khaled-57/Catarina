@@ -1,4 +1,4 @@
-# AI Agent Guide
+# <img src="../public/rina/celebration.webp" width="80" align="center" /> AI Agent Guide
 
 A purpose-built orientation for AI coding agents (and new humans) that need to modify this
 codebase safely. Read `docs/api-reference.md`, `docs/data-model.md`, and `docs/developer-guide.md`
@@ -21,12 +21,12 @@ for depth; this file is the fast map.
 6. **Uploads are base64 data URIs, never filesystem writes** (Vercel-safe). Pfps are stored in DB.
 7. **Follow the existing API pattern** — `requireUser()`/`requireAdmin()`/`jsonError()` from
    `src/lib/api-helpers.ts`; sanitize inputs; log with a `[TAG]` prefix.
-8. **Version bumping** touches three places: `package.json` (version), `src/lib/changelog.json`
-   (user-facing entries), and `README.md` (badge). `src/app/api/auth/me/route.ts` + the update
-   modal read the changelog at runtime.
+8. **Version bumping** touches four places: `package.json` (version), `src/lib/changelog.json`
+   (user-facing entries), `README.md` (badge), and `src/components/Footer.tsx` (footer version chip).
+   `src/app/api/auth/me/route.ts` + the update modal read the changelog at runtime.
 9. **Do not edit `src/generated/prisma/`** — it's generated output.
 10. **Do not touch `plan/`, `dev/`, or `/docs` history** unless asked. `dev/` is ESLint-ignored
-    and gitignored (one legacy CSV is committed) and holds private notes.
+    and fully gitignored (nothing in it is committed) and holds private notes.
 
 ---
 
@@ -47,7 +47,7 @@ src/
     auth.ts               Client-safe section constants (SECTIONS, SECTION_LABELS,
                           SECTION_COLORS — derived from FALLBACK_SECTIONS)
     constants.ts          Roles, cookie name, NOTIFICATION_TYPES, PERMISSION_KEYS
-    permissions.ts        MemberPermissions (5 flags), parse/serialize/resolve
+    permissions.ts        MemberPermissions (6 flags incl. canManageTables), parse/serialize/resolve
     notify.ts             notify / notifyMany / notifyAdmins / notifySection
     rateLimit.ts          Turso sliding-window limiter (+ in-memory dev fallback)
     sections.ts           getSections() (30s cache) + FALLBACK fallback
@@ -55,6 +55,10 @@ src/
     mergeGoals.ts         Delta merge + temp-goal dedupe (unit tested)
     toastSuppress.ts      Suppress next coming-change toast (own mutation)
     pdf-palette.ts        Report PDF color palettes (dark/light)
+    drawers.ts            Drawer workspace tree load/save + optimistic locking
+    workspaceFiles.ts     Chunked drawer uploads → assembled WorkspaceFile blobs
+    table/                grid.ts · date.ts · pdf.ts · table-permissions.ts (all unit tested)
+    tools.ts              Tool registry — single source of truth for /tools cards
     changelog.json        Version → {type,title,entries} for the update modal
   app/
     api/<group>/<…>/route.ts   Every endpoint (see §3)
@@ -67,11 +71,17 @@ src/
       archive/page.tsx    Archived months list (admin can delete months)
       archive/[monthId]/page.tsx  Report (Overview/Sections/Performance tabs + PDF export)
       admin/page.tsx      User mgmt + SectionManager + approvals + create/edit modals
+    tools/
+      page.tsx            The Cabinet — tool card grid (ToolsView)
+      tables/             Tables list (page.tsx) + editor (tables/[id]/page.tsx)
+      drawers/            Drawers workspace (page.tsx) + storage note
     globals.css           Tailwind v4 @theme design tokens (accent #00E8A2, bg #060B14…)
     manifest.ts, robots.ts, sitemap.ts, icon.png, apple-icon.png
   components/
     ui/                   Button, Card, Badge, Modal, ConfirmModal, ProgressBar, CountUp, InView
     admin/                CreateUserModal, EditUserModal
+    tools/                ToolCard, ToolGrid; tools/tables/* (editor, grid, toolbar, stickers);
+                          tools/drawers/* (DrawersWorkshop, SectionChest, Envelope, LooseFile)
     Navbar.tsx            Nav + theme toggle + notification panel + user menu (polls unread)
     GoalCard.tsx          Goal card: progress edit, steps, comments, toggle, deadline status
     GoalForm.tsx, StepsChecklist.tsx, CommentSection.tsx
@@ -86,6 +96,7 @@ src/
     useGoalMerge.ts       Merge deltas; glow new IDs (~2s) / pulse sections (~3s)
     useFileUpload.ts      FormData → /api/upload
     useModalA11y.ts       Escape / scroll-lock / focus-trap
+    useTableGrid.ts       Table state wrapper: grid ops + debounced save (250ms)
 public/
   icons/  rina/   pfps/   media/   sw.js   uploads/
   sw.js   PWA service worker: /api → network-only; static → cache-first;
@@ -132,6 +143,8 @@ then `node --env-file=.env turso-push.mjs`. The CLI never touches Turso.
 | Steps | `PUT/DELETE /api/steps/[stepId]` |
 | Users | `GET /api/users?section=` (assignment picker) · admin: `GET /api/admin/users`, `POST /api/admin/users/create`, `PUT/DELETE /api/admin/users/[userId]`, `PUT /api/admin/users/[userId]/sections`, `POST /api/admin/users/[userId]/promote` |
 | Approvals | `GET /api/admin/approvals` · `PUT /api/admin/approvals` `{id, action: approve|reject}` |
+| Tables | `GET /api/tables` (section-scoped list) · `POST /api/tables` (RL 20/5min/user) · `GET/PATCH/DELETE /api/tables/[id]` (PATCH = full-document `cells` overwrite, max 200×200) |
+| Drawers | `GET /api/drawers/workspace` · `POST /api/drawers/mutate` (optimistic-locked per section) · `GET /api/drawers/files/[id]` |
 
 **Consistent**: error shape `{error}` · 404 on `P2025` · 409 on `P2002` · auth 401 · role 403 ·
 section-scope 403 · 429 rate-limited.
@@ -143,6 +156,10 @@ section-scope 403 · 429 rate-limited.
 | Task | Touch these files first |
 |---|---|
 | Add an API endpoint | `src/app/api/<group>/route.ts`, follow `api-helpers.ts` pattern; add to `docs/api-reference.md` |
+| Add a Cabinet tool | `src/lib/tools.ts` (registry) → `/tools` card auto-renders; add route handlers under `src/app/api/<tool>/`, components under `src/components/tools/<tool>/` |
+| Modify tables tool | `src/lib/table/grid.ts` (pure engine + tests) · `date.ts` · `pdf.ts` · `table-permissions.ts` · UI in `src/components/tools/tables/` |
+| Modify drawers tool | `src/lib/drawers.ts` (tree) · `src/lib/workspaceFiles.ts` (chunked uploads) · `src/app/api/drawers/**` |
+| Version bump | `package.json` + `package-lock.json` + `src/lib/changelog.json` + `README.md` badge + `src/components/Footer.tsx` chip |
 | Add a goal field | `prisma/schema.prisma` → local `db:migrate` → Turso script → `src/types/index.ts` `GoalData` → `GoalForm.tsx` / `GoalCard.tsx` → `validateGoalFields` in `api-helpers.ts` |
 | Add a notification type | `src/lib/constants.ts` (`NOTIFICATION_TYPES`) + `NotificationPanel.tsx` maps |
 | Add a member permission | `src/lib/constants.ts` (`PERMISSION_KEYS`) + `src/lib/permissions.ts` + admin UI (`CreateUserModal`/`EditUserModal`, `PERMISSION_LABELS`) |
@@ -163,6 +180,8 @@ section-scope 403 · 429 rate-limited.
   **goal authors** can't be deleted while their goals exist.
 - Section keys are uppercase; goal prefixes match `^[A-Z]{2,}-$`; hex colors match `^#[0-9A-Fa-f]{6}$`.
 - `deadlineSetByAdmin` blocks non-admins from changing deadlines (403 unless value unchanged).
+- `canManageTables` (Table tool) is JSON-only, default **true**, ADMIN always bypasses; a member
+  without the flag is read-only, and every table/drawer write is re-checked server-side.
 - Month carry-over preserves `current/target/deadline`, marks `carriedOver=true`,
   `deadlineSetByAdmin=true`, new ids + fresh goalNumber.
 - Welcome notification "Why Catarina? 🌸" is enforced (pinned, audio).
@@ -177,6 +196,8 @@ section-scope 403 · 429 rate-limited.
 - **`prisma db push`/`migrate` never reach Turso** — the most common "schema didn't update" trap.
 - **Don't delete `P2025`-guarded routes' error handling** — users get raw 500s instead of 404s.
 - **`/api/changes` must stay lightweight** — delta polls hit it every few seconds per client.
+- **Table JSON columns are string-or-parsed** — `cells`/`stickers` arrive as a JSON string or a
+  parsed object depending on the writer; always normalize (`JSON.parse` if string) before use.
 - **Base64 pfp in DB grows rows** — bounded by the 2 MB (2,000,000-char) validation at the API layer.
 - **Cookie name is duplicated** in `src/lib/constants.ts` and `src/proxy.ts` and
   `src/lib/auth.server.ts` — keep them in sync.

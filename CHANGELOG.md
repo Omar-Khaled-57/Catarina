@@ -14,6 +14,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.6.0] — 2026-09-15 · *The Cabinet — Drawers & Team Tables*
+
+> 0.5.0 was skipped — Drawers (originally planned for 0.5.0) and Table (planned for 0.6.0) ship together now, behind one playful new hub: **The Cabinet**.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ The Cabinet
+
+- **New tool hub** — the navbar now carries a Cabinet entry (`/tools`) hosting Catarina's tools as colorful cards (Drawers, Table), each with its own accent color, tagline, and landing page. The hub is registered in a single tool registry (`src/lib/tools.ts`), so future tools drop in with one entry.
+
+### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Drawers — the team workspace
+
+- **One chest per section** — every project pulls out like a drawer; **envelopes** tuck the fiddly sub-things inside and **loose files** ride on top.
+- **Fully cloud-backed** — drawer trees live in the same Turso database the app already uses (`DrawerSection`), so no OAuth or external storage service is needed and every teammate opens the same drawer.
+- **Chunked uploads** — files are split into ≤3 MB raw-byte parts (safely under platform body caps) and reassembled server-side into a single stored blob (`WorkspaceFile`); the tree only keeps a small `file://` reference.
+- **Optimistic locking** — per-section tree `version` counters make concurrent edits safe (stale writers get a 409).
+- **Permanent deletes** — removing a drawer, envelope, or file purges its bytes for the whole team, with no undo.
+
+### <img src="public/rina/celebration.webp" width="80" align="center" /> ✦ Team Tables
+
+- **Free-form grid** — one named table per section (default 6×4). Add/delete rows and columns, type into any cell, and **merge** a selected rectangular region or **split** a merged cell back apart (spans shrink cleanly when lines are deleted).
+- **Select & resize** — tap a cell edge to select a whole row/column; **hold or drag** an edge to resize it (clamped 48–640 px), and double-click an edge to restore auto-size. Release anywhere to stop.
+- **Date mode** — toggle it on and Catarina auto-detects the date axis; today's whole column (dates in the header) or row (dates in the first column) lights up in the table's accent — even under merged cells.
+- **Rina stickers** — drop character stickers on the canvas; they dance (wobble), and clicking cycles play → pause → tilted pose. Drag moves them, hover controls offer lock/mirror/delete, and positions persist.
+- **Themed PDF export** — A4 dark or light, portrait/landscape/auto orientation with a smarter fit heuristic, today-strip and merges preserved, stickers optionally frozen onto the print.
+
+### <img src="public/rina/thumb.webp" width="80" align="center" /> ✦ Permissions
+
+- **Manage Team Tables flag** — new per-member `canManageTables` (default `true`, label "Manage Team Tables"); admins always bypass it. Members without the flag view tables read-only, and every write is re-checked server-side (`canWriteTable`).
+
+### <img src="public/rina/bug-fix.webp" width="130" align="center" /> ✦ Cleanup & Docs
+
+- **Removed the standalone showcase** — `public/features-and-functions.html` (a static features page) is gone; the `docs/` suite now covers everything live.
+- **Dev scaffolding tidied** — stale prototypes, mockups, legacy sheets, and one-off scripts were cleared out of `dev/` (the 0.6.0 specs and useful scripts remain).
+- **Docs refreshed** — README, changelog (MD + JSON), and every doc (user guide, API reference, data model, developer guide, AI-agent guide) updated to 0.6.0, decorated with Catarina stickers.
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.4.5] — 2026-09-06 · *Self-Hosted Rate Limiting*
 
 > Upstash paused the free Redis project for inactivity, so rate limiting now lives in the same Turso database the app already uses — one less external service, nothing to keep alive, no pause/archive cycle.

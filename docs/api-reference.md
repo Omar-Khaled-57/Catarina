@@ -342,11 +342,71 @@ Delta-polling endpoint for realtime clients. Query params (optional): `since=<IS
 
 ---
 
+## Tables (The Cabinet)
+
+Tables power **Team Tables** (`/tools/tables`, `src/app/api/tables/**`). All routes require auth;
+every write is re-checked against the caller's `canManageTables` flag + section membership
+(`src/lib/table/table-permissions.ts`), and `ADMIN` always bypasses. The `cells` and `stickers`
+columns are stored as JSON and may arrive as a **JSON string or an already-parsed object** depending
+on which writer stored them — normalize with `JSON.parse` when the value is a string.
+
+### `GET /api/tables`
+- Lists non-deleted tables, section-scoped for members (empty list if they have no sections), ordered by section then name. Admins see all. Payload excludes `cells`/`stickers` (kept light).
+- Response:
+```json
+{ "tables": [{ "id": "…", "section": "ART", "name": "…", "color": "#00E8A2",
+               "isDateBased": false, "createdById": "…",
+               "createdAt": "…", "updatedAt": "…" }] }
+```
+
+### `POST /api/tables`
+- Body: `{ name (≤200), section (key — uppercased), color? (default "#00E8A2") }`.
+- **Rate limited: 20 / 5 min / user** (key `mutation:tables:<userId>`).
+- Requires `canWriteTable` (`403` otherwise). Creates the default 6×4 grid via `createGrid`.
+- Response **201**: `{ table }` (same shape as the list item).
+
+### `GET /api/tables/[id]`
+- Read-scoped to role/membership (like goals) + not deleted. Returns the full table with parsed `cells` (`{ cols, rows }`) and `stickers`.
+- `404` if missing or soft-deleted. Response: `{ table }`.
+
+### `PATCH /api/tables/[id]`
+- Write-checked (`canWriteTable`). Body: any subset of `{ name?, color?, isDateBased?, cells?, stickers? }` (empty body → `400`).
+- `cells`: `{ cols: number, rows: GridCell[][] }`; rejected with `400` if `rows.length > 200` or `cols > 200` (`MAX_GRID_SIZE`). `stickers`: array of `{ id, sprite, x, y, w?, locked?, mirrored?, state? }`.
+- Response: `{ table: { id, section, name, color, isDateBased, createdById, createdAt, updatedAt } }`.
+
+### `DELETE /api/tables/[id]`
+- Soft-delete (`deletedAt` set). Allowed for **ADMIN, the creator, or any section writer**.
+- Response: `{ success: true }`.
+
+---
+
+## Drawers (The Cabinet)
+
+Drawers store **one shared tree per section** in the Turso database (`DrawerSection`) — no external
+storage. All routes require auth (`src/app/api/drawers/**`, logic in `src/lib/drawers.ts` and
+`src/lib/workspaceFiles.ts`).
+
+### `GET /api/drawers/workspace`
+- Returns the shared workspace for the caller: every registered section they belong to (admins see all) in registry order, each with its stored `projects` tree.
+- Unauthenticated → `401` (the client falls back to a local demo).
+- Response: `{ sections: [{ key, label, color, projects }] }`
+
+### `POST /api/drawers/mutate`
+- Applies tree mutations (create / rename / move / delete drawers, envelopes, items, plus upload-part and assemble-file actions). Writes are **optimistic-locked** per section — a stale `DrawerSection.version` gets `409`.
+- Body shape depends on the action; see `src/lib/drawers.ts` + `src/lib/workspaceFiles.ts` for the current payload contract.
+- Responses: `{ ok: true }` and/or the updated tree.
+
+### `GET /api/drawers/files/[id]`
+- Returns a stored workspace file (the assembled blob): `{ id, sectionKey, projectId, envelopeId?, itemId, name, mime, size, data (base64), createdBy }`. Scoped to the caller's sections.
+
+---
+
 ## Notes & invariants
 
 - **Section-scoping is enforced server-side** against live DB data (`getUserContext`), never the JWT snapshot.
 - **Admins are DB-reverified** on every admin route (`requireAdmin`).
 - **Rate limiting** is a Turso sliding window on the `rate_limit_events` table, shared across Vercel instances. In local dev (no `DATABASE_URL`) it falls back to an in-memory Map.
-- **No filesystem uploads**: avatars/signup photos travel as base64 data URIs stored in the `User.pfp` / `Approval.pfp` columns.
+- **No filesystem uploads**: avatars/signup photos travel as base64 data URIs stored in the `User.pfp` / `Approval.pfp` columns. Drawer files are stored as base64/bytes **in the DB** via chunked uploads.
+- **Tables & drawers are section-scoped server-side** like goals; JSON columns (`cells`, `stickers`, `tree`) must be normalized (string-or-parsed) before use.
 - All route handlers log errors with a `[PREFIX]` tag (e.g. `[GOALS_POST]`, `[REGISTER]`).
 - Prisma error codes handled: `P2025` → 404 (not found), `P2002` → 409 (unique constraint).

@@ -174,7 +174,7 @@ export default function UpdateModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 10 }}
             transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
-            className="relative glass rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center"
+            className="relative glass rounded-3xl p-6 sm:p-8 max-w-sm landscape:max-w-xl w-full text-center"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Version badge */}

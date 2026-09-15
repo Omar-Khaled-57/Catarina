@@ -1,4 +1,4 @@
-# Data Model
+# <img src="../public/rina/think.webp" width="90" align="center" /> Data Model
 
 The database is **SQLite** (via Turso/libSQL in production, `dev.db` locally). The schema is defined in `prisma/schema.prisma` and accessed through a singleton Prisma client (`src/lib/prisma.ts`) configured with the `@prisma/adapter-libsql` driver adapter.
 
@@ -23,6 +23,10 @@ Month ──1:N──▶ Archive
 SectionConfig (standalone)
 Approval (standalone)
 RateLimitEvent (standalone, append-only, sweeped)
+TeamTable (standalone per section; soft-deletable)
+DrawerSection (standalone; one JSON tree per section)
+WorkspaceUpload / WorkspaceUploadChunk / WorkspaceFile (chunked file storage)
+AppConfig (standalone key/value — currently unused)
 ```
 
 ---
@@ -180,6 +184,82 @@ RateLimitEvent (standalone, append-only, sweeped)
   - Per-key: events older than `now - windowMs` are deleted on every check.
   - Global sweep: events older than `now - 10 min` (the `SWEEP_MARGIN_MS`, chosen to exceed the longest window, which is 5 min for register) are deleted at most once per minute per instance.
 
+### `TeamTable`
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | String (cuid) | auto | Primary key |
+| `section` | String | — | `SectionConfig.key` (not a FK — like goals) |
+| `name` | String | — | Table title (≤200 chars enforced by API) |
+| `color` | String | `"#00E8A2"` | App accent teal; `SECTION_COLORS` are picker options |
+| `cells` | Json | — | `GridState` — `{ cols: number, rows: GridCell[][] }`; `GridCell = { v, rs, cs } \| null` (merged spans hold content, covered cells are `null`) |
+| `stickers` | Json | `"[]"` | `StickerData[]` — `{ id, sprite, x, y, w?, locked?, mirrored?, state? }` |
+| `isDateBased` | Boolean | false | Date-mode auto-detect today's column/row |
+| `createdById` | String | — | Author user id (plain scalar) |
+| `createdAt` / `updatedAt` | DateTime | now / @updatedAt | — |
+| `deletedAt` | DateTime? | null | Soft delete; hard-purge later |
+
+- Indexed on `section`, `createdById`, `deletedAt`. Whole document is rewritten on each grid mutation (single-document model keeps merge/split/insert/delete atomic).
+- Grid size cap: rows and cols ≤ **200** (`MAX_GRID_SIZE`), cell sizes clamped 48–640 px.
+
+### `DrawerSection`
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `key` | String | — | Primary key = section key |
+| `tree` | String | — | JSON `DemoProject[]` — the entire drawer tree for that section |
+| `version` | Int | 0 | Optimistic-lock counter for whole-tree writes (stale writers get 409) |
+| `createdAt` / `updatedAt` | DateTime | now / @updatedAt | — |
+
+- Each section has exactly one row holding the whole shared tree (cloud-backed, no OAuth).
+
+### `WorkspaceUpload`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | String (randomUUID) | `uploadId` |
+| `sectionKey` | String | Owning section |
+| `projectId` | String | — |
+| `envelopeId` | String? | Null for loose files |
+| `name` / `mime` | String | File metadata |
+| `type` | String | `CODE \| IMAGE \| FILE \| LINK \| NOTE \| VIDEO` |
+| `totalBytes` | Int | Total size |
+| `chunkSize` / `chunkCount` | Int | Server-decided part size / count (≤3 MB parts) |
+| `createdBy` | String | Uploader user id |
+| `createdAt` | Int | Epoch ms (not DateTime) |
+
+- Indexed on `createdAt`, `sectionKey`. Written via raw `@libsql/client` (like `rate_limit_events`); Prisma owns the DDL only.
+
+### `WorkspaceUploadChunk`
+| Column | Type | Notes |
+|---|---|---|
+| `uploadId` | String | FK → `WorkspaceUpload.id` |
+| `chunkIndex` | Int | 0-based part number |
+| `data` | Bytes | Raw decoded part (not base64) |
+
+- Composite primary key `[uploadId, chunkIndex]`. Parts are assembled server-side into the final `WorkspaceFile` once all arrive.
+
+### `WorkspaceFile`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | String (randomUUID) | `fileId` |
+| `sectionKey` | String | Owning section |
+| `projectId` | String | — |
+| `envelopeId` | String? | Null for loose files |
+| `itemId` | String | The tree item referencing `file://<id>` |
+| `name` / `mime` | String | File metadata |
+| `size` | Int | Assembled byte size |
+| `data` | Bytes | Assembled raw bytes |
+| `createdBy` | String | Uploader user id |
+| `createdAt` | Int | Epoch ms |
+
+- Indexed on `createdAt`, `sectionKey`. The drawer tree only keeps a tiny `file://<id>` reference, keeping the shared JSON small.
+
+### `AppConfig`
+| Column | Type | Notes |
+|---|---|---|
+| `key` | String | Primary key |
+| `value` | String | Stored value |
+
+- **Currently unused by the codebase** — a legacy placeholder from the old Google-Drive wiring. Kept for schema stability; do not rely on it.
+
 ### `Archive`
 | Column | Type | Notes |
 |---|---|---|
@@ -205,6 +285,12 @@ RateLimitEvent (standalone, append-only, sweeped)
 4. Creates the current month and one demo goal per section (all by the admin, `deadlineSetByAdmin: true`, deadline = 28th of the current month).
 
 > ⚠️ The seed wipes all data. Use `db:reset` only in development.
+
+### Table-tool seed (dev only)
+
+`dev/seed-tables.mjs` (gitignored, dev-only) seeds a few **mock tables** into Turso for local
+testing of the Team Tables tool — idempotent, run with `node --env-file=.env dev/seed-tables.mjs`.
+`prisma/seed.ts` does **not** create tables.
 
 ---
 

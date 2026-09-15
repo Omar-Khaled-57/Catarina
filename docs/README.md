@@ -1,7 +1,7 @@
-# Catarina — Documentation
+# <img src="../public/rina/logo.webp" width="80" align="center" /> Catarina — Documentation
 
 Catarina is a private, multi-section team planning and progress tracking application.
-This directory describes the application **as it exists today** (version 0.4.5).
+This directory describes the application **as it exists today** (version 0.6.0).
 
 ## Contents
 
@@ -21,6 +21,7 @@ This directory describes the application **as it exists today** (version 0.4.5).
 - **Realtime**: clients sync ~every 5 s via delta polling (`/api/changes`) with exponential backoff and optimistic UI.
 - **Notifications**: in-app drawer with pinned/read states, category icons, images, and audio.
 - **Reports**: each archived month exports a multi-tab PDF report (dark/light).
+- **The Cabinet (`/tools`)** <img src="../public/rina/excited.webp" width="36" align="center" />: a tools hub hosting **Drawers** (per-section shared cloud workspace, chunked uploads) and **Team Tables** (free-form grids: merge/split, date-mode today highlight, Rina stickers, themed PDF export).
 - **Auth**: HttpOnly JWT cookie (`catarina-token`, HS256, 7 days) with a Vercel Edge `proxy.ts` check.
 - **Stack**: Next.js 16 (App Router) · React 19 · Tailwind v4 · Prisma 7 + libSQL adapter → **Turso** · jose/bcryptjs · framer-motion · sonner.
 
@@ -34,3 +35,8 @@ This directory describes the application **as it exists today** (version 0.4.5).
 
 > Version notes: `package.json` (version), `src/lib/changelog.json` (user-facing changelog). The
 > changelog also drives the in-app update modal — existing entries must keep the same shape.
+
+<div align="center">
+  <img src="../public/rina/sleeping.webp" width="90" alt="Catarina Sleeping" /><br/>
+  <sub>Docs maintained for v0.6.0 — The Cabinet.</sub>
+</div>
