@@ -328,7 +328,7 @@ export default function MonthCelebrationModal({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={onClose}
-                className="mt-1 px-8 py-2.5 rounded-xl font-bold text-sm text-bg"
+                className="mt-1 px-8 py-2.5 rounded-xl font-bold text-sm text-accent-ink"
                 style={{
                   background: "linear-gradient(135deg, var(--accent), var(--accent-2))",
                   boxShadow: "0 4px 20px var(--color-accent-glow)",

@@ -5,6 +5,10 @@ import GoalCard from "@/components/GoalCard";
 import { calcSectionStats } from "@/lib/utils";
 import { SECTION_COLORS } from "@/lib/auth";
 import { type GoalData } from "@/types";
+import {
+  useThemeSafeTextColor,
+  useThemeSafeGraphicColor,
+} from "@/lib/themeSafeColor";
 
 /**
  * Detailed section view within the archive — donut stats + goal cards.
@@ -24,14 +28,18 @@ export default function SectionDetail({
 }) {
   const color = (SECTION_COLORS as Record<string, string>)[section] || "#00E8A2";
 
+  /* Accessible variants of the section color. */
+  const safeText = useThemeSafeTextColor(color);
+  const safeGraphic = useThemeSafeGraphicColor(color);
+
   return (
     <div className="space-y-4">
       {/* Section header card */}
       <div
         className="glass rounded-2xl overflow-hidden"
-        style={{ borderColor: `${color}25` }}
+        style={{ borderColor: `${safeGraphic}25` }}
       >
-        <div className="h-1 w-full" style={{ backgroundColor: color, opacity: 0.6 }} />
+        <div className="h-1 w-full" style={{ backgroundColor: safeGraphic, opacity: 0.6 }} />
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
             <div className="text-center sm:text-right order-2 sm:order-1">
@@ -59,30 +67,30 @@ export default function SectionDetail({
                 )}
                 {stats.done > 0 && (
                   <circle
-                    cx="116" cy="116" r="86" fill="none" stroke={color}
+                    cx="116" cy="116" r="86" fill="none" stroke={safeGraphic}
                     strokeWidth="18" strokeLinecap="round"
                     strokeDasharray={`${(stats.percentage / 100) * 2 * Math.PI * 86} ${2 * Math.PI * 86}`}
                     strokeDashoffset="0"
-                    style={{ filter: `drop-shadow(0 0 8px ${color}80)` }}
+                    style={{ filter: `drop-shadow(0 0 8px ${safeGraphic}80)` }}
                   />
                 )}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl sm:text-3xl font-black leading-none" style={{ color }}>
+                <span className="text-2xl sm:text-3xl font-black leading-none" style={{ color: safeText }}>
                   {stats.percentage.toFixed(1)}%
                 </span>
                 <span className="text-xs text-text-muted mt-0.5 font-medium">done</span>
               </div>
             </div>
             <div className="text-center sm:text-left order-3">
-              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold mb-1" style={{ color }}>
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: safeText }}>
                 Done
               </p>
-              <p className="text-3xl sm:text-5xl font-black leading-none" style={{ color }}>
+              <p className="text-3xl sm:text-5xl font-black leading-none" style={{ color: safeText }}>
                 {stats.percentage.toFixed(1)}
                 <span className="text-2xl">%</span>
               </p>
-              <p className="text-sm mt-1" style={{ color: `${color}bb` }}>
+              <p className="text-sm mt-1" style={{ color: safeText }}>
                 {stats.done} goal{stats.done !== 1 ? "s" : ""} done
               </p>
             </div>
@@ -90,7 +98,7 @@ export default function SectionDetail({
         </div>
         <div
           className="border-t px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1.5"
-          style={{ borderColor: `${color}20`, backgroundColor: `${color}06` }}
+          style={{ borderColor: `${safeGraphic}20`, backgroundColor: `${safeGraphic}06` }}
         >
           <div className="flex items-center gap-2">
             <span className="text-xs text-text-muted">Done</span>

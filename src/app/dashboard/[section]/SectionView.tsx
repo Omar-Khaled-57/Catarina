@@ -23,6 +23,11 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useGoalMerge } from "@/hooks/useGoalMerge";
 import { suppressNextToast } from "@/lib/toastSuppress";
 import { toast } from "sonner";
+import {
+  useThemeSafeGraphicColor,
+  useThemeSafeTextColor,
+  useThemeSafePill,
+} from "@/lib/themeSafeColor";
 import { type GoalData } from "@/types";
 import { Plus, ArrowDownAZ, ArrowDownWideNarrow, CalendarDays, Users, Hash, ArrowUpDown, Search } from "lucide-react";
 
@@ -97,6 +102,12 @@ export default function SectionView({
   const [search, setSearch] = useState("");
 
   const color = sectionColor;
+
+  /* Accessible variants of the stored section color for text, graphics and
+     solid pills — the raw hex is only ever a tint/border source below. */
+  const safeText = useThemeSafeTextColor(color);
+  const safeGraphic = useThemeSafeGraphicColor(color);
+  const { bg: pillBg, fg: pillFg } = useThemeSafePill(color);
 
   /* Fetch goals for selected month + section — guard against out-of-order
      * responses when the user switches months mid-flight. */
@@ -551,14 +562,14 @@ export default function SectionView({
       {/* ── Donut Chart Hero Card ────────────────────────────────────────── */}
       <div
         className="glass rounded-2xl overflow-hidden"
-        style={{ borderColor: `${color}25` }}
+        style={{ borderColor: `${safeGraphic}25` }}
       >
-        <div className="h-1 w-full" style={{ backgroundColor: color, opacity: 0.6 }} />
+        <div className="h-1 w-full" style={{ backgroundColor: safeGraphic, opacity: 0.6 }} />
 
         <div className="p-4 sm:p-6">
           <p
             className="text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-3 sm:mb-4"
-            style={{ color }}
+            style={{ color: safeText }}
           >
             {sectionLabel} Section — Completion Overview
           </p>
@@ -580,12 +591,12 @@ export default function SectionView({
             <div className="relative order-1 sm:order-2 flex-shrink-0 w-[180px] h-[180px] sm:w-[232px] sm:h-[232px]">
               <DonutChart
                 donePercent={stats.percentage}
-                color={color}
+                color={safeGraphic}
                 size={164}
                 strokeWidth={20}
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl sm:text-3xl font-black leading-none" style={{ color }}>
+                <span className="text-2xl sm:text-3xl font-black leading-none" style={{ color: safeText }}>
                   {animPercentage.toFixed(1)}%
                 </span>
                 <span className="text-xs text-text-muted mt-0.5 font-medium">done</span>
@@ -593,14 +604,14 @@ export default function SectionView({
             </div>
 
             <div className="text-center sm:text-left order-3">
-              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold mb-1" style={{ color }}>
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold mb-1" style={{ color: safeText }}>
                 Done
               </p>
-              <p className="text-3xl sm:text-5xl font-black leading-none" style={{ color }}>
+              <p className="text-3xl sm:text-5xl font-black leading-none" style={{ color: safeText }}>
                 {animPercentage.toFixed(1)}
                 <span className="text-2xl">%</span>
               </p>
-              <p className="text-sm mt-1" style={{ color: `${color}bb` }}>
+              <p className="text-sm mt-1" style={{ color: safeText }}>
                 {animDone} goal{animDone !== 1 ? "s" : ""} done
               </p>
             </div>
@@ -609,11 +620,11 @@ export default function SectionView({
 
         <div
           className="border-t px-4 sm:px-6 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-6 gap-y-1.5"
-          style={{ borderColor: `${color}20`, backgroundColor: `${color}06` }}
+          style={{ borderColor: `${safeGraphic}20`, backgroundColor: `${safeGraphic}06` }}
         >
           <div className="flex items-center gap-2">
             <span className="text-xs text-text-muted">Completion %</span>
-            <span className="text-sm font-bold" style={{ color }}>{animPercentage.toFixed(2)}%</span>
+            <span className="text-sm font-bold" style={{ color: safeText }}>{animPercentage.toFixed(2)}%</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-text-muted">Done</span>
@@ -648,12 +659,13 @@ export default function SectionView({
               <button
                 key={key}
                 onClick={() => setSortMode(key)}
+                aria-pressed={sortMode === key}
                 className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 ${
                   sortMode === key
-                    ? "text-bg"
+                    ? ""
                     : "text-text-muted hover:text-text bg-surface-2/60 hover:bg-surface-2"
                 }`}
-                style={sortMode === key ? { backgroundColor: color } : {}}
+                style={sortMode === key ? { backgroundColor: pillBg, color: pillFg } : {}}
               >
                 <Icon size={12} />
                 {label}
@@ -662,8 +674,9 @@ export default function SectionView({
             {/* Asc / Desc — no box, accent color */}
             <button
               onClick={() => setSortAsc((p) => !p)}
+              aria-pressed={sortAsc}
               className="inline-flex items-center gap-1 text-xs font-semibold transition-all duration-200"
-              style={{ color }}
+              style={{ color: safeText }}
               title={sortAsc ? "Ascending — click for descending" : "Descending — click for ascending"}
             >
               <ArrowDownWideNarrow
@@ -684,7 +697,7 @@ export default function SectionView({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search goals..."
-              className="w-full rounded-lg bg-surface-2/60 border border-border/40 ps-8 pe-3 py-1.5 text-xs text-text placeholder:text-text-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+              className="w-full rounded-lg bg-surface-2/60 border border-border/40 ps-8 pe-3 py-1.5 text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-accent/50 transition-colors"
             />
           </div>
         </div>
@@ -695,14 +708,14 @@ export default function SectionView({
         <div className="flex items-center justify-center py-20">
           <div
             className="h-10 w-10 animate-spin rounded-full border-2 border-t-transparent"
-            style={{ borderTopColor: "transparent", borderRightColor: `${color}40`, borderBottomColor: `${color}40`, borderLeftColor: `${color}40` }}
+            style={{ borderTopColor: "transparent", borderRightColor: `${safeGraphic}40`, borderBottomColor: `${safeGraphic}40`, borderLeftColor: `${safeGraphic}40` }}
           />
         </div>
       ) : goals.length === 0 ? (
         <div className="glass rounded-2xl text-center py-20 text-text-muted">
           <Image src="/rina/think.webp" alt="Catarina thinking" width={160} height={160} className="w-24 sm:w-40 h-auto mx-auto mb-5 drop-shadow-sm rounded-2xl" />
           <p className="text-lg font-semibold">No goals in this section yet</p>
-          <p className="text-sm mt-1 opacity-60">
+          <p className="text-sm mt-1">
             {canCreate ? 'Click "New Goal" to add one.' : "Ask an admin to create goals."}
           </p>
         </div>
@@ -718,8 +731,6 @@ export default function SectionView({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
           className="grid gap-4 grid-cols-1 sm:grid-cols-2"
-          aria-live="polite"
-          aria-label="Goal cards"
         >
           <AnimatePresence initial={false}>
             {filteredGoals.map((goal) => (

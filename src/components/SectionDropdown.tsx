@@ -9,6 +9,8 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { type SectionData } from "@/types";
 import { Palette, Code2, Users, ChevronDown, Check, Activity } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { themeSafeGraphicColor } from "@/lib/themeSafeColor";
 
 const SECTION_ICONS: Record<string, React.ReactNode> = {
   MARKETING: <Activity size={16} />,
@@ -83,6 +85,14 @@ export default function SectionDropdown({
         setIsOpen(false);
         triggerRef.current?.focus();
         break;
+      case "Home":
+        e.preventDefault();
+        setFocusedIndex(0);
+        break;
+      case "End":
+        e.preventDefault();
+        setFocusedIndex(sections.length - 1);
+        break;
       case "Tab":
         setIsOpen(false);
         break;
@@ -95,7 +105,8 @@ export default function SectionDropdown({
   };
 
   const currentSection = sections.find((s) => s.key === value) || sections[0];
-  const color = currentSection.color;
+  const { isDark } = useTheme();
+  const color = themeSafeGraphicColor(currentSection.color, isDark);
 
   return (
     <div ref={ref} className="relative">
@@ -147,7 +158,7 @@ export default function SectionDropdown({
           style={{ zIndex: 50 }}
         >
           {sections.map((s, index) => {
-            const c = s.color;
+            const safeIcon = themeSafeGraphicColor(s.color, isDark);
             const isSelected = s.key === value;
             const isFocused = index === focusedIndex;
             return (
@@ -156,6 +167,7 @@ export default function SectionDropdown({
                 id={`section-option-${index}`}
                 type="button"
                 role="option"
+                tabIndex={-1}
                 aria-selected={isSelected}
                 onClick={() => {
                   onChange(s.key);
@@ -168,7 +180,7 @@ export default function SectionDropdown({
               >
                 <span
                   className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
-                  style={{ backgroundColor: `${c}20`, color: c }}
+                  style={{ backgroundColor: `${safeIcon}20`, color: safeIcon }}
                 >
                   {SECTION_ICONS[s.key]}
                 </span>

@@ -230,6 +230,28 @@ model SectionConfig {
   @@index([sortOrder])
 }
 
+// ─── TeamTable Model ────────────────────────────────────────────────────────
+// Free-form team grid: one named table per section. The full grid (rows of
+// cells with merge spans) and floating stickers are stored as JSON so every
+// teammate reads and writes the same document. Soft-deleted via `deletedAt`.
+model TeamTable {
+  id          String   @id @default(cuid())
+  section     String                 // SectionConfig.key (like goals/drawers)
+  name        String
+  color       String   @default("#00E8A2") // app accent; SECTION_COLORS are picker options
+  cells       Json                   // GridState — { cols, rows: GridCell[][] }
+  stickers    Json     @default("[]") // StickerData[] — [{id, sprite, x, y, locked?, mirrored?, state?}]
+  isDateBased Boolean  @default(false)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?              // soft delete; hard-purge later
+
+  @@index([section])
+  @@index([createdById])
+  @@index([deletedAt])
+}
+
 // ─── AppConfig Model ────────────────────────────────────────────────────────
 // Global key/value settings. Used to persist team-level Google Drive wiring:
 //   drive.rootFolderId        — the shared "Catarina" folder on Drive

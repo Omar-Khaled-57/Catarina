@@ -47,6 +47,15 @@ function normalizeHex(input: string): string | null {
   return HEX_RE.test(hex) ? hex.toUpperCase() : null;
 }
 
+/* Returns a readable ink color for a swatch background (white for dark, near-black for light) */
+function swatchInk(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum > 0.6 ? "#1A1A1A" : "#FFFFFF";
+}
+
 export default function ColorPicker({
   value,
   onChange,
@@ -94,6 +103,7 @@ export default function ColorPicker({
               key={c.hex}
               type="button"
               onClick={() => onChange(c.hex)}
+              aria-pressed={value === c.hex}
               className="group relative h-9 w-9 rounded-xl transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-bg"
               style={{
                 backgroundColor: c.hex,
@@ -103,7 +113,7 @@ export default function ColorPicker({
               aria-label={`Select color ${c.name}`}
             >
               {value === c.hex && (
-                <Check size={14} className="absolute inset-0 m-auto text-white" strokeWidth={3} />
+                <Check size={14} className="absolute inset-0 m-auto" strokeWidth={3} style={{ color: swatchInk(c.hex) }} />
               )}
             </button>
           ))}
@@ -122,6 +132,7 @@ export default function ColorPicker({
                 <button
                   type="button"
                   onClick={() => onChange(hex)}
+                  aria-pressed={value === hex}
                   className="h-9 w-9 rounded-xl transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-bg"
                   style={{
                     backgroundColor: hex,
@@ -130,13 +141,13 @@ export default function ColorPicker({
                   aria-label={`Select color ${hex}`}
                 >
                   {value === hex && (
-                    <Check size={14} className="mx-auto text-white" strokeWidth={3} />
+                    <Check size={14} className="mx-auto" strokeWidth={3} style={{ color: swatchInk(hex) }} />
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => removeCustomColor(hex)}
-                  className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-danger text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-danger text-white dark:text-bg flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity"
                   aria-label={`Remove color ${hex}`}
                 >
                   <X size={8} />
@@ -152,6 +163,7 @@ export default function ColorPicker({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
+          aria-expanded={showAdvanced}
           className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-accent hover:text-accent-2 transition-colors"
         >
           <Palette size={12} />
@@ -166,6 +178,7 @@ export default function ColorPicker({
                 type="color"
                 value={newColorCanonical ?? "#00E8A2"}
                 onChange={(e) => setColorDraft(e.target.value)}
+                aria-label="Pick a color"
                 className="h-9 w-9 rounded-lg cursor-pointer border-0 bg-transparent p-0"
               />
               <input
@@ -175,6 +188,7 @@ export default function ColorPicker({
                   const val = e.target.value;
                   if (HEX_PARTIAL_RE.test(val)) setColorDraft(val);
                 }}
+                aria-label="Hex color value"
                 className="flex-1 min-w-0 rounded-lg bg-surface border border-border/40 px-3 py-1.5 text-xs text-text font-mono focus:outline-none focus:border-accent"
                 placeholder="#000000"
                 maxLength={7}

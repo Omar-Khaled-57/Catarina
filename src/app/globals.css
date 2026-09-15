@@ -77,6 +77,10 @@ html.light {
   --chest-steel-back: #1c1c1c;
   --chest-face-a: #464646;
   --chest-face-b: #2e2e2e;
+  /* Light theme: deepen section colour tokens so icons/text clear 3:1 and 4.5:1 */
+  --color-art: #6D28D9;
+  --color-technical: #1D4ED8;
+  --color-management: #92400E;
 }
 
 /* Light-mode Drawers use cool, illuminated steel instead of the dark-theme
@@ -1458,6 +1462,243 @@ html.light .directory-browser {
 .goal-highlight {
   animation: goal-highlight 0.85s ease-in-out 6;
   --hl-color: var(--section-color, rgba(0, 232, 162, 0.55));
+}
+
+/* ─── Table stickers ──────────────────────────────────────────────────────── */
+/* TeamTable floating Rina decorations. Three click states:
+   play (dance wobble) → pause (frozen) → frame2 (rotated 20–45°) → play.
+   Mirror is a separate scaleX(-1) wrapper so it composes with rotation. */
+
+@keyframes table-sticker-dance {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate(5deg); }
+}
+
+.table-sticker { touch-action: none; }
+.table-sticker.dragging { cursor: grabbing; }
+.table-sticker.resizing { cursor: ns-resize; }
+.table-sticker.dragging:not(.locked) .table-sticker-img img { animation: none; }
+
+.table-sticker-img { transform-origin: 50% 85%; }
+
+/* The dance has two keyframes: -4° (frame 1) and +5° (frame 2). Clicking a
+   sticker pauses it ON one of those frames, never a random mid-anim pose. */
+.table-sticker.state-play .table-sticker-img img {
+  animation: table-sticker-dance 1.1s steps(2, jump-none) infinite;
+}
+.table-sticker.state-pause .table-sticker-img img {
+  animation: none;
+  transform: rotate(-4deg); /* frame 1 */
+}
+.table-sticker.state-frame2 .table-sticker-img img {
+  animation: none;
+  transform: rotate(5deg); /* frame 2 */
+}
+
+.table-sticker-controls {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.table-sticker:hover .table-sticker-controls,
+.table-sticker:focus-within .table-sticker-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ─── Table grid helpers ──────────────────────────────────────────────────── */
+/* "Today" strip fill uses the table's accent (inline --taccent). Applied to
+   every logical cell that overlaps today's strip (cols or rows axis). */
+.tgrid td.today,
+.tgrid .fc.today {
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 14%, transparent);
+  box-shadow: inset 0 2px 0 var(--taccent, #00E8A2);
+}
+.tgrid th.today {
+  color: var(--taccent, #00E8A2);
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 14%, var(--color-surface-2));
+}
+.tgrid .today-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--color-accent-ink);
+  background: var(--taccent, #00E8A2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ─── Table grid (TeamTable canvas) ────────────────────────────────────────── */
+/* Mirrors the table prototype's sticky header column + top header row and the
+   merged-cell/selection treatment, using the table's accent (--taccent). */
+.table-grid-scroll {
+  position: relative;
+  max-height: 62svh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+table.tgrid {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  width: max-content;
+}
+
+.tgrid th,
+.tgrid td {
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 20px 24px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-text);
+  text-align: left;
+  vertical-align: top;
+  background: var(--color-surface);
+}
+
+.tgrid th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-surface-2);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.tgrid .fc {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-surface);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-text);
+  min-width: 120px;
+  width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tgrid th.fc {
+  background: var(--color-surface-2);
+  z-index: 4;
+}
+
+.tgrid td.merged {
+  font-weight: 800;
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 5%, var(--color-surface));
+}
+
+.tgrid td.selected {
+  box-shadow: inset 0 0 0 2px var(--taccent, #00E8A2);
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 6%, var(--color-surface));
+  z-index: 1;
+}
+
+/* Row/column band selected by standing on a cell edge (Word-like). */
+.tgrid td.band-col,
+.tgrid td.band-row {
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 10%, var(--color-surface));
+  box-shadow: inset 0 0 0 2px var(--taccent, #00E8A2);
+  z-index: 1;
+}
+.tgrid th.band-col,
+.tgrid th.band-row {
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 16%, var(--color-surface-2));
+  box-shadow: inset 0 0 0 2px var(--taccent, #00E8A2);
+}
+
+/* Edge strips: hover a column's boundary or a row's boundary (arrow cursors,
+   like Office tables) — click selects that row/column, drag resizes it.
+   They are hosted on the cell right/below the boundary and STRADDLE it
+   (left:-6px / top:-6px), so a wide 12px zone is grabbable and paints above
+   the neighbouring cell (the strip has a high z-index). */
+.tgrid td { position: relative; }
+.tgrid .edge-strip {
+  position: absolute;
+  z-index: 7;
+  background: transparent;
+  transition: background 120ms ease;
+  touch-action: none; /* let the drag resize instead of scrolling */
+}
+.tgrid .edge-strip:active {
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 40%, transparent);
+}
+.tgrid .edge-strip.edge-col {
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 12px;
+  cursor: col-resize;
+}
+.tgrid .edge-strip.edge-col-last {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  cursor: col-resize;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.tgrid .edge-strip.edge-row {
+  left: 0;
+  right: 0;
+  top: -6px;
+  height: 12px;
+  cursor: row-resize;
+}
+.tgrid .edge-strip.edge-row-last {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  cursor: row-resize;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.tgrid .edge-strip:hover {
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 26%, transparent);
+}
+.tgrid .edge-strip.pulling {
+  background: var(--taccent, #00E8A2);
+  opacity: 0.85;
+}
+
+.tgrid th.today,
+.tgrid .fc.today {
+  color: var(--taccent, #00E8A2);
+  background: color-mix(in srgb, var(--taccent, #00E8A2) 14%, var(--color-surface-2));
+}
+
+.tgrid .today-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--color-accent-ink);
+  background: var(--taccent, #00E8A2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.tgrid-row-lbl {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 /* ─── Reduced Motion ───────────────────────────────────────────────────────── */

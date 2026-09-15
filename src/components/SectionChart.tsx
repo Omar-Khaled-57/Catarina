@@ -15,6 +15,8 @@ import { useEffect, useRef, useState } from "react";
 import { calcSectionStats } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 import { type SectionData, type DashboardGoal, FALLBACK_SECTIONS } from "@/types";
+import { useTheme } from "@/contexts/ThemeContext";
+import { themeSafeGraphicColor } from "@/lib/themeSafeColor";
 
 interface SectionChartProps {
   data: Record<string, Pick<DashboardGoal, "done" | "current" | "target">[]>;
@@ -44,16 +46,19 @@ const swingOut = (t: number) => 1 - Math.cos((t * Math.PI) / 2);
 
 export default function SectionChart({ data, sections: sectionsProp }: SectionChartProps) {
   const sectionDefs = sectionsProp || FALLBACK_SECTIONS;
+  const { isDark } = useTheme();
 
   const sections = sectionDefs.map((s) => {
     const stats = calcSectionStats(data[s.key] || []);
+    const color = s.color;
     return {
       section: s.key,
       label: s.label,
       percentage: stats.percentage,
       done: stats.done,
       total: stats.total,
-      color: s.color,
+      color,
+      safeColor: themeSafeGraphicColor(color, isDark),
     };
   });
 
@@ -171,7 +176,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
         >
           {/* ── Gradient defs ─────────────────────────────────────────── */}
           <defs>
-            {sections.map(({ section, color }, i) => {
+            {sections.map(({ section, safeColor }, i) => {
               /* Index-prefixed: guarantees a unique SVG id even if two section
                  keys ever collided after lowercasing. */
               const id = `sec-${i}-${section.toLowerCase()}`;
@@ -179,18 +184,18 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                 <g key={`${i}-${section}`}>
                   {/* Front face gradient */}
                   <linearGradient id={`fg-${id}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor={color} stopOpacity="0.95" />
-                    <stop offset="100%" stopColor={color} stopOpacity="0.48" />
+                    <stop offset="0%"   stopColor={safeColor} stopOpacity="0.95" />
+                    <stop offset="100%" stopColor={safeColor} stopOpacity="0.48" />
                   </linearGradient>
                   {/* Right face gradient */}
                   <linearGradient id={`rg-${id}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor={color} stopOpacity="0.55" />
-                    <stop offset="100%" stopColor={color} stopOpacity="0.18" />
+                    <stop offset="0%"   stopColor={safeColor} stopOpacity="0.55" />
+                    <stop offset="100%" stopColor={safeColor} stopOpacity="0.18" />
                   </linearGradient>
                   {/* Top face gradient (left→right, lighter) */}
                   <linearGradient id={`tg-${id}`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%"   stopColor={color} stopOpacity="1"   />
-                    <stop offset="100%" stopColor={color} stopOpacity="0.72" />
+                    <stop offset="0%"   stopColor={safeColor} stopOpacity="1"   />
+                    <stop offset="100%" stopColor={safeColor} stopOpacity="0.72" />
                   </linearGradient>
                   {/* Glow filter */}
                   <filter id={`glow-${id}`} x="-20%" y="-20%" width="140%" height="140%">
@@ -231,7 +236,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
           })}
 
           {/* ── 3-D Bars ───────────────────────────────────────────────── */}
-          {sections.map(({ section, label, color }, i) => {
+          {sections.map(({ section, label, safeColor }, i) => {
             const clamped = Math.min(Math.max(animPcts[i] ?? 0, 0), 100);
             const barH    = Math.max((clamped / 100) * CHART_H, MIN_BAR_H);
             /* Must match the id computed in the <defs> block */
@@ -275,7 +280,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                 <line
                   x1={x0} y1={yT}
                   x2={x1} y2={yT}
-                  stroke={color}
+                  stroke={safeColor}
                   strokeWidth="1.5"
                   opacity={clamped > 0.5 ? 0.65 : 0.3}
                 />
@@ -285,7 +290,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                   x={x0 + 4} y={yB + 2}
                   width={barW - 8} height={6}
                   rx="3"
-                  fill={color}
+                  fill={safeColor}
                   opacity={clamped > 0.5 ? 0.18 : 0.08}
                   style={{ filter: `blur(4px)` }}
                 />
@@ -298,7 +303,7 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
                   fill="var(--text)"
                   fontSize="11.5"
                   fontWeight="700"
-                  style={{ filter: clamped > 0.5 ? `drop-shadow(0 0 6px ${color}80)` : undefined }}
+                  style={{ filter: clamped > 0.5 ? `drop-shadow(0 0 6px ${safeColor}80)` : undefined }}
                 >
                   {clamped.toFixed(2)}%
                 </text>
@@ -342,11 +347,11 @@ export default function SectionChart({ data, sections: sectionsProp }: SectionCh
 
       {/* ── Legend ──────────────────────────────────────────────────────── */}
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 justify-center">
-        {sections.map(({ section, label, color, done, total }) => (
+        {sections.map(({ section, label, safeColor, done, total }) => (
           <div key={section} className="flex items-center gap-1.5">
             <div
               className="h-2.5 w-2.5 rounded-[3px]"
-              style={{ backgroundColor: color }}
+              style={{ backgroundColor: safeColor }}
             />
             <span className="text-xs text-text-muted">
               {label}

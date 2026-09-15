@@ -96,7 +96,7 @@ export default function ArchiveView() {
             .slice()
             .reverse()
             .map((m) => (
-              <Card key={m.id} hover className="h-full flex flex-col">
+              <Card key={m.id} className="h-full flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-text">
                     {monthNameLine1(m.month, m.year)}

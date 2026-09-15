@@ -21,7 +21,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       accent:
-        "bg-accent text-bg shadow-[0_0_20px_var(--color-accent-glow)] hover:brightness-110",
+        "bg-accent text-accent-ink shadow-[0_0_20px_var(--color-accent-glow)] hover:brightness-110",
       danger:
         "bg-danger/10 border border-danger/20 text-danger hover:bg-danger/20",
       ghost:

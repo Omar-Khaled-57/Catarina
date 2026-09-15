@@ -69,7 +69,7 @@ export default function WelcomeModal() {
 
             <button
               onClick={markWelcomeSeen}
-              className="w-full py-3 rounded-xl bg-accent text-bg font-bold text-sm hover:bg-accent-2 transition-colors"
+              className="w-full py-3 rounded-xl bg-accent text-accent-ink font-bold text-sm hover:bg-accent-2 transition-colors"
             >
               Let&apos;s Go!
             </button>

@@ -13,6 +13,8 @@ import {
 } from "@/lib/permissions";
 import { type SectionDataFull } from "@/types";
 import { toast } from "sonner";
+import { useTheme } from "@/contexts/ThemeContext";
+import { themeSafePill } from "@/lib/themeSafeColor";
 
 export default function CreateUserModal({
   onClose,
@@ -24,6 +26,7 @@ export default function CreateUserModal({
   sections: SectionDataFull[];
 }) {
   const { upload, uploading } = useFileUpload();
+  const { isDark } = useTheme();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,55 +79,59 @@ export default function CreateUserModal({
         <PfpUpload currentPfp={pfp} onUpload={handleUpload} uploading={uploading} />
 
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="cu-name">
             Full Name
           </label>
           <input
+            id="cu-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="John Doe"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="cu-email">
             Email
           </label>
           <input
+            id="cu-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="john@example.com"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="cu-password">
             Password
           </label>
           <input
+            id="cu-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={6}
             placeholder="Min 6 characters"
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="cu-bio">
             Bio
           </label>
           <textarea
+            id="cu-bio"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             rows={2}
             placeholder="Short bio..."
-            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
+            className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
           />
         </div>
 
@@ -138,6 +145,7 @@ export default function CreateUserModal({
                 key={r}
                 type="button"
                 onClick={() => setRole(r)}
+                aria-pressed={role === r}
                 className={`text-xs font-bold px-4 py-2 rounded-lg border transition-all ${
                   role === r
                     ? "bg-accent/15 text-accent border-accent/40"
@@ -156,18 +164,19 @@ export default function CreateUserModal({
           </label>
           <div className="flex flex-wrap gap-2">
             {sections.map((s) => {
-              const c = s.color;
               const on = selectedSections.includes(s.key);
+              const pill = themeSafePill(s.color, isDark);
               return (
                 <button
                   key={s.key}
                   type="button"
                   onClick={() => toggleSection(s.key)}
+                  aria-pressed={on}
                   className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
                   style={{
-                    backgroundColor: on ? `${c}20` : "transparent",
-                    color: on ? c : "var(--text-muted)",
-                    borderColor: on ? `${c}50` : "var(--border)",
+                    backgroundColor: on ? pill.bg : "transparent",
+                    color: on ? pill.fg : "var(--text-muted)",
+                    borderColor: on ? `${pill.bg}80` : "var(--border)",
                   }}
                 >
                   {s.label}
@@ -188,6 +197,7 @@ export default function CreateUserModal({
                   key={key}
                   type="button"
                   onClick={() => togglePerm(key)}
+                  aria-pressed={permissions[key]}
                   className={`flex items-center gap-2 text-xs p-2.5 rounded-lg border transition-all ${
                     permissions[key] ? "bg-accent/5 border-accent/30" : "border-border/60"
                   }`}
@@ -199,7 +209,7 @@ export default function CreateUserModal({
                         : "border-text-muted/30"
                     }`}
                   >
-                    {permissions[key] && <Check size={10} strokeWidth={3} className="text-bg" />}
+                    {permissions[key] && <Check size={10} strokeWidth={3} className="text-accent-ink" />}
                   </div>
                   <span className={permissions[key] ? "text-accent font-semibold" : "text-text-muted"}>
                     {PERMISSION_LABELS[key]}

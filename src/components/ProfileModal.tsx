@@ -11,6 +11,8 @@ import Modal from "@/components/ui/Modal";
 import { getDefaultPfp } from "@/lib/utils";
 import { User, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/contexts/ThemeContext";
+import { themeSafeTextColor } from "@/lib/themeSafeColor";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -35,6 +37,7 @@ export default function ProfileModal({
   isAdmin,
   refreshUser,
 }: ProfileModalProps) {
+  const { isDark } = useTheme();
   const [pickedSection, setPickedSection] = useState<string>(user.primarySection || "MANAGEMENT");
   const [saving, setSaving] = useState(false);
   const [pfp, setPfp] = useState(user.pfp);
@@ -213,7 +216,7 @@ export default function ProfileModal({
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-0.5 -right-0.5 h-6 w-6 rounded-full bg-accent flex items-center justify-center text-bg shadow-lg hover:bg-accent-2 transition-colors disabled:opacity-50"
+              className="absolute -bottom-0.5 -right-0.5 h-6 w-6 rounded-full bg-accent flex items-center justify-center text-accent-ink shadow-lg hover:bg-accent-2 transition-colors disabled:opacity-50"
               aria-label="Upload profile photo"
             >
               <Upload size={11} />
@@ -234,8 +237,9 @@ export default function ProfileModal({
         {/* Editable fields */}
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Name</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-name" >Name</label>
             <input
+              id="profile-name"
               type="text"
               value={editName}
               onChange={(e) => { setEditName(e.target.value); markChanged(); }}
@@ -243,8 +247,9 @@ export default function ProfileModal({
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Email</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-email" >Email</label>
             <input
+              id="profile-email"
               type="email"
               value={editEmail}
               onChange={(e) => { setEditEmail(e.target.value); markChanged(); }}
@@ -252,13 +257,14 @@ export default function ProfileModal({
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Bio</label>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-bio" >Bio</label>
             <textarea
+              id="profile-bio"
               value={editBio}
               onChange={(e) => { setEditBio(e.target.value); markChanged(); }}
               rows={2}
               placeholder="A short bio..."
-              className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
+              className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all resize-none"
             />
           </div>
 
@@ -269,33 +275,36 @@ export default function ProfileModal({
             </summary>
             <div className="mt-2 space-y-2">
               <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Current Password</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-cur-pw" >Current Password</label>
                 <input
+                  id="profile-cur-pw"
                   type="password"
                   value={currentPassword}
                   onChange={(e) => { setCurrentPassword(e.target.value); if (newPassword) markChanged(); }}
                   placeholder="Enter current password"
-                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">New Password</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-new-pw" >New Password</label>
                 <input
+                  id="profile-new-pw"
                   type="password"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); markChanged(); }}
                   placeholder="Min 6 characters"
-                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">Confirm New Password</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-conf-pw" >Confirm New Password</label>
                 <input
+                  id="profile-conf-pw"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); markChanged(); }}
                   placeholder="Repeat new password"
-                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+                  className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
                 />
               </div>
               {newPassword && confirmPassword && newPassword !== confirmPassword && (
@@ -315,23 +324,35 @@ export default function ProfileModal({
               {user.sections.map((s) => {
                 const c = sectionColors[s] || "#00E8A2";
                 const isHighlighted = isAdmin && pickedSection === s;
-                return (
-                  <button
-                    key={s}
-                    onClick={() => isAdmin && handlePickSection(s)}
-                    disabled={saving}
-                    className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all ${
-                      isAdmin ? "cursor-pointer hover:scale-105" : "cursor-default"
-                    }`}
-                    style={{
-                      backgroundColor: isHighlighted ? `${c}25` : `${c}12`,
-                      color: c,
-                      border: isHighlighted ? `1.5px solid ${c}` : `1px solid ${c}25`,
-                    }}
-                  >
+                const chip = (
+                  <>
                     {sectionLabels[s] || s}
                     {isHighlighted && " ★"}
+                  </>
+                );
+                const chipStyle = {
+                  backgroundColor: isHighlighted ? `${c}25` : `${c}12`,
+                  color: themeSafeTextColor(c, isDark),
+                  border: isHighlighted ? `1.5px solid ${c}` : `1px solid ${c}25`,
+                };
+                const cls = `text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all ${
+                  isAdmin && !saving ? "cursor-pointer hover:scale-105" : ""
+                }`;
+                return isAdmin ? (
+                  <button
+                    key={s}
+                    onClick={() => handlePickSection(s)}
+                    disabled={saving}
+                    className={cls}
+                    style={chipStyle}
+                    aria-pressed={isHighlighted}
+                  >
+                    {chip}
                   </button>
+                ) : (
+                  <span key={s} className={cls} style={chipStyle}>
+                    {sectionLabels[s] || s}
+                  </span>
                 );
               })}
             </div>
@@ -344,7 +365,7 @@ export default function ProfileModal({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-accent text-bg hover:bg-accent-2 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-accent text-accent-ink hover:bg-accent-2 transition-colors disabled:opacity-50"
             >
               <Check size={13} strokeWidth={3} />
               {saving ? "Saving..." : "Save Changes"}

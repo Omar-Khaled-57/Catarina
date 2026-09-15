@@ -41,6 +41,7 @@ export const PERMISSION_KEYS = [
   "canDeleteGoals",
   "canManageMembers",
   "canCreateMonths",
+  "canManageTables",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

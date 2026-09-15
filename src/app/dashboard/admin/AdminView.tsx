@@ -23,6 +23,7 @@ import {
 import { type SectionDataFull } from "@/types";
 import { toast } from "sonner";
 import { User, Pencil, Trash2, Plus, Shield, ShieldOff, UserCheck, UserX } from "lucide-react";
+import { useThemeSafeTextColor } from "@/lib/themeSafeColor";
 
 interface UserData {
   id: string;
@@ -248,9 +249,8 @@ export default function AdminView() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-text truncate">{a.name}</p>
                     <p className="text-xs text-text-muted truncate">{a.email}</p>
-                    <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1"
-                      style={{ backgroundColor: `${getSectionColor(a.section)}15`, color: getSectionColor(a.section) }}>
-                      {getSectionLabel(a.section)}
+                    <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1">
+                      <SectionChip color={getSectionColor(a.section)} label={getSectionLabel(a.section)} />
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -307,12 +307,8 @@ export default function AdminView() {
               {/* Sections */}
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {u.sections.map((s) => {
-                  const c = getSectionColor(s);
                   return (
-                    <span key={s} className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                      style={{ backgroundColor: `${c}15`, color: c, border: `1px solid ${c}30` }}>
-                      {getSectionLabel(s)}
-                    </span>
+                    <SectionChip key={s} color={getSectionColor(s)} label={getSectionLabel(s)} />
                   );
                 })}
                 {u.sections.length === 0 && <span className="text-[10px] text-text-muted italic">No sections</span>}
@@ -325,7 +321,7 @@ export default function AdminView() {
                     <span
                       key={key}
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        val ? "bg-accent/10 text-accent" : "bg-surface-2 text-text-muted/50 line-through"
+                        val ? "bg-accent/10 text-accent" : "bg-surface-2 text-text-muted line-through"
                       }`}
                     >
                       {PERMISSION_LABELS[key as keyof MemberPermissions]}
@@ -374,7 +370,7 @@ export default function AdminView() {
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setDeleteUser(null)}>Cancel</Button>
-          <Button onClick={handleDelete} className="bg-danger hover:bg-danger/90 text-white">Delete</Button>
+          <Button onClick={handleDelete} className="bg-danger hover:bg-danger/90 text-white dark:text-bg">Delete</Button>
         </div>
       </Modal>
 
@@ -385,5 +381,22 @@ export default function AdminView() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── Section Chip ───────────────────────────────────────────────────────── */
+function SectionChip({ color, label }: { color: string; label: string }) {
+  const safeText = useThemeSafeTextColor(color);
+  return (
+    <span
+      className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+      style={{
+        backgroundColor: `${safeText}15`,
+        color: safeText,
+        border: `1px solid ${safeText}30`,
+      }}
+    >
+      {label}
+    </span>
   );
 }

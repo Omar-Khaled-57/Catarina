@@ -61,7 +61,7 @@ export default function NotFoundContent() {
         <div className="flex items-center justify-center gap-3">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-bg shadow-lg shadow-accent/20 hover:bg-accent-2 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-ink shadow-lg shadow-accent/20 hover:bg-accent-2 transition-colors"
           >
             <Home size={16} />
             Go Home
