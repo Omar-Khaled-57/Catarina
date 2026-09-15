@@ -49,7 +49,7 @@ export default async function DrawersPage() {
   }));
 
   return (
-    <div className="space-y-20 overflow-x-clip">
+    <main className="space-y-20 overflow-x-clip">
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-text sm:text-3xl">
@@ -92,6 +92,6 @@ export default async function DrawersPage() {
         note={STORAGE_NOTE}
         fullHint={STORAGE_FULL_HINT}
       />
-    </div>
+    </main>
   );
 }

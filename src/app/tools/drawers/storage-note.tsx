@@ -139,7 +139,7 @@ export default function StorageNote({
         </StorageCard>
       </div>
 
-      <p className="mt-5 px-1 text-xs text-text-muted/70">
+      <p className="mt-5 px-1 text-xs text-text-muted">
         Running Catarina on your own cloud backend? Change{" "}
         <code className="rounded bg-accent/10 px-1 py-0.5 font-mono text-[11px] text-accent">
           STORAGE_PROVIDER

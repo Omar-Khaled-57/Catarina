@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useThemeSafeGlyphColor } from "@/components/tools/drawers/useThemeSafeColor";
 import {
   ArrowLeft,
   Check,
@@ -224,30 +225,27 @@ function Row({
 }) {
   return (
     <div
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (e: React.KeyboardEvent) => {
-              /* Only activate the row itself — never when a nested control
-                 (checkbox / rename / delete) is focused, else Enter or Space
-                 fires both controls. */
-              if (e.target !== e.currentTarget) return;
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-      className={`group flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+      className={`relative group flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ease-out ${
         active ? "bg-accent/10" : "hover:bg-accent/10"
       } ${checked ? "bg-accent/10" : ""}`}
     >
+      {onClick && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          className="sr-only focus:not-sr-only focus:absolute focus:inset-0 focus:z-50 focus:outline-2 focus:outline-offset-2 focus:outline-accent"
+          aria-label={`Open ${label}`}
+        />
+      )}
       {typeof checked === "boolean" && (
         <button
           type="button"
+          role="checkbox"
+          aria-checked={!!checked}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -255,8 +253,8 @@ function Row({
           }}
           className={`grid size-4 shrink-0 place-items-center rounded border transition-colors ${
             checked
-              ? "border-accent bg-accent text-white"
-              : "border-border hover:border-accent"
+              ? "border-accent bg-accent text-accent-ink"
+              : "border-text-muted hover:border-accent"
           }`}
           aria-label={checked ? "Deselect" : "Select"}
         >
@@ -367,7 +365,7 @@ function CopyButton({
       onClick={copy}
       className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium transition-colors ${
         disabled
-          ? "pointer-events-none border-transparent bg-transparent text-text-muted/40"
+          ? "pointer-events-none border-transparent bg-transparent text-text-muted/60"
           : "bg-surface text-text-muted hover:border-accent/40 hover:text-accent"
       } ${className}`}
     >
@@ -556,7 +554,7 @@ function FileDetail({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/15"
             >
               <ExternalLink className="size-3.5 shrink-0" />
               <span className="truncate">{url}</span>
@@ -602,7 +600,8 @@ function FileDetail({
                     ? "Paste or type a URL…"
                     : "Add content…"
               }
-              className="h-full min-h-0 w-full flex-1 resize-none rounded-lg border border-border bg-surface/70 p-3 font-mono text-xs leading-relaxed text-text/90 placeholder:text-text-muted/50 focus:border-accent focus:outline-2 focus:outline-accent"
+              aria-label="File content"
+              className="h-full min-h-0 w-full flex-1 resize-none rounded-lg border border-border bg-surface/70 p-3 font-mono text-xs leading-relaxed text-text/90 placeholder:text-text-muted focus:border-accent focus:outline-2 focus:outline-accent"
               onBlur={commitContent}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
@@ -632,7 +631,7 @@ function FileDetail({
             if (!isRef) commitContent();
             onDone();
           }}
-          className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <Check className="size-3" />
           Done
@@ -687,6 +686,7 @@ function EditorRow({
           e.preventDefault();
           onCommit();
         }}
+        onClick={onCommit}
         className="grid size-7 shrink-0 place-items-center rounded-lg text-accent transition-colors hover:bg-accent/10"
         aria-label="Confirm"
       >
@@ -829,7 +829,7 @@ function FileForm({
           <TypeIcon className="size-5" />
         </div>
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-text">New file</h2>
+              <h2 id="new-file-title" className="text-sm font-bold text-text">New file</h2>
           <p className="text-xs text-text-muted">
             Everything is optional — sensible defaults kick in.
           </p>
@@ -845,7 +845,7 @@ function FileForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={defaultName}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text transition-colors placeholder:text-text-muted/60 focus:border-accent focus:outline-2 focus:outline-accent"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text transition-colors placeholder:text-text-muted focus:border-accent focus:outline-2 focus:outline-accent"
         />
       </label>
 
@@ -865,7 +865,7 @@ function FileForm({
                 aria-pressed={isActive}
                 className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all duration-150 ease-out ${
                   isActive
-                    ? "scale-[1.03] border-accent bg-accent/15 text-accent shadow-sm"
+                    ? "scale-[1.03] border-accent bg-accent/10 text-accent shadow-sm"
                     : "border-border text-text-muted hover:border-accent/40 hover:text-text"
                 }`}
               >
@@ -887,10 +887,11 @@ function FileForm({
               ? "Paste some code…"
               : "Add a note or content (optional)"
         }
-        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text transition-colors placeholder:text-text-muted/50 focus:border-accent focus:outline-2 focus:outline-accent"
+        aria-label="Content or URL"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text transition-colors placeholder:text-text-muted focus:border-accent focus:outline-2 focus:outline-accent"
       />
 
-      <label className="grid cursor-pointer place-items-center gap-1 rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-text-muted transition-colors hover:border-accent/50 hover:text-text">
+      <label className="grid cursor-pointer place-items-center gap-1 rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-text-muted transition-colors hover:border-accent/50 hover:text-text focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
         <UploadCloud className="size-4" />
         <span className="font-medium text-text">
           Upload image, video or any file
@@ -922,7 +923,7 @@ function FileForm({
           {/* eslint-disable-next-line @next/next/no-img-element -- blob preview */}
           <img
             src={uploadUrl}
-            alt="Preview"
+            alt={upload?.name ?? "Preview"}
             className="max-h-32 w-full bg-black object-contain"
           />
         </div>
@@ -956,7 +957,7 @@ function FileForm({
         </button>
         <button
           type="submit"
-          className="inline-flex items-center gap-1 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-white transition-transform duration-150 ease-out hover:scale-[1.03] hover:brightness-110 active:scale-95"
+          className="inline-flex items-center gap-1 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-ink transition-transform duration-150 ease-out hover:scale-[1.03] hover:brightness-110 active:scale-95"
         >
           <Plus className="size-3.5" />
           Create
@@ -1090,7 +1091,7 @@ function SearchResults({
 
 export default function DirectoryBrowser({
   section,
-  color,
+  color: rawColor,
   activeProject,
   focusTarget,
   onOpenProject,
@@ -1151,6 +1152,11 @@ export default function DirectoryBrowser({
   const viewT = reduce
     ? { duration: 0.01 }
     : { duration: 0.18, ease: "easeOut" as const };
+  /* Theme-safe shade for the section glyphs: vivid in dark mode (with very
+     dark hues lifted just enough to clear 3:1), and blended toward a dark
+     steel in light mode. The raw stored color stays available as `rawColor`
+     (used nowhere further). */
+  const color = useThemeSafeGlyphColor(rawColor);
 
   const [envelopeId, setEnvelopeId] = useState<string | null>(
     () => focusTarget?.envelopeId ?? null,
@@ -1182,6 +1188,8 @@ export default function DirectoryBrowser({
   const looseFiles = activeProject?.items ?? [];
   const trimmedQuery = query.trim();
   const hits = searchSection(section, trimmedQuery);
+  const totalHits =
+    hits.projects.length + hits.envelopes.length + hits.files.length;
 
   const clearTransient = () => {
     setOpenFile(null);
@@ -1319,7 +1327,7 @@ export default function DirectoryBrowser({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search"
             aria-label="Search"
-            className="min-w-0 flex-1 border-none bg-transparent text-sm text-text outline-none placeholder:text-text-muted/50"
+            className="min-w-0 flex-1 border-none bg-transparent text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent placeholder:text-text-muted"
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
@@ -1339,6 +1347,14 @@ export default function DirectoryBrowser({
             </button>
           )}
         </div>
+      )}
+
+      {trimmedQuery && (
+        <p role="status" aria-live="polite" className="sr-only">
+          {totalHits === 0
+            ? `No matches for ${trimmedQuery} in ${section.label}`
+            : `${totalHits} ${totalHits === 1 ? "result" : "results"} for ${trimmedQuery}`}
+        </p>
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -1532,7 +1548,7 @@ onClick={() =>
                       <button
                         type="button"
                         onClick={groupSelected}
-                        className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-accent/10 px-2 py-1 font-medium text-accent transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-accent/10 px-2 py-1 font-medium text-accent transition-colors hover:bg-accent/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       >
                         <Folder className="size-3" />
                         Make envelope
@@ -1763,7 +1779,6 @@ onClick={() =>
       <AnimatePresence>
         {dialog && (
           <motion.div
-            role="presentation"
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
@@ -1782,7 +1797,7 @@ onClick={() =>
               ref={dialogRef}
               role="dialog"
               aria-modal="true"
-              aria-label="New file"
+              aria-labelledby="new-file-title"
               className="flex max-h-full w-full max-w-sm"
               initial={{ opacity: 0, y: 18, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}

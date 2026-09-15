@@ -33,7 +33,6 @@ export default function Modal({
   children,
   maxWidth = "max-w-lg",
 }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -119,6 +118,12 @@ export default function Modal({
       const firstEl = items[0];
       const lastEl = items[items.length - 1];
       if (e.key !== "Tab") return;
+
+      if (!dialogRef.current.contains(document.activeElement)) {
+        e.preventDefault();
+        firstEl.focus();
+        return;
+      }
       if (e.shiftKey) {
         if (document.activeElement === firstEl) {
           e.preventDefault();
@@ -141,17 +146,17 @@ export default function Modal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          ref={overlayRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={(e) => {
-            if (e.target === overlayRef.current) onClose();
-          }}
         >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            aria-hidden="true"
+            onClick={onClose}
+          />
 
           <motion.div
             ref={dialogRef}
@@ -169,6 +174,7 @@ export default function Modal({
                 <h2 className="text-xl sm:text-2xl font-bold text-text truncate">{title}</h2>
               )}
               <button
+                type="button"
                 onClick={onClose}
                 className="rounded-lg p-1.5 text-text-muted hover:bg-surface-2 hover:text-text transition-colors shrink-0 ms-2"
                 aria-label="Close"

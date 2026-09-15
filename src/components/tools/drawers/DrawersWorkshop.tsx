@@ -1228,33 +1228,38 @@ export default function DrawersWorkshop({
           if (!target) return null;
           return createPortal(
             <div className="drawers-cloud-status inline-flex flex-wrap items-center gap-3 text-sm">
-              {cloud.loading ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Connecting to the team cloud
-                </span>
-              ) : isSyncing ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Syncing to the team cloud
-                </span>
-              ) : syncFailure ? (
+              {cloud.loading || isSyncing || pausedUpload || !syncFailure ? (
+                <div role="status">
+                  {cloud.loading ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Connecting to the team cloud
+                    </span>
+                  ) : isSyncing ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Syncing to the team cloud
+                    </span>
+                  ) : pausedUpload ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      <Pause className="size-3.5" />
+                      Upload paused
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+                      <Check className="size-3.5" />
+                      Synced to the team cloud
+                    </span>
+                  )}
+                </div>
+              ) : (
                 <span
-                  title={syncFailure}
+                  role="alert"
+                  title={syncFailure ?? undefined}
                   className="inline-flex items-center gap-1.5 rounded-full border border-slate-400/25 bg-slate-400/10 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300"
                 >
                   <X className="size-3.5" />
                   Failed to sync
-                </span>
-              ) : pausedUpload ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                  <Pause className="size-3.5" />
-                  Upload paused
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-                  <Check className="size-3.5" />
-                  Synced to the team cloud
                 </span>
               )}
               {notifyMessage && !syncFailure && !isSyncing && (

@@ -104,6 +104,7 @@ export default function Envelope({
       {isOpen && (
         <div
           className={`envelope__files${isClosing ? " is-closing" : ""}`}
+          role="group"
           aria-label={`${envelope.name} files`}
         >
           {files.length === 0 ? (

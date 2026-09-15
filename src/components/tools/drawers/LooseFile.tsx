@@ -32,17 +32,16 @@ export default function LooseFile({
     <div
       className={`drawer-file drawer-file--${file.type.toLowerCase()}`}
       style={{ "--file-index": index } as React.CSSProperties}
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${file.name} in focus mode`}
       onClick={onOpenInFocus}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpenInFocus();
-        }
-      }}
     >
+      <button
+        type="button"
+        className="sr-only focus:not-sr-only focus:absolute focus:inset-0 focus:z-50 focus:outline-2 focus:outline-offset-2 focus:outline-accent"
+        onClick={onOpenInFocus}
+        tabIndex={0}
+      >
+        Open {file.name} in focus mode
+      </button>
       {isMedia ? (
         <span className="drawer-file__thumbnail">
           {preview && file.type === "IMAGE" ? (

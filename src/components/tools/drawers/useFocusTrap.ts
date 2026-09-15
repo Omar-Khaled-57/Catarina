@@ -8,8 +8,12 @@ const FOCUSABLE_SELECTOR =
 /**
  * Keep Tab / Shift+Tab cycling inside `containerRef` while `active` is true.
  * Modal convention: focus never leaks out of a dialog to the page behind it.
- * Rows that are merely hidden (inert or parent-less) are skipped via the
- * offsetParent check.
+ *
+ * The listener is attached to `window` so that the outside-focus recapture
+ * branch works even when focus escapes the container entirely (e.g. after an
+ * element unmounts or after a programmatic `.focus()` call).  Visibility is
+ * checked via `getClientRects()` instead of `offsetParent` to support
+ * `position: fixed` elements.
  */
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
@@ -24,7 +28,11 @@ export function useFocusTrap(
       if (event.key !== "Tab") return;
       const focusables = Array.from(
         container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      ).filter(
+        (el) =>
+          !el.hasAttribute("disabled") &&
+          el.getClientRects().length > 0,
+      );
       if (focusables.length === 0) return;
 
       const first = focusables[0];
@@ -34,7 +42,7 @@ export function useFocusTrap(
 
       if (!inside) {
         event.preventDefault();
-        first.focus();
+        (event.shiftKey ? last : first).focus();
         return;
       }
       if (event.shiftKey && activeEl === first) {
@@ -46,7 +54,7 @@ export function useFocusTrap(
       }
     };
 
-    container.addEventListener("keydown", onKeyDown);
-    return () => container.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [active, containerRef]);
 }

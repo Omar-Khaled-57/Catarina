@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Plus, Trash2, Maximize2 } from "lucide-react";
 import Envelope from "@/components/tools/drawers/Envelope";
 import LooseFile from "@/components/tools/drawers/LooseFile";
+import { useThemeSafeColor } from "@/components/tools/drawers/useThemeSafeColor";
 import type { DemoProject, DemoSection } from "@/components/tools/drawers/types";
 
 const CHEST_PAD = 10;
@@ -57,6 +58,10 @@ export default function SectionChest({
 
   const [raisedId, setRaisedId] = useState<string | null>(null);
 
+  /* Faces/gradients use the theme-safe ink so white labels pass contrast in
+     both themes; the swatch below keeps the raw chosen color. */
+  const faceColor = useThemeSafeColor(color);
+
   const drawerCount = Math.max(1, projects.length);
   const drawerHeight = `calc((var(--chest-h) - ${CHEST_PAD}px - ${CHEST_KICK}px - ${
     (drawerCount - 1) * CHEST_GAP
@@ -70,7 +75,7 @@ export default function SectionChest({
     <div className="flex flex-col items-center gap-16">
       <div
         className="chest-scene"
-        style={{ "--chest-color": color } as CSSProperties}
+        style={{ "--chest-color": faceColor } as CSSProperties}
       >
         <div className="chest-glow" aria-hidden="true" />
         <div
@@ -136,6 +141,7 @@ export default function SectionChest({
                   ))}
                   <div
                     className="chest-drawer__contents"
+                    role="group"
                     aria-label={`${project.name} contents`}
                     style={
                       {
@@ -220,7 +226,7 @@ export default function SectionChest({
 
       <div className="flex flex-wrap items-center justify-center gap-3">
         <label
-          className="relative inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full ring-1 ring-black/20 transition-transform hover:scale-110"
+          className="relative inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full ring-1 ring-black/20 transition-transform hover:scale-110 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent"
           style={{ backgroundColor: color }}
           title={`Edit ${section.label} color`}
         >

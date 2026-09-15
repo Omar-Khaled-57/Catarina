@@ -12,6 +12,8 @@
   --color-accent: var(--accent);
   --color-accent-2: var(--accent-2);
   --color-accent-glow: var(--accent-glow);
+  /* Ink that stays ≥4.5:1 on the accent surfaces themselves. */
+  --color-accent-ink: var(--accent-ink);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
   --color-text: var(--text);
@@ -35,6 +37,8 @@
   --accent: #00E8A2;
   --accent-2: #00C87A;
   --accent-glow: rgba(0, 232, 162, 0.25);
+  /* #03130C on #00E8A2 ≈ 10.8:1 (dark) */
+  --accent-ink: #03130C;
   --danger: #FF4D6A;
   --warning: #FFB830;
   --text: #F0F6FF;
@@ -59,6 +63,8 @@ html.light {
   --accent: #007449;
   --accent-2: #00623D;
   --accent-glow: rgba(0, 196, 122, 0.25);
+  /* #FFFFFF on #007449 ≈ 5.4:1 (light) */
+  --accent-ink: #FFFFFF;
   --danger: #C1123C;
   --warning: #B45309;
   --text: #060B14;
@@ -253,6 +259,39 @@ html.dark [data-sonner-toast] [data-title] {
 
 .section-management {
   --section-color: #F59E0B;
+}
+
+/* Light theme: deepen every section colour so the derived chest faces (32%
+   blend) keep a white name label ≥4.5:1 and the section glyphs clear 3:1 on
+   the pale workspace. All four inks also pass 4.5:1 as text on #F0F6FF. */
+html.light .section-marketing {
+  --section-color: #0E7490;
+}
+
+html.light .section-art {
+  --section-color: #6D28D9;
+}
+
+html.light .section-technical {
+  --section-color: #1D4ED8;
+}
+
+html.light .section-management {
+  --section-color: #92400E;
+}
+
+/* In light theme the directory-browser panel sits above bg-black/70, so
+   bg-surface/85 composites to ~#E4E4E4 instead of white. Override to
+   opaque surface so every muted/accent label passes ≥4.5:1. */
+html.light .directory-browser {
+  background: var(--surface);
+}
+
+/* Form control boundaries inside the drawer panel must clear 3:1 (WCAG
+   1.4.11) in both themes — the global --border token is too faint to read
+   as a control outline, so draw them in the muted text tone. */
+.directory-browser :where(input, textarea, select) {
+  border-color: var(--color-text-muted);
 }
 
 /* ─── Cabinet Coming-Soon Dashed Border ───────────────────────────────────── */
@@ -493,7 +532,8 @@ html.dark [data-sonner-toast] [data-title] {
   max-width: 100%;
   overflow: hidden;
   font-size: 9px;
-  opacity: 0.72;
+  /* 0.92 rather than 0.72: keeps ≥4.5:1 white on every darkened face */
+  opacity: 0.92;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -571,7 +611,8 @@ html.dark [data-sonner-toast] [data-title] {
 
 .chest-drawer__empty {
   margin: auto;
-  color: #999;
+  /* #4B5563 on the always-light interior #EDEDED ≈ 6.4:1 in both themes */
+  color: #4b5563;
   font-size: 11px;
 }
 
@@ -653,7 +694,7 @@ html.dark [data-sonner-toast] [data-title] {
   width: calc(100% - (2 * var(--chest-pad)));
   height: var(--drawer-h);
   border: 1px dashed rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 11px;
   transform: translateZ(calc(var(--chest-d) / 2 + 2px));
 }
@@ -768,7 +809,8 @@ html.dark [data-sonner-toast] [data-title] {
   position: relative;
   z-index: 1;
   margin-top: 2px;
-  color: rgba(91, 74, 51, 0.72);
+  /* Full #5b4a33 (≈4.9:1 on the #d8c394 flap) instead of a 72% fade */
+  color: #5b4a33;
   font-size: 11px;
   line-height: 1;
 }
@@ -975,7 +1017,8 @@ html.dark [data-sonner-toast] [data-title] {
 .drawer-file__snippet {
   flex-basis: 100%;
   overflow: hidden;
-  color: #6b7280;
+  /* #4B5563 on the #F3F4F6 preview ≈ 6.9:1 (was 4.39 with #6B7280) */
+  color: #4b5563;
   font-family: ui-monospace, monospace;
   font-size: 8px;
   text-overflow: ellipsis;
