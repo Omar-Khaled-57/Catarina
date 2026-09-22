@@ -149,15 +149,22 @@ export default function TableGrid({
     [onApply],
   );
 
-  /* Escape is the explicit "stop resizing" action mid-drag. */
+  /* Escape aborts an active resize mid-drag, or clears the current selection
+     when nothing is being resized. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || !gestureRef.current) return;
-      stopGesture(true);
+      if (e.key !== "Escape") return;
+      if (gestureRef.current) {
+        stopGesture(true);
+        return;
+      }
+      bandRef.current = null;
+      setBand(null);
+      onSelectionChange(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [stopGesture]);
+  }, [stopGesture, onSelectionChange]);
 
   const startEdit = (r: number, c: number, initial: string) => {
     setEditingValue(initial);
@@ -366,10 +373,18 @@ export default function TableGrid({
                 onMouseDown={
                   canWrite
                     ? (e) => {
-                        dragRef.current = { r, c };
+                        const isSingleSelected =
+                          selection != null &&
+                          selection.r1 === r &&
+                          selection.c1 === c &&
+                          selection.r2 === r &&
+                          selection.c2 === c;
+                        dragRef.current = isSingleSelected ? null : { r, c };
                         bandRef.current = null;
                         setBand(null);
-                        onSelectionChange(rectOf(r, c, r, c));
+                        onSelectionChange(
+                          isSingleSelected ? null : rectOf(r, c, r, c),
+                        );
                         e.preventDefault();
                       }
                     : undefined
@@ -506,7 +521,7 @@ export default function TableGrid({
       <caption className="sr-only">
         {nRows} rows by {nCols} columns.{" "}
         {canWrite
-          ? "Drag to select cells, double-click to edit, tap a column or row edge to select it, hold and drag an edge to resize it, double-click an edge to reset its size, press Escape to cancel a resize."
+          ? "Drag to select cells, double-click to edit, tap a column or row edge to select it, hold and drag an edge to resize it, double-click an edge to reset its size, press Escape to cancel a resize or clear the selection, click the selected cell again to deselect."
           : "Read-only table."}
       </caption>
     </table>
