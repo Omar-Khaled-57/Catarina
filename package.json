@@ -12,6 +12,7 @@
     "db:push": "npx prisma db push --env-file=.env",
     "db:status": "npx prisma migrate status",
     "db:seed": "npx tsx --env-file=.env prisma/seed.ts",
+    "db:seed-tables": "npx tsx --env-file=.env prisma/seed-tables.ts",
     "db:setup": "npx prisma db push --env-file=.env && npm run db:seed",
     "db:reset": "npx prisma migrate reset --force && npm run db:seed",
     "db:studio": "npx prisma studio",

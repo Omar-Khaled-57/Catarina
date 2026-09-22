@@ -81,6 +81,7 @@ export default function TableGrid({
   onSelectionChange,
 }: Props) {
   const dragRef = useRef<{ r: number; c: number } | null>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   const gestureRef = useRef<{
     type: "col" | "row";
     index: number;
@@ -184,34 +185,62 @@ export default function TableGrid({
   const colSize = grid.sizes?.cols ?? [];
   const rowSize = grid.sizes?.rows ?? [];
 
+  /* Measure the ACTUAL rendered size of a row/column straight from the DOM,
+     used ONCE as the resize base at press time. Auto table layout renegotiates
+     widths every frame (min-width:100% slack, content floors, merged spans),
+     so feeding measured values back into the pointer delta each move causes
+     jumps — we only read them here and then track the pointer with pure
+     deltas, locking the resized column to the exact px (see max-width below)
+     so the browser can't redistribute it. */
+  const measureSize = (
+    type: "col" | "row",
+    index: number,
+  ): number | null => {
+    const table = tableRef.current;
+    const tbody = table?.querySelector("tbody");
+    if (!tbody) return null;
+    const trs = Array.from(tbody.children) as HTMLTableRowElement[];
+    if (type === "row") {
+      const tr = trs[index];
+      return tr ? tr.getBoundingClientRect().height : null;
+    }
+    // Widest true single-column cell in this column (matches how auto layout
+    // resolves the used width; merged spans only kick in as a last resort).
+    let best = 0;
+    for (const tr of trs) {
+      let offset = 0;
+      for (const td of Array.from(tr.cells)) {
+        if (td.colSpan === 1 && offset === index) {
+          const w = td.getBoundingClientRect().width;
+          if (w > best) best = w;
+          break;
+        }
+        offset += td.colSpan;
+        if (offset > index) break;
+      }
+    }
+    if (best > 0) return best;
+    // Column is only touched by merged spans — apportion the covering cell.
+    for (const tr of trs) {
+      let offset = 0;
+      for (const td of Array.from(tr.cells)) {
+        if (offset <= index && index < offset + td.colSpan) {
+          return td.getBoundingClientRect().width / td.colSpan;
+        }
+        offset += td.colSpan;
+        if (offset > index) break;
+      }
+    }
+    return null;
+  };
+
   const startResize = (
     e: React.PointerEvent<HTMLElement>,
     kind: EdgeKind,
     index: number,
-    el: HTMLElement,
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    let measured = 0;
-    if (kind === "col") {
-      // Boundary between col (index) and the stripped cell: measure the column
-      // being resized via the td directly to its left (it's a plain cell).
-      const prev = el.previousElementSibling as HTMLElement | null;
-      if (prev && !prev.getAttribute("colspan")) {
-        measured = prev.getBoundingClientRect().width;
-      }
-    } else if (kind === "col-last") {
-      measured = el.getBoundingClientRect().width;
-    } else if (kind === "row") {
-      // Boundary between the row above and the stripped cell: measure that row.
-      const prevRow = el.closest("tr")?.previousElementSibling as
-        | HTMLElement
-        | null;
-      if (prevRow) measured = prevRow.getBoundingClientRect().height;
-    } else {
-      const tr = el.closest("tr") as HTMLElement | null;
-      if (tr) measured = tr.getBoundingClientRect().height;
-    }
     const type = kind === "col" || kind === "col-last" ? "col" : "row";
     const sizeIndex =
       kind === "col-last" ? nCols - 1 : kind === "row-last" ? nRows - 1 : index;
@@ -222,10 +251,10 @@ export default function TableGrid({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     gestureRef.current = {
       type,
-      index,
+      index: sizeIndex,
       startX: e.clientX,
       startY: e.clientY,
-      base: measured > 1 ? measured : 120,
+      base: measureSize(type, sizeIndex) ?? 120,
       engaged: false,
       startedAt: performance.now(),
       original,
@@ -246,11 +275,13 @@ export default function TableGrid({
       g.engaged = true;
       setPulling({ axis: g.type, index: g.index });
     }
-    const next =
+    // Pure pointer tracking vs. the press-time base: the resized edge moves
+    // exactly with the cursor (no feedback from the negotiated layout, which
+    // is what made it "jump").
+    pendingPx.current =
       g.type === "col"
-        ? g.base + (e.clientX - g.startX)
-        : g.base + (e.clientY - g.startY);
-    pendingPx.current = next;
+        ? Math.round(g.base + (e.clientX - g.startX))
+        : Math.round(g.base + (e.clientY - g.startY));
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(flush);
     }
@@ -288,6 +319,7 @@ export default function TableGrid({
 
   return (
     <table
+      ref={tableRef}
       className="tgrid"
       style={{ ["--taccent" as string]: accent }}
       aria-label="Team table grid"
@@ -334,8 +366,12 @@ export default function TableGrid({
             const h = cell.rs === 1 ? (rowSize[r] ?? undefined) : undefined;
             const cellStyle: React.CSSProperties = {};
             if (w != null) {
+              // width + min/max-width pin the column to exactly `w` in auto
+              // layout so the resize tracks the cursor instead of being
+              // redistributed by the browser (the cause of "jumps").
               cellStyle.width = w;
               cellStyle.minWidth = w;
+              cellStyle.maxWidth = w;
             }
             if (h != null) {
               cellStyle.height = h;
@@ -367,12 +403,15 @@ export default function TableGrid({
                 key={key}
                 rowSpan={cell.rs}
                 colSpan={cell.cs}
+                data-r={r}
+                data-c={c}
                 scope={row0 ? "col" : col0 ? "row" : undefined}
                 className={className}
                 style={cellStyle}
-                onMouseDown={
+                onPointerDown={
                   canWrite
                     ? (e) => {
+                        if (e.pointerType === "mouse" && e.button !== 0) return;
                         const isSingleSelected =
                           selection != null &&
                           selection.r1 === r &&
@@ -385,23 +424,50 @@ export default function TableGrid({
                         onSelectionChange(
                           isSingleSelected ? null : rectOf(r, c, r, c),
                         );
+                        // Capture so pointermove/up keep landing here even off
+                        // the grid; the hovered cell is hit-tested below, which
+                        // never skips cells (unlike mouseenter).
+                        (e.currentTarget as HTMLElement).setPointerCapture(
+                          e.pointerId,
+                        );
                         e.preventDefault();
                       }
                     : undefined
                 }
-                onMouseEnter={
+                onPointerMove={
+                  canWrite
+                    ? (e) => {
+                        if (!dragRef.current || gestureRef.current) return;
+                        const hit = document.elementFromPoint(
+                          e.clientX,
+                          e.clientY,
+                        );
+                        const cell = (hit as HTMLElement | null)?.closest<
+                          HTMLElement
+                        >("[data-r]");
+                        if (!cell) return;
+                        onSelectionChange(
+                          rectOf(
+                            dragRef.current.r,
+                            dragRef.current.c,
+                            Number(cell.dataset.r),
+                            Number(cell.dataset.c),
+                          ),
+                        );
+                      }
+                    : undefined
+                }
+                onPointerUp={
                   canWrite
                     ? () => {
-                        if (dragRef.current && !gestureRef.current) {
-                          onSelectionChange(
-                            rectOf(
-                              dragRef.current.r,
-                              dragRef.current.c,
-                              r,
-                              c,
-                            ),
-                          );
-                        }
+                        dragRef.current = null;
+                      }
+                    : undefined
+                }
+                onLostPointerCapture={
+                  canWrite
+                    ? () => {
+                        dragRef.current = null;
                       }
                     : undefined
                 }
@@ -541,7 +607,6 @@ function EdgeStrip(props: {
     e: React.PointerEvent<HTMLElement>,
     kind: EdgeKind,
     index: number,
-    el: HTMLElement,
   ) => void;
   onMove: (e: React.PointerEvent<HTMLElement>) => void;
   onUp: () => void;
@@ -556,9 +621,7 @@ function EdgeStrip(props: {
       aria-orientation={kind.startsWith("col") ? "vertical" : "horizontal"}
       aria-label={label}
       className={`edge-strip ${className}${active ? " pulling" : ""}`}
-      onPointerDown={(e) =>
-        onDown(e, kind, index, e.currentTarget.parentElement as HTMLElement)
-      }
+      onPointerDown={(e) => onDown(e, kind, index)}
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onCancel}

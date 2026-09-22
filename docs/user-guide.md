@@ -86,7 +86,8 @@ Every section can keep as many **tables** as it likes. Anyone with the **Manage 
 
 - **Create a table** — from Cabinet → Table → create. It starts as a default 6×4 grid; name it and open it to edit.
 - **Edit cells** — click into any cell and type. Enter commits and moves down, Tab moves right, Escape closes the cell.
-- **Rows & columns** — add or delete rows/columns from the toolbar. Tap a cell edge to select a whole row/column; **hold or drag** an edge to resize it (double-click restores auto-size). Drag-select a rectangular region and hit **merge** to fuse cells; select a merged cell and hit **split** to break it apart.
+- **Select** — click a cell to select it; click it again (or press **Escape**) to deselect. **Grab** a cell (click and hold) then drag across cells to select a rectangle for **merge**; select a merged cell and hit **split** to break it apart.
+- **Rows & columns** — add or delete rows/columns from the toolbar. Tap a cell edge to select a whole row/column; tap it again (or press **Escape**) to deselect. **Hold or drag** an edge to resize it (double-click restores auto-size).
 - **Date mode** — toggle it on and Catarina looks for dates in the first row or first column; today's whole column (or row) lights up in the table's accent color.
 - **Stickers** — open the sticker tray to drop Rina stickers anywhere on the grid. They dance; click to pause or tilt them, drag to reposition, and hover for lock/mirror/delete controls.
 - **Export PDF** — pick dark or light, portrait or landscape (or let Catarina auto-fit the page), and optionally include stickers on the print.
