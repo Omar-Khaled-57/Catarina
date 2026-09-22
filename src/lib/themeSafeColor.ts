@@ -10,17 +10,19 @@
  *
  * Dark mode keeps the vivid palette but LIFTS only the hues that are too
  * close to their own background (violet #7C3AED is the offender), blending
- * toward white just enough to clear the required bar. Light mode blends every
- * hue 55% toward #0F1420 (dark steel), which both deepens the weave and turns
- * every section color into a 6–12:1 accessible ink on pale surfaces.
+ * toward white just enough to clear the required bar. Light mode uses a
+ * restrained blend for graphics so bars, charts, and cabinet accents stay
+ * saturated, while text still gets the stronger contrast treatment.
  */
 
 import { useMemo } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const LIGHT_OVERLAY = "#0F1420" as const;
-/** Blend weight toward the overlay in light mode (0 = keep, 1 = fully overlay). */
-const LIGHT_BLEND = 0.55;
+/** Blend weight toward the overlay for light-mode text (0 = keep, 1 = overlay). */
+const LIGHT_TEXT_BLEND = 0.55;
+/** Keep light-mode graphics vivid while nudging them away from pale surfaces. */
+const LIGHT_GRAPHIC_BLEND = 0.18;
 /** Dark bg (#0B151F ≈ L 0.013) + 4.5:1 → min text luminance 0.23. */
 const TEXT_DARK_MIN_L = 0.26;
 /** Dark accent-tinted surfaces (≈ L 0.014) + 3:1 → min graphic luminance. */
@@ -99,27 +101,27 @@ function liftTowardWhite(hex: string, minL: number): string {
   return "#ffffff";
 }
 
-function lightSafe(hex: string): string {
-  return blendToward(hex, LIGHT_OVERLAY, LIGHT_BLEND);
+function lightSafe(hex: string, amount = LIGHT_TEXT_BLEND): string {
+  return blendToward(hex, LIGHT_OVERLAY, amount);
 }
 
 export function themeSafeColor(hex: string, isDark: boolean): string {
-  return isDark ? hex : lightSafe(hex);
+  return isDark ? hex : lightSafe(hex, LIGHT_GRAPHIC_BLEND);
 }
 
 export function themeSafeTextColor(hex: string, isDark: boolean): string {
-  return isDark ? liftTowardWhite(hex, TEXT_DARK_MIN_L) : lightSafe(hex);
+  return isDark ? liftTowardWhite(hex, TEXT_DARK_MIN_L) : lightSafe(hex, LIGHT_TEXT_BLEND);
 }
 
 export function themeSafeGraphicColor(hex: string, isDark: boolean): string {
-  return isDark ? liftTowardWhite(hex, GRAPHIC_DARK_MIN_L) : lightSafe(hex);
+  return isDark ? liftTowardWhite(hex, GRAPHIC_DARK_MIN_L) : lightSafe(hex, LIGHT_GRAPHIC_BLEND);
 }
 
 export function themeSafePill(
   hex: string,
   isDark: boolean,
 ): { bg: string; fg: string } {
-  const bg = isDark ? hex : lightSafe(hex);
+  const bg = isDark ? hex : lightSafe(hex, LIGHT_TEXT_BLEND);
   const fg =
     rgbLuminance(hexToRgb(bg) ?? [0, 0, 0]) < PILL_INK_THRESHOLD
       ? "#ffffff"

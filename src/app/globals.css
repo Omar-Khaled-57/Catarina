@@ -55,32 +55,32 @@
 
 /* ─── Light Theme ───────────────────────────────────────────────────────────── */
 html.light {
-  --bg: #F0F6FF;
+  --bg: #F4F8FF;
   --surface: #FFFFFF;
-  --surface-2: #E2E8F0;
-  --border: rgba(0, 232, 162, 0.3);
+  --surface-2: #E7EEF8;
+  --border: rgba(0, 151, 89, 0.28);
   /* Ink-tuned for ≥4.5:1 as text on #F0F6FF/#FFFFFF/#E2E8F0 (light) */
-  --accent: #007449;
-  --accent-2: #00623D;
-  --accent-glow: rgba(0, 196, 122, 0.25);
+  --accent: #008F5A;
+  --accent-2: #007A4D;
+  --accent-glow: rgba(0, 214, 137, 0.3);
   /* #FFFFFF on #007449 ≈ 5.4:1 (light) */
   --accent-ink: #FFFFFF;
   --danger: #C1123C;
-  --warning: #B45309;
+  --warning: #A16207;
   --text: #060B14;
   /* #4A6A8C: ≥4.5:1 vs #F0F6FF, #FFFFFF, and #E2E8F0 (light) */
   --text-muted: #4A6A8C;
-  --chest-steel-frame: #8a8a8a;
-  --chest-steel-side: #4a4a4a;
-  --chest-steel-top: #5c5c5c;
-  --chest-steel-bottom: #1e1e1e;
-  --chest-steel-back: #1c1c1c;
-  --chest-face-a: #464646;
-  --chest-face-b: #2e2e2e;
+  --chest-steel-frame: #8aa9c9;
+  --chest-steel-side: #53779f;
+  --chest-steel-top: #bad2ea;
+  --chest-steel-bottom: #405e80;
+  --chest-steel-back: #365270;
+  --chest-face-a: #6386ac;
+  --chest-face-b: #3f6083;
   /* Light theme: deepen section colour tokens so icons/text clear 3:1 and 4.5:1 */
   --color-art: #6D28D9;
   --color-technical: #1D4ED8;
-  --color-management: #92400E;
+  --color-management: #A16207;
 }
 
 /* Light-mode Drawers use cool, illuminated steel instead of the dark-theme
@@ -88,13 +88,13 @@ html.light {
    sides keep each chest legible against the pale workspace without washing out
    the drawer fronts or their white labels. */
 html.light .section-chest {
-  --chest-steel-frame: #c4d0df;
-  --chest-steel-side: #71819a;
-  --chest-steel-top: #a8b8cc;
-  --chest-steel-bottom: #42526a;
-  --chest-steel-back: #33425a;
-  --chest-face-a: #596b84;
-  --chest-face-b: #35455d;
+  --chest-steel-frame: #d4e4f4;
+  --chest-steel-side: #7699c0;
+  --chest-steel-top: #bdd5ec;
+  --chest-steel-bottom: #4d6b8f;
+  --chest-steel-back: #3c5b7d;
+  --chest-face-a: #668ab2;
+  --chest-face-b: #416386;
 }
 
 html.light .chest-glow {
@@ -269,7 +269,7 @@ html.dark [data-sonner-toast] [data-title] {
    blend) keep a white name label ≥4.5:1 and the section glyphs clear 3:1 on
    the pale workspace. All four inks also pass 4.5:1 as text on #F0F6FF. */
 html.light .section-marketing {
-  --section-color: #0E7490;
+  --section-color: #0F766E;
 }
 
 html.light .section-art {
@@ -277,11 +277,11 @@ html.light .section-art {
 }
 
 html.light .section-technical {
-  --section-color: #1D4ED8;
+  --section-color: #2563EB;
 }
 
 html.light .section-management {
-  --section-color: #92400E;
+  --section-color: #A16207;
 }
 
 /* In light theme the directory-browser panel sits above bg-black/70, so
