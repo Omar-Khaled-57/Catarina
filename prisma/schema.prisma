@@ -34,6 +34,7 @@ model User {
   userSections    UserSection[]
   goalAssignments GoalAssignment[]
   notifications   Notification[]
+  refreshTokens   RefreshToken[]
 
   @@index([role])
 }
@@ -170,6 +171,25 @@ model Approval {
   status    String   @default("PENDING") // PENDING | APPROVED | REJECTED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── RefreshToken Model ──────────────────────────────────────────────────────
+// Long-lived per-device "remember me" token. The short-lived HttpOnly JWT
+// session cookie expires, so the client stores this token in localStorage and
+// silently exchanges it for a fresh session cookie on every visit. Tokens are
+// stored as sha256 hashes (never the raw value), never expire, and are only
+// invalidated by logout (`revoked`) or by deleting the user.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique // sha256 of the raw token value
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([revoked])
 }
 
 // ─── Notification Model ───────────────────────────────────────────────────────

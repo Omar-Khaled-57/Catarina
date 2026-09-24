@@ -13,9 +13,11 @@ where goals are tracked month by month, with checklists, comments, and automatic
 ## Logging in
 
 1. Open the site URL.
-2. If your admin already created your account, sign in with your email + password.
+2. If your admin already created your account, sign in with your email + password. Use the **eye icon** in the password field to show/hide what you type.
 3. Otherwise click **Sign up**: pick your name, email, password, and the section you work in, then wait for admin approval. You can log in as soon as your request is approved.
 4. First-time users see a welcome modal ("Why Catarina?") — click through to dismiss it. Fresh app versions show an update modal with the changelog.
+
+**One-time login** — after signing in on a device, Catarina keeps you signed in automatically: it stores a secure per-device token (in your browser's local storage) and silently re-issues the session every time you return. You won't be asked for your password again unless you **log out** or the admin deletes your account. Already signed in? Visiting the site takes you straight to the dashboard, skipping the login form.
 
 ## The dashboard
 

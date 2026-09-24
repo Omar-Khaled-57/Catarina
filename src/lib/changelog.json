@@ -1,4 +1,14 @@
 {
+  "0.6.1": {
+    "type": "patch",
+    "title": "One-Time Login & Password Toggle",
+    "entries": [
+      { "icon": "🔑", "text": "One-time login — a long-lived per-device token (localStorage) silently re-issues the session on every visit, so the device never asks for credentials again." },
+      { "icon": "🚀", "text": "No login flash — already signed in? You're sent straight to the dashboard instead of the login form." },
+      { "icon": "👁️", "text": "Show/hide password toggle on every password field — sign-in, registration, profile change-password, and the admin create/edit user modals." },
+      { "icon": "🛡️", "text": "Logout now revokes the device token server-side — signing out anywhere is a real sign-out, not just a cleared session cookie." }
+    ]
+  },
   "0.6.0": {
     "type": "minor",
     "title": "The Cabinet — Drawers & Team Tables",

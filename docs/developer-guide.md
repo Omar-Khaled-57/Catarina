@@ -105,9 +105,19 @@ if (!auth.ok) return auth.response;
 ### Auth (`src/lib/auth.server.ts` + `src/proxy.ts`)
 - Tokens: HS256 JWT, 7-day expiry, HttpOnly cookie `catarina-token`.
 - `JWT_SECRET` is **required at import time** — the server throws if it's missing.
+- **Persistent one-time login**: alongside the session cookie, login mints a per-device refresh token
+  (sha256-hashed in the `RefreshToken` table; raw value goes to the client in `localStorage["catarina-refresh"]`).
+  On app load `AuthContext` first checks `/api/auth/me`; if the cookie is gone it calls `POST /api/auth/refresh`
+  to silently re-issue it. Logout **revokes** the token server-side — otherwise the device would log back in.
+  Logic lives in `src/lib/refreshToken.ts`; the shared user shape (login/me/refresh all identical) is built by
+  `buildAuthUser` in `src/lib/auth-session.ts`.
+- The login page redirects signed-in users: `src/app/page.tsx` checks the cookie server-side and
+  `LoginForm` falls back to a client redirect after the silent refresh completes.
 - `src/proxy.ts` is an Edge function (`matcher: ["/dashboard/:path*"]`) that verifies the JWT
   for page requests; it's the first line of defense, route handlers are the real checks.
 - Client-side auth state: `AuthContext` (`login`, `register`, `logout`, `refreshUser`, `updateData`, `markWelcomeSeen`, `markUpdateSeen`).
+- Password fields: use the shared `PasswordInput` component (`src/components/ui/PasswordInput.tsx`)
+  — sign-in, registration, profile change-password, and admin modals all render through it.
 
 ### Realtime (see also `docs/api-reference.md` → `/api/changes`)
 - `useRealtimeSync` polls `/api/changes?since=&monthId=&section=` on an adaptive schedule

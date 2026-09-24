@@ -13,6 +13,7 @@ import { User, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
 import { themeSafeTextColor } from "@/lib/themeSafeColor";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -276,9 +277,8 @@ export default function ProfileModal({
             <div className="mt-2 space-y-2">
               <div>
                 <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-cur-pw" >Current Password</label>
-                <input
+                <PasswordInput
                   id="profile-cur-pw"
-                  type="password"
                   value={currentPassword}
                   onChange={(e) => { setCurrentPassword(e.target.value); if (newPassword) markChanged(); }}
                   placeholder="Enter current password"
@@ -287,9 +287,8 @@ export default function ProfileModal({
               </div>
               <div>
                 <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-new-pw" >New Password</label>
-                <input
+                <PasswordInput
                   id="profile-new-pw"
-                  type="password"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); markChanged(); }}
                   placeholder="Min 6 characters"
@@ -298,9 +297,8 @@ export default function ProfileModal({
               </div>
               <div>
                 <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="profile-conf-pw" >Confirm New Password</label>
-                <input
+                <PasswordInput
                   id="profile-conf-pw"
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); markChanged(); }}
                   placeholder="Repeat new password"

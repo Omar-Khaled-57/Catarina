@@ -14,6 +14,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.6.1] — 2026-09-24 · *One-Time Login & Password Toggle*
+
+> Sign in once and stay signed in. The short-lived HttpOnly session cookie no longer strands returning users on the login page — a long-lived per-device refresh token (kept in `localStorage`) is silently exchanged for a fresh cookie on every visit, and already-authenticated users are redirected straight to the dashboard.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ One-Time (Persistent) Login
+
+- **Per-device refresh tokens** — a successful login now mints a long-lived random token, stored hashed in the database (new `RefreshToken` table) and kept as `localStorage["catarina-refresh"]` on the device. No expiry — it lasts until logged out.
+- **Silent re-issue on every visit** — when the session cookie has expired, the app exchanges the device token for a fresh cookie via `POST /api/auth/refresh`; the user lands inside the app without re-entering credentials.
+- **No more login flash** — the login page checks the live session server-side and redirects to `/dashboard` (client-side fallback handles the just-refreshed case).
+- **Real logout** — `POST /api/auth/logout` now revokes the device's refresh token server-side before clearing the cookie, so signing out is a genuine sign-out (no silent re-login on the next visit).
+- **Shared user shape** — login, `/api/auth/me`, and `/api/auth/refresh` all build the client user via one helper (`buildAuthUser`) using the canonical `resolvePermissions` (fixes admins missing `canManageTables` in API responses).
+
+### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Show/Hide Password Toggle
+
+- **`PasswordInput` component** — a reusable field with an eye toggle (lucide `Eye`/`EyeOff`) that inherits each location's existing styling.
+- **Applied everywhere passwords appear** — sign-in & registration (`LoginForm`), profile change-password (current/new/confirm in `ProfileModal`), and the admin create/edit user modals.
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.6.0] — 2026-09-15 · *The Cabinet — Drawers & Team Tables*
 
 > 0.5.0 was skipped — Drawers (originally planned for 0.5.0) and Table (planned for 0.6.0) ship together now, behind one playful new hub: **The Cabinet**.

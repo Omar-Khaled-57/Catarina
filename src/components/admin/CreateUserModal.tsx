@@ -15,6 +15,7 @@ import { type SectionDataFull } from "@/types";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
 import { themeSafePill } from "@/lib/themeSafeColor";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function CreateUserModal({
   onClose,
@@ -110,9 +111,8 @@ export default function CreateUserModal({
           <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1" htmlFor="cu-password">
             Password
           </label>
-          <input
+          <PasswordInput
             id="cu-password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={6}

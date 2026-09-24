@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/ui/PasswordInput";
 import SectionDropdown from "@/components/SectionDropdown";
 import { FALLBACK_SECTIONS } from "@/types";
 import { toast } from "sonner";
@@ -40,9 +41,8 @@ const CARD_MORPH = {
 export default function LoginForm() {
   const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Your Team";
   const router = useRouter();
-  const { login, register } = useAuth();
+  const { login, register, user, isLoading } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [sections, setSections] = useState<DynamicSection[]>(FALLBACK_SECTIONS);
 
   /* Form state */
@@ -51,6 +51,15 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [section, setSection] = useState<string>(FALLBACK_SECTIONS[0].key);
   const [pfp, setPfp] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  /* Already signed in (fresh cookie or silently re-issued via the device's
+     refresh token) — skip the login form and go straight to the dashboard. */
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, user, router]);
 
   /* Fetch dynamic sections */
   useEffect(() => {
@@ -79,7 +88,7 @@ export default function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       if (isRegister) {
@@ -102,7 +111,7 @@ export default function LoginForm() {
     } catch {
       toast.error("Something went wrong");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -195,9 +204,8 @@ export default function LoginForm() {
               <label htmlFor="login-password" className="block text-sm font-medium text-text-muted mb-1.5">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="login-password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min 6 characters"
@@ -254,7 +262,7 @@ export default function LoginForm() {
 
             {/* Submit */}
             <motion.div layout transition={CARD_MORPH} className="mt-4">
-              <Button type="submit" isLoading={isLoading} className="w-full relative overflow-hidden">
+              <Button type="submit" isLoading={isSubmitting} className="w-full relative overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={isRegister ? "create" : "signin"}

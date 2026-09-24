@@ -6,7 +6,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createToken } from "@/lib/auth.server";
-import { parsePermissions } from "@/lib/permissions";
+import { generateRefreshToken } from "@/lib/refreshToken";
+import { buildAuthUser } from "@/lib/auth-session";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 
@@ -78,19 +79,13 @@ export async function POST(req: Request) {
       section: primarySection,
     });
 
+    /* Long-lived per-device token the client keeps in localStorage so the
+       session cookie can be silently re-issued on future visits. */
+    const refreshToken = await generateRefreshToken(user.id);
+
     return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        pfp: user.pfp,
-        bio: user.bio,
-        primarySection: user.primarySection,
-        welcomeSeen: user.welcomeSeen,
-        permissions: user.role === "ADMIN" ? { canCreateGoals: true, canEditGoals: true, canDeleteGoals: true, canManageMembers: true, canCreateMonths: true } : parsePermissions(user.permissions),
-        sections,
-      },
+      user: buildAuthUser(user),
+      refreshToken,
     });
   } catch (error) {
     console.error("[LOGIN]", error);

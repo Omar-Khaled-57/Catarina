@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
-import { parsePermissions } from "@/lib/permissions";
+import { buildAuthUser } from "@/lib/auth-session";
 import changelog from "@/lib/changelog.json";
 
 /* Compare semver strings — returns 1 if a > b, -1 if a < b, 0 if equal */
@@ -148,13 +148,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    user: {
-      ...user,
-      sections: user.userSections.map((us) => us.section),
-      userSections: undefined,
-      lastSeenVersion: undefined,
-      permissions: user.role === "ADMIN" ? { canCreateGoals: true, canEditGoals: true, canDeleteGoals: true, canManageMembers: true, canCreateMonths: true } : parsePermissions(user.permissions),
-    },
+    user: buildAuthUser(user),
     hasUpdate,
     ...(hasUpdate && { updateVersion, updateType, updateTitle, updateEntries }),
   });

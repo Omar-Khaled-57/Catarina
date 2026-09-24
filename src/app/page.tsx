@@ -5,7 +5,9 @@
  */
 
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import LoginForm from "@/components/LoginForm";
+import { verifyToken } from "@/lib/auth.server";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const teamName = process.env.NEXT_PUBLIC_TEAM_NAME || "Your Team";
@@ -36,7 +38,12 @@ const jsonLd = {
   inLanguage: "en",
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  /* One-time / persistent login: a user with a live session cookie is sent
+     straight to the dashboard instead of the login form (no flash). */
+  const session = await verifyToken();
+  if (session) redirect("/dashboard");
+
   return (
     <>
       <script

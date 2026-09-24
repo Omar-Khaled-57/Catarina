@@ -44,6 +44,8 @@ src/
   lib/                    Shared helpers (no client code — server-safe)
     api-helpers.ts        requireUser/requireAdmin/requireGoalAccess + sanitizers
     auth.server.ts        JWT sign/verify + HttpOnly cookie (server-only imports)
+    auth-session.ts       buildAuthUser — shared user shape for login/me/refresh
+    refreshToken.ts       Long-lived per-device refresh tokens (hash/verify/revoke)
     auth.ts               Client-safe section constants (SECTIONS, SECTION_LABELS,
                           SECTION_COLORS — derived from FALLBACK_SECTIONS)
     constants.ts          Roles, cookie name, NOTIFICATION_TYPES, PERMISSION_KEYS
@@ -78,7 +80,7 @@ src/
     globals.css           Tailwind v4 @theme design tokens (accent #00E8A2, bg #060B14…)
     manifest.ts, robots.ts, sitemap.ts, icon.png, apple-icon.png
   components/
-    ui/                   Button, Card, Badge, Modal, ConfirmModal, ProgressBar, CountUp, InView
+    ui/                   Button, Card, Badge, Modal, ConfirmModal, ProgressBar, CountUp, InView, PasswordInput
     admin/                CreateUserModal, EditUserModal
     tools/                ToolCard, ToolGrid; tools/tables/* (editor, grid, toolbar, stickers);
                           tools/drawers/* (DrawersWorkshop, SectionChest, Envelope, LooseFile)
@@ -133,7 +135,7 @@ then `node --env-file=.env turso-push.mjs`. The CLI never touches Turso.
 
 | Area | Routes |
 |---|---|
-| Auth | `POST /api/auth/register` (FormData, creates Approval, RL 3/5min) · `POST /api/auth/login` (sets cookie, RL 10/min) · `GET /api/auth/me` (fresh user + update detection) · `POST /api/auth/logout` · `PUT /api/auth/profile` (own profile, pw change RL 5/min) · `POST /api/auth/welcome-seen` · `PUT /api/auth/primary-section` (admin) |
+| Auth | `POST /api/auth/register` (FormData, creates Approval, RL 3/5min) · `POST /api/auth/login` (sets cookie, RL 10/min, returns `refreshToken` for the device) · `GET /api/auth/me` · `POST /api/auth/refresh` (silently re-issues the cookie from a localStorage refresh token) · `POST /api/auth/logout` (revokes the device refresh token + clears cookie) · `PUT /api/auth/profile` (own profile, pw change RL 5/min) · `POST /api/auth/welcome-seen` · `PUT /api/auth/primary-section` (admin) |
 | Sync | `GET /api/changes?since=&monthId=&section=` → `{goalsUpdatedAt, sectionsVersion, newNotifications}` |
 | Notifications | `GET /api/notifications?unread=&since=` → `{notifications, unreadCount}` · `PATCH {id,read?,pinned?}|{markAllRead}` · `DELETE {id}|{clearRead}` · `POST /api/updates/seen` |
 | Upload | `POST /api/upload` (FormData `file`, RL 20/min, base64 data-URI response) |
@@ -167,7 +169,7 @@ section-scope 403 · 429 rate-limited.
 | Rebrand | `NEXT_PUBLIC_TEAM_NAME`, `NEXT_PUBLIC_SITE_URL` env vars; `public/media/banner.png` |
 | Section colors / design tokens | `src/app/globals.css` `@theme` (`--marketing`, etc.) + `SectionConfig.color` rows + `src/lib/pdf-palette.ts` for PDF |
 | Theme toggle | `src/contexts/ThemeContext.tsx` (persists `catarina-theme`) + `html.dark`/`html.light` in `globals.css` |
-| Auth flow | `src/app/page.tsx` + `LoginForm.tsx` + `src/contexts/AuthContext.tsx` + `src/proxy.ts` + `src/lib/auth.server.ts` |
+| Auth flow | `src/app/page.tsx` + `LoginForm.tsx` + `src/contexts/AuthContext.tsx` + `src/proxy.ts` + `src/lib/auth.server.ts` + `src/lib/auth-session.ts` + `src/lib/refreshToken.ts` |
 | Reports / PDF | `src/app/dashboard/archive/[monthId]/page.tsx` (hidden-iframe print) + `src/lib/pdf-palette.ts` |
 
 ---

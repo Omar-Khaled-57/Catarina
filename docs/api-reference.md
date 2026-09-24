@@ -11,7 +11,8 @@ with an appropriate HTTP status (`400`, `401`, `403`, `404`, `409`, `429`, `500`
 ## Authentication & Authorization
 
 - Session auth uses an **HttpOnly cookie** named `catarina-token` (JWT, HS256, 7-day expiry, signed with `JWT_SECRET`).
-- Helpers live in `src/lib/api-helpers.ts` and `src/lib/auth.server.ts`.
+- **Persistent (one-time) login**: on success, `POST /api/auth/login` also returns a long-lived per-device `refreshToken` (stored by the client in `localStorage["catarina-refresh"]`, hashed server-side in the `RefreshToken` table). When the cookie has expired, the client calls `POST /api/auth/refresh` to silently re-issue it, so returning users are never bounced back to the login form. Logout revokes the token server-side.
+- Helpers live in `src/lib/api-helpers.ts`, `src/lib/auth.server.ts`, `src/lib/auth-session.ts`, and `src/lib/refreshToken.ts`.
 - `requireUser()` → returns `{ ok:true, data: JWT payload }` or a 401 response.
 - `requireAdmin()` → same as above but re-reads the role from the DB, so a demoted admin loses admin access immediately (returns 403).
 - `requireGoalAccess(userId, role, goalId)` → 404 if the goal doesn't exist, 403 if a non-admin isn't in the goal's section, else `{ ok:true, goal }`.
@@ -29,6 +30,7 @@ with an appropriate HTTP status (`400`, `401`, `403`, `404`, `409`, `429`, `500`
 | `canDeleteGoals` | false | Delete goals |
 | `canManageMembers` | false | Manage member accounts |
 | `canCreateMonths` | false | Create new planning months |
+| `canManageTables` | true | Manage Team Tables (create, edit, delete) |
 
 Admins always have all permissions (`ADMIN_PERMISSIONS`). Parse/resolve via `src/lib/permissions.ts`.
 
@@ -51,17 +53,32 @@ Creates a **pending approval request**. The account is not active until an admin
 - Body: `{ email, password }`
 - Rate limited: **10 attempts / min / IP**
 - `403` + distinct messages for REJECTED (`"Your signup request was rejected by an admin."`) and PENDING approvals.
-- On success sets the `catarina-token` cookie and returns 200:
+- On success sets the `catarina-token` cookie, mints a long-lived per-device refresh token (hashed into the `RefreshToken` table), and returns 200:
 ```json
 {
   "user": {
     "id": "…", "name": "…", "email": "…", "role": "ADMIN|MEMBER",
     "pfp": "…", "bio": "…", "primarySection": "…", "welcomeSeen": false,
-    "permissions": { "canCreateGoals": true, "canEditGoals": true, "canDeleteGoals": true, "canManageMembers": true, "canCreateMonths": true },
+    "permissions": { "canCreateGoals": true, "canEditGoals": true, "canDeleteGoals": true, "canManageMembers": true, "canCreateMonths": true, "canManageTables": true },
     "sections": ["MARKETING", "ART"]
-  }
+  },
+  "refreshToken": "64-char-hex"
 }
 ```
+- The client stores `refreshToken` in `localStorage["catarina-refresh"]` for silent re-auth on future visits.
+
+### `POST /api/auth/refresh`
+Silently re-issues the session cookie from a device's long-lived refresh token (used on app load when `catarina-token` has expired).
+
+- Body: `{ refreshToken }`
+- Verifies the token (non-revoked, user still exists — fail-closed with a generic `401` for unknown/revoked/orphaned tokens). Rejects malformed tokens with `401`.
+- On success sets a fresh `catarina-token` cookie and returns 200:
+```json
+{ "user": { "id": "…", "name": "…", "email": "…", "role": "…", "pfp": "…", "bio": "…",
+            "primarySection": "…", "welcomeSeen": true, "permissions": {…}, "sections": ["…"] } }
+```
+- The user shape matches `/api/auth/login` and `/api/auth/me` exactly (built by `buildAuthUser`).
+- The refresh token never expires by design — it is invalidated only by logout or by deleting the user.
 
 ### `GET /api/auth/me`
 - `401` if no valid token. Returns the fresh user (sections read live from DB) plus update detection against `src/lib/changelog.json`:
@@ -76,7 +93,9 @@ Creates a **pending approval request**. The account is not active until an admin
 - Side effects: ensures the hardcoded "Why Catarina? 🌸" welcome notification exists; creates a `VERSION_UPDATE` notification when a new version is detected.
 
 ### `POST /api/auth/logout`
-- Clears the auth cookie. Response: `{ success: true }`
+- Body (optional): `{ refreshToken }`.
+- **Revokes the device's refresh token** server-side (best-effort), then clears the auth cookie. Revocation prevents the localStorage token from silently logging the user back in on the next visit.
+- Response: `{ success: true }`
 
 ### `PUT /api/auth/profile`
 Update your own profile. All fields optional:

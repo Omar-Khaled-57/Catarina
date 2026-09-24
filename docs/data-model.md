@@ -14,6 +14,7 @@ User ──1:N──▶ Goal
 User ──1:N──▶ GoalAssignment
 User ──1:N──▶ Comment
 User ──1:N──▶ Notification
+User ──1:N──▶ RefreshToken
 Goal ──1:N──▶ Comment
 Goal ──1:N──▶ GoalAssignment
 Goal ──1:N──▶ Step
@@ -23,6 +24,7 @@ Month ──1:N──▶ Archive
 SectionConfig (standalone)
 Approval (standalone)
 RateLimitEvent (standalone, append-only, sweeped)
+RefreshToken (per-device session, hashed value, never expires)
 TeamTable (standalone per section; soft-deletable)
 DrawerSection (standalone; one JSON tree per section)
 WorkspaceUpload / WorkspaceUploadChunk / WorkspaceFile (chunked file storage)
@@ -183,6 +185,19 @@ AppConfig (standalone key/value — currently unused)
 - Indexed on `[key, ts]`, `[ts]`. Append-only. Rows are **swept** by `src/lib/rateLimit.ts`:
   - Per-key: events older than `now - windowMs` are deleted on every check.
   - Global sweep: events older than `now - 10 min` (the `SWEEP_MARGIN_MS`, chosen to exceed the longest window, which is 5 min for register) are deleted at most once per minute per instance.
+
+### `RefreshToken`
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | String (cuid) | auto | Primary key |
+| `userId` | String | — | FK → `User.id` (cascade delete) |
+| `tokenHash` | String | — | **sha256** of the raw token value (unique) — the DB never stores the raw token |
+| `revoked` | Boolean | false | Set `true` by logout |
+| `createdAt` | DateTime | now | — |
+
+- Indexed on `userId`, `revoked`. Written by `src/lib/refreshToken.ts` (`generateRefreshToken` / `verifyRefreshToken` / `revokeRefreshToken`).
+- Backs the **persistent one-time login**: one row per successful login (per device), held by the client in `localStorage["catarina-refresh"]`. The short-lived session cookie expires independently; `POST /api/auth/refresh` exchanges a valid (non-revoked) token for a fresh cookie.
+- Tokens **never expire by design** — only logout or user deletion invalidates them. A leaked DB dump exposes hashes only, unusable directly.
 
 ### `TeamTable`
 | Column | Type | Default | Notes |

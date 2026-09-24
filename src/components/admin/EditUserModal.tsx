@@ -14,6 +14,7 @@ import { type SectionDataFull } from "@/types";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
 import { themeSafePill } from "@/lib/themeSafeColor";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 interface EditUserData {
   id: string;
@@ -151,9 +152,8 @@ export default function EditUserModal({
             Reset Password{" "}
             <span className="normal-case font-normal">(leave blank to keep current)</span>
           </label>
-          <input
+          <PasswordInput
             id="eu-password"
-            type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             minLength={6}

@@ -31,6 +31,35 @@ export interface AuthUser {
   permissions: MemberPermissions;
 }
 
+/* Long-lived per-device "remember me" token. The HttpOnly session cookie
+   expires — this token lets the app silently re-issue it on every visit, so
+   the device never asks for credentials again. */
+const REFRESH_TOKEN_KEY = "catarina-refresh";
+
+function getStoredRefreshToken(): string | null {
+  try {
+    return window.localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredRefreshToken(token: string | null | undefined): void {
+  try {
+    if (token) window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } catch {
+    /* localStorage unavailable (private mode) — session still works. */
+  }
+}
+
+function clearStoredRefreshToken(): void {
+  try {
+    window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 interface ChangelogEntry {
   icon: string;
   text: string;
@@ -82,12 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [updateData, setUpdateData] = useState<UpdateData | null>(null);
 
-  /* Fetch current user on mount */
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        setUser(data?.user ?? null);
+  /* Re-fetch current user from server */
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user ?? null);
         if (data?.hasUpdate) {
           setUpdateData({
             hasUpdate: true,
@@ -97,10 +127,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             updateEntries: data.updateEntries,
           });
         }
-      })
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
+      } else {
+        setUser(null);
+      }
+    } catch {
+      setUser(null);
+    }
   }, []);
+
+  /* Fetch current user on mount. If the session cookie has expired, try the
+     device's long-lived refresh token (localStorage) first — it silently
+     re-issues the cookie so returning users go straight to the dashboard. */
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = res.ok ? await res.json() : null;
+
+        if (data?.user) {
+          if (cancelled) return;
+          setUser(data.user);
+          if (data?.hasUpdate) {
+            setUpdateData({
+              hasUpdate: true,
+              updateVersion: data.updateVersion,
+              updateType: data.updateType,
+              updateTitle: data.updateTitle,
+              updateEntries: data.updateEntries,
+            });
+          }
+          return;
+        }
+
+        /* No active session — silently exchange the device refresh token for
+           a fresh cookie, then load the full /me payload (user + updates). */
+        const refreshToken = getStoredRefreshToken();
+        if (refreshToken) {
+          const rr = await fetch("/api/auth/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          }).catch(() => null);
+
+          if (rr?.ok) {
+            await refreshUser();
+            return;
+          }
+          clearStoredRefreshToken();
+        }
+
+        if (!cancelled) setUser(null);
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshUser]);
 
   /* Login with email/password */
   const login = useCallback(
@@ -114,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await res.json().catch(() => null);
         if (res.ok && data?.user) {
           setUser(data.user);
+          saveStoredRefreshToken(data.refreshToken);
           return { success: true };
         }
         return { success: false, error: data?.error || "Login failed" };
@@ -157,36 +247,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  /* Logout and clear user state */
+  /* Logout — revoke the device refresh token server-side, then clear it and
+     the session cookie so the user isn't silently logged back in. */
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    const refreshToken = getStoredRefreshToken();
+    if (refreshToken) {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => {});
+    } else {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    }
+    clearStoredRefreshToken();
     setUser(null);
     setUpdateData(null);
     window.location.href = "/";
-  }, []);
-
-  /* Re-fetch current user from server */
-  const refreshUser = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user ?? null);
-        if (data?.hasUpdate) {
-          setUpdateData({
-            hasUpdate: true,
-            updateVersion: data.updateVersion,
-            updateType: data.updateType,
-            updateTitle: data.updateTitle,
-            updateEntries: data.updateEntries,
-          });
-        }
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    }
   }, []);
 
   /* Mark welcome as seen */
