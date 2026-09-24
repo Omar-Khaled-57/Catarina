@@ -19,6 +19,22 @@ if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is not set");
 }
 
+/* F6 — Warn (don't crash) on a weak JWT secret at boot. A short or
+ * guessable secret makes token forgery trivial; we surface it loudly so a
+ * dev trying to stand the app up with `jwt-secret` or a 4-char value sees
+ * the warning in the log instead of an apparently-working-but-broken auth. */
+const rawSecret = process.env.JWT_SECRET;
+if (
+  !rawSecret ||
+  rawSecret.length < 32 ||
+  /^(jwt[_-]?secret|secret|password|changeme|change ?me)$/i.test(rawSecret)
+) {
+  console.error(
+    "[auth] ⚠️ WEAK JWT_SECRET — token forgery becomes practical. " +
+      "Use a value ≥ 32 bytes of real entropy (e.g. `openssl rand -base64 48`)."
+  );
+}
+
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 const COOKIE_NAME = "catarina-token";

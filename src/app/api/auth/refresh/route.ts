@@ -8,9 +8,22 @@ import { prisma } from "@/lib/prisma";
 import { createToken } from "@/lib/auth.server";
 import { verifyRefreshToken } from "@/lib/refreshToken";
 import { buildAuthUser } from "@/lib/auth-session";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   try {
+    /* Rate limit: 10 refresh exchanges per minute per IP — parity with login
+     * (10/min) so an attacker who can't brute the session cookie can't harvest
+     * refresh tokens faster than they could brute a password. */
+    const ip = getClientIp(req);
+    const rateLimit = await checkRateLimit(`refresh:${ip}`, 10, 60_000);
+    if (rateLimit.limited) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const { refreshToken } = await req.json().catch(() => ({}));
 
     if (typeof refreshToken !== "string" || !refreshToken) {

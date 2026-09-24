@@ -14,6 +14,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.7.0] — 2026-09-24 · *Security Hardening*
+
+> No weak point. This release makes Catarina **harder to hack** than it is to use: strict security headers and a real CSP on every response, a same-origin edge guard that answers **403 before any cross-origin mutating API call reaches a handler**, rate limits on the entire public auth surface (login, register, password change, refresh, logout — 10/min per IP), a loud boot-time warning on short or guessable `JWT_SECRET` values, and the auth/crypto surface re-audited route-by-route. Next.js is patched to **16.3.6**, clearing the critical unauthenticated RCE (plus the sharp/libvips, postcss and nanoid advisories) — Prisma deliberately stays 7.x because the audit's "fix" was only a downgrade.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Headers, CSRF & Boot Hygiene
+
+- **Security headers on every response** — a strict CSP (`script-src 'self' 'unsafe-inline'` and nothing else — no remote origins, no `eval`), `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `nosniff`, `DENY`, `strict-origin-when-cross-origin`, plus **HSTS** (`max-age` 6 months, `includeSubDomains`, `preload`) in production.
+- **Same-origin edge guard** — every mutating `/api` call (POST/PUT/PATCH/DELETE) whose `Origin` doesn't match the request host answers **403 at the edge**, before the handler runs; the HttpOnly session cookie stays `SameSite=Lax`. No weak point to wire route-by-route — one file covers all of them, now and future.
+- **Rate limited auth** — login, register, password change, refresh and logout are each throttled to **10 requests/minute per IP** (429 beyond that), grinding down the entire public auth surface.
+- **Weak-​secret boot warning** — a short or guessable `JWT_SECRET` is surfaced loudly at startup (`⚠️ WEAK JWT_SECRET`), while a *missing* one still fails hard, so a dev never ships with a forgeable token.
+- **Dependencies** — `next` patched `16.2.11 → 16.3.6` (critical RCE, sharp/libvips, postcss, nanoid). Prisma stays `^7.x` — the audit's suggested "fix" for `@prisma/*` was a **downgrade to 6.19.3**, rejected.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Re-verified, route by route
+
+- **Every input validated** — no untrusted data reaches an execution sink; magic-byte sniffing + 2 MB cap + no-SVG stays on uploads, 72-byte cap on bcrypt, `rateLimit` fail-open documented on Turso error.
+- **CSP blocks the eval vector** — the dominant XSS path (attacker-controlled remote/eval script) is cut; the pragmatic inline allowance is Next RSC hydration, no exceptions for remote origins.
+- **Full suite green** — lint, `tsc --noEmit`, tests (113+), and a production build pass before this ships.
+
+<br />
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.6.1] — 2026-09-24 · *One-Time Login & Password Toggle*
 
 > Sign in once and stay signed in. The short-lived HttpOnly session cookie no longer strands returning users on the login page — a long-lived per-device refresh token (kept in `localStorage`) is silently exchanged for a fresh cookie on every visit, and already-authenticated users are redirected straight to the dashboard.

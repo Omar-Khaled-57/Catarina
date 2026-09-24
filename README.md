@@ -7,12 +7,12 @@
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
     <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
-    <img src="https://img.shields.io/badge/version-0.6.1-blue?style=flat-square" alt="Version 0.6.1" />
+    <img src="https://img.shields.io/badge/version-0.7.0-blue?style=flat-square" alt="Version 0.7.0" />
     <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
 </div>
 
-## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.6.1
+## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.7.0
 
 **One-Time Login & Password Toggle** — sign in once and stay signed in: a long-lived per-device refresh token silently re-issues the session on every visit, already-authenticated users are redirected straight to `/dashboard`, and every password field now has a show/hide toggle.
 

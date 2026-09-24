@@ -1,150 +1,408 @@
 {
-  "0.6.1": {
-    "type": "patch",
-    "title": "One-Time Login & Password Toggle",
-    "entries": [
-      { "icon": "🔑", "text": "One-time login — a long-lived per-device token (localStorage) silently re-issues the session on every visit, so the device never asks for credentials again." },
-      { "icon": "🚀", "text": "No login flash — already signed in? You're sent straight to the dashboard instead of the login form." },
-      { "icon": "👁️", "text": "Show/hide password toggle on every password field — sign-in, registration, profile change-password, and the admin create/edit user modals." },
-      { "icon": "🛡️", "text": "Logout now revokes the device token server-side — signing out anywhere is a real sign-out, not just a cleared session cookie." }
-    ]
-  },
-  "0.6.0": {
-    "type": "minor",
-    "title": "The Cabinet — Drawers & Team Tables",
-    "entries": [
-      { "icon": "🗄️", "text": "The Cabinet — a playful new /tools hub in the navbar hosts Catarina's tools as cards, each with its own color and tagline." },
-      { "icon": "📁", "text": "Drawers — a shared team workspace per section: chests, projects, envelopes and loose files, synced instantly to the team cloud." },
-      { "icon": "📤", "text": "Chunked uploads — large files split into small parts and reassembled in storage, so anything fits without platform limits." },
-      { "icon": "📊", "text": "Team Tables — a free-form grid per section: add & delete rows and columns, merge a selection, split merged cells back." },
-      { "icon": "📅", "text": "Date mode — mark dates and Catarina lights up today's whole column (or row) in the table's accent color." },
-      { "icon": "🎨", "text": "Rina stickers — drop character stickers on any table; they dance, and you can pause, tilt, drag, lock and mirror them." },
-      { "icon": "🖨️", "text": "Themed PDF export — print a table dark or light, portrait or landscape (or let Catarina auto-fit), stickers optional." },
-      { "icon": "🔒", "text": "Manage Team Tables permission — a new per-member flag (on by default); admins always bypass it, everyone else reads." },
-      { "icon": "♿", "text": "Accessibility — drawers and the table editor ship with keyboard focus, focus traps, and clear element roles." },
-      { "icon": "🧹", "text": "Housekeeping — removed the standalone features showcase page and tidied dev scaffolding; README, changelog, and docs updated." }
-    ]
-  },
-  "0.4.5": {
-    "type": "patch",
-    "title": "Self-Hosted Rate Limiting",
-    "entries": [
-      { "icon": "📦", "text": "Replaced Upstash Redis with Turso — rate limiting now lives in the same database Catarina already uses. One less service to keep alive." },
-      { "icon": "🔄", "text": "True sliding-window limiter with atomic batch transactions — attempts stay counted across every Vercel cold start." },
-      { "icon": "🧹", "text": "Self-cleaning rate-limit table and fail-open behavior — brute-force protection that can't pause, archive, or 500 the app." },
-      { "icon": "🧪", "text": "Added 7 unit tests covering window boundaries, aging, and per-key isolation, plus a production migration run." }
-    ]
-  },
-  "0.4.4": {
-    "type": "patch",
-    "title": "Security Hardening & Reliability",
-    "entries": [
-      { "icon": "🛡️", "text": "Section data isolation — members can only see goals in their assigned sections." },
-      { "icon": "🔐", "text": "Admin checks re-verified against the database — token roles can no longer be forged." },
-      { "icon": "⚠️", "text": "Fail-fast auth — the app refuses to start without a JWT_SECRET." },
-      { "icon": "🚫", "text": "Self-demotion and last-admin protection — admins can't lock themselves or the team out." },
-      { "icon": "🗑️", "text": "Data-loss guard — users who authored goals can't be deleted until goals are reassigned." },
-      { "icon": "🧹", "text": "Stricter input validation across admin sections, registration, and profile endpoints." },
-      { "icon": "🐛", "text": "Duplicate email on approval now returns a clean error instead of crashing." },
-      { "icon": "✨", "text": "Fixed a transient duplicate goal on creation and cleaned up dead code." },
-      { "icon": "🧪", "text": "Added 30 unit tests for goal merging, permissions, and shared utilities." }
-    ]
-  },
-  "0.4.3": {
-    "type": "patch",
-    "title": "Self-Hosting & Production Hardening",
-    "entries": [
-      { "icon": "🏠", "text": "Deploy your own Catarina — added NEXT_PUBLIC_SITE_URL env var for SEO, sitemap, and OpenGraph." },
-      { "icon": "📱", "text": "Dynamic web manifest — PWA branding now reads from environment variables." },
-      { "icon": "🌱", "text": "Team-agnostic seed script — new deployments get generic demo goals, no hardcoded content." },
-      { "icon": "⚡", "text": "Upstash Redis rate limiting — brute-force protection now works across Vercel cold starts." },
-      { "icon": "📦", "text": "Proper Prisma migration workflow — added db:migrate, db:deploy, db:status scripts." },
-      { "icon": "📖", "text": "README overhaul — platform links, Catarina stickers, and complete deploy guide." },
-      { "icon": "🧹", "text": "Removed all hardcoded branding — app is now fully white-label configurable." }
-    ]
-  },
-  "0.4.2": {
-    "type": "patch",
-    "title": "Notification Modal & Goal Highlighting",
-    "entries": [
-      { "icon": "🔔", "text": "New NotificationModal — tap any notification to see full details, goal data, changelog entries, and deep-link to goals." },
-      { "icon": "🎯", "text": "Goal highlight on deep link — navigating from a notification scrolls to the goal and pulses it with the section color." },
-      { "icon": "🎨", "text": "Styled assignee checkboxes as toggle pills, custom select dropdowns, and section-colored month picker." },
-      { "icon": "🔒", "text": "Security hardening — removed hardcoded JWT fallback secret, added rate limiting on auth endpoints." },
-      { "icon": "🧹", "text": "Removed dead dependencies (recharts, jspdf) and dead components. Converted login/404 to Server Components." },
-      { "icon": "♿", "text": "Added aria-live regions to stats bar, goal cards, and notification badges for screen reader updates." },
-      { "icon": "🔧", "text": "Migrated middleware to Next.js 16 proxy convention to fix deprecation warning." },
-      { "icon": "✨", "text": "Scrollbar hover glow now works in all browsers — both main app and modal scrollbars glow on hover." }
-    ]
-  },
-  "0.4.1": {
-    "type": "patch",
-    "title": "PDF Export & UI Refinements",
-    "entries": [
-      { "icon": "🖨️", "text": "Fixed PDF export print styling so page background and inner padding render consistently." },
-      { "icon": "🎨", "text": "Added new Catarina notification stickers for goal creation, deadline alerts, comments, system updates, and role changes." },
-      { "icon": "📱", "text": "Polished responsive dashboard and mobile navbar/report UI behavior." },
-      { "icon": "🧹", "text": "Bumped version to 0.4.1 and synchronized release notes." }
-    ]
-  },
-  "0.4.0": {
-    "type": "minor",
-    "title": "Realtime Sync — Live Collaboration",
-    "entries": [
-      { "icon": "🔄", "text": "Real-time change detection — changes from other users appear within 5s without page reload" },
-      { "icon": "⚡", "text": "Delta fetching — only modified data is transferred, not full page reloads" },
-      { "icon": "🧠", "text": "Smart polling — adjusts interval based on tab visibility and user activity" },
-      { "icon": "✨", "text": "Optimistic mutations — your actions appear instantly, with rollback on failure" },
-      { "icon": "💫", "text": "Goal glow animation — new goals from other users shimmer with a subtle teal glow" },
-      { "icon": "🔔", "text": "Section pulse — dashboard cards pulse when goals change in that section" },
-      { "icon": "⚡", "text": "Toast notifications — incoming changes trigger a brief toast in the navbar" },
-      { "icon": "📦", "text": "Static asset caching — rina images, pfps, and fonts now have infinite browser cache" },
-      { "icon": "🛡️", "text": "Service worker v3 — precaches static assets, network-first for dashboard pages" }
-    ]
-  },
-  "0.3.2": {
-    "type": "patch",
-    "title": "Code Quality & Modularization",
-    "entries": [
-      { "icon": "🧩", "text": "Component extraction — DonutChart, SectionDetail, EditUserModal, CreateUserModal, PfpUpload split from monolithic files" },
-      { "icon": "🪝", "text": "Custom hooks — useCountUp, useFileUpload for shared logic" },
-      { "icon": "📦", "text": "Shared type system — GoalData, SectionData, UserData centralized in src/types" },
-      { "icon": "⏳", "text": "Loading skeleton states for dashboard, section, and admin pages" },
-      { "icon": "♿", "text": "Accessibility — checkbox roles, aria-checked, prefers-reduced-motion" },
-      { "icon": "🧹", "text": "Lint cleanup — 39 issues resolved (39 → 1, remaining is dev script only)" },
-      { "icon": "🗺️", "text": "SEO sitemap generation via src/app/sitemap.ts" }
-    ]
-  },
-  "0.3.0": {
-    "type": "minor",
-    "title": "Catarina got an upgrade!",
-    "entries": [
-      { "icon": "🎉", "text": "Update celebration system — you'll now see what's new after each release" },
-      { "icon": "✨", "text": "Tiered celebration modals for major, minor, and patch updates" },
-      { "icon": "📋", "text": "In-app changelog — tap the notification to see what changed" }
-    ]
-  },
-  "0.2.0": {
-    "type": "minor",
-    "title": "Profile System & Catarina Expressions",
-    "entries": [
-      { "icon": "👤", "text": "Edit your name, email, bio, profile photo, and password" },
-      { "icon": "🎨", "text": "Catarina character expressions throughout the app" },
-      { "icon": "🎊", "text": "Welcome celebration modal for first-time users" },
-      { "icon": "💬", "text": "Comment notifications — section members are now notified" },
-      { "icon": "🔧", "text": "Bug fixes and UI polish across the board" }
-    ]
-  },
-  "0.1.0": {
-    "type": "major",
-    "title": "Catarina is live!",
-    "entries": [
-      { "icon": "🚀", "text": "Initial release — full team planning and tracking system" },
-      { "icon": "📊", "text": "Monthly goal tracking with sections, steps, and comments" },
-      { "icon": "📈", "text": "Live performance dashboard with animated charts" },
-      { "icon": "🔔", "text": "In-app notification system with pinning and audio" },
-      { "icon": "📄", "text": "Archive & PDF export for completed months" },
-      { "icon": "📱", "text": "Progressive Web App — installable on any device" }
-    ]
-  }
+ "0.6.1": {
+  "type": "patch",
+  "title": "One-Time Login & Password Toggle",
+  "entries": [
+   {
+    "icon": "🔑",
+    "text": "One-time login — a long-lived per-device token (localStorage) silently re-issues the session on every visit, so the device never asks for credentials again."
+   },
+   {
+    "icon": "🚀",
+    "text": "No login flash — already signed in? You're sent straight to the dashboard instead of the login form."
+   },
+   {
+    "icon": "👁️",
+    "text": "Show/hide password toggle on every password field — sign-in, registration, profile change-password, and the admin create/edit user modals."
+   },
+   {
+    "icon": "🛡️",
+    "text": "Logout now revokes the device token server-side — signing out anywhere is a real sign-out, not just a cleared session cookie."
+   }
+  ]
+ },
+ "0.6.0": {
+  "type": "minor",
+  "title": "The Cabinet — Drawers & Team Tables",
+  "entries": [
+   {
+    "icon": "🗄️",
+    "text": "The Cabinet — a playful new /tools hub in the navbar hosts Catarina's tools as cards, each with its own color and tagline."
+   },
+   {
+    "icon": "📁",
+    "text": "Drawers — a shared team workspace per section: chests, projects, envelopes and loose files, synced instantly to the team cloud."
+   },
+   {
+    "icon": "📤",
+    "text": "Chunked uploads — large files split into small parts and reassembled in storage, so anything fits without platform limits."
+   },
+   {
+    "icon": "📊",
+    "text": "Team Tables — a free-form grid per section: add & delete rows and columns, merge a selection, split merged cells back."
+   },
+   {
+    "icon": "📅",
+    "text": "Date mode — mark dates and Catarina lights up today's whole column (or row) in the table's accent color."
+   },
+   {
+    "icon": "🎨",
+    "text": "Rina stickers — drop character stickers on any table; they dance, and you can pause, tilt, drag, lock and mirror them."
+   },
+   {
+    "icon": "🖨️",
+    "text": "Themed PDF export — print a table dark or light, portrait or landscape (or let Catarina auto-fit), stickers optional."
+   },
+   {
+    "icon": "🔒",
+    "text": "Manage Team Tables permission — a new per-member flag (on by default); admins always bypass it, everyone else reads."
+   },
+   {
+    "icon": "♿",
+    "text": "Accessibility — drawers and the table editor ship with keyboard focus, focus traps, and clear element roles."
+   },
+   {
+    "icon": "🧹",
+    "text": "Housekeeping — removed the standalone features showcase page and tidied dev scaffolding; README, changelog, and docs updated."
+   }
+  ]
+ },
+ "0.4.5": {
+  "type": "patch",
+  "title": "Self-Hosted Rate Limiting",
+  "entries": [
+   {
+    "icon": "📦",
+    "text": "Replaced Upstash Redis with Turso — rate limiting now lives in the same database Catarina already uses. One less service to keep alive."
+   },
+   {
+    "icon": "🔄",
+    "text": "True sliding-window limiter with atomic batch transactions — attempts stay counted across every Vercel cold start."
+   },
+   {
+    "icon": "🧹",
+    "text": "Self-cleaning rate-limit table and fail-open behavior — brute-force protection that can't pause, archive, or 500 the app."
+   },
+   {
+    "icon": "🧪",
+    "text": "Added 7 unit tests covering window boundaries, aging, and per-key isolation, plus a production migration run."
+   }
+  ]
+ },
+ "0.4.4": {
+  "type": "patch",
+  "title": "Security Hardening & Reliability",
+  "entries": [
+   {
+    "icon": "🛡️",
+    "text": "Section data isolation — members can only see goals in their assigned sections."
+   },
+   {
+    "icon": "🔐",
+    "text": "Admin checks re-verified against the database — token roles can no longer be forged."
+   },
+   {
+    "icon": "⚠️",
+    "text": "Fail-fast auth — the app refuses to start without a JWT_SECRET."
+   },
+   {
+    "icon": "🚫",
+    "text": "Self-demotion and last-admin protection — admins can't lock themselves or the team out."
+   },
+   {
+    "icon": "🗑️",
+    "text": "Data-loss guard — users who authored goals can't be deleted until goals are reassigned."
+   },
+   {
+    "icon": "🧹",
+    "text": "Stricter input validation across admin sections, registration, and profile endpoints."
+   },
+   {
+    "icon": "🐛",
+    "text": "Duplicate email on approval now returns a clean error instead of crashing."
+   },
+   {
+    "icon": "✨",
+    "text": "Fixed a transient duplicate goal on creation and cleaned up dead code."
+   },
+   {
+    "icon": "🧪",
+    "text": "Added 30 unit tests for goal merging, permissions, and shared utilities."
+   }
+  ]
+ },
+ "0.4.3": {
+  "type": "patch",
+  "title": "Self-Hosting & Production Hardening",
+  "entries": [
+   {
+    "icon": "🏠",
+    "text": "Deploy your own Catarina — added NEXT_PUBLIC_SITE_URL env var for SEO, sitemap, and OpenGraph."
+   },
+   {
+    "icon": "📱",
+    "text": "Dynamic web manifest — PWA branding now reads from environment variables."
+   },
+   {
+    "icon": "🌱",
+    "text": "Team-agnostic seed script — new deployments get generic demo goals, no hardcoded content."
+   },
+   {
+    "icon": "⚡",
+    "text": "Upstash Redis rate limiting — brute-force protection now works across Vercel cold starts."
+   },
+   {
+    "icon": "📦",
+    "text": "Proper Prisma migration workflow — added db:migrate, db:deploy, db:status scripts."
+   },
+   {
+    "icon": "📖",
+    "text": "README overhaul — platform links, Catarina stickers, and complete deploy guide."
+   },
+   {
+    "icon": "🧹",
+    "text": "Removed all hardcoded branding — app is now fully white-label configurable."
+   }
+  ]
+ },
+ "0.4.2": {
+  "type": "patch",
+  "title": "Notification Modal & Goal Highlighting",
+  "entries": [
+   {
+    "icon": "🔔",
+    "text": "New NotificationModal — tap any notification to see full details, goal data, changelog entries, and deep-link to goals."
+   },
+   {
+    "icon": "🎯",
+    "text": "Goal highlight on deep link — navigating from a notification scrolls to the goal and pulses it with the section color."
+   },
+   {
+    "icon": "🎨",
+    "text": "Styled assignee checkboxes as toggle pills, custom select dropdowns, and section-colored month picker."
+   },
+   {
+    "icon": "🔒",
+    "text": "Security hardening — removed hardcoded JWT fallback secret, added rate limiting on auth endpoints."
+   },
+   {
+    "icon": "🧹",
+    "text": "Removed dead dependencies (recharts, jspdf) and dead components. Converted login/404 to Server Components."
+   },
+   {
+    "icon": "♿",
+    "text": "Added aria-live regions to stats bar, goal cards, and notification badges for screen reader updates."
+   },
+   {
+    "icon": "🔧",
+    "text": "Migrated middleware to Next.js 16 proxy convention to fix deprecation warning."
+   },
+   {
+    "icon": "✨",
+    "text": "Scrollbar hover glow now works in all browsers — both main app and modal scrollbars glow on hover."
+   }
+  ]
+ },
+ "0.4.1": {
+  "type": "patch",
+  "title": "PDF Export & UI Refinements",
+  "entries": [
+   {
+    "icon": "🖨️",
+    "text": "Fixed PDF export print styling so page background and inner padding render consistently."
+   },
+   {
+    "icon": "🎨",
+    "text": "Added new Catarina notification stickers for goal creation, deadline alerts, comments, system updates, and role changes."
+   },
+   {
+    "icon": "📱",
+    "text": "Polished responsive dashboard and mobile navbar/report UI behavior."
+   },
+   {
+    "icon": "🧹",
+    "text": "Bumped version to 0.4.1 and synchronized release notes."
+   }
+  ]
+ },
+ "0.4.0": {
+  "type": "minor",
+  "title": "Realtime Sync — Live Collaboration",
+  "entries": [
+   {
+    "icon": "🔄",
+    "text": "Real-time change detection — changes from other users appear within 5s without page reload"
+   },
+   {
+    "icon": "⚡",
+    "text": "Delta fetching — only modified data is transferred, not full page reloads"
+   },
+   {
+    "icon": "🧠",
+    "text": "Smart polling — adjusts interval based on tab visibility and user activity"
+   },
+   {
+    "icon": "✨",
+    "text": "Optimistic mutations — your actions appear instantly, with rollback on failure"
+   },
+   {
+    "icon": "💫",
+    "text": "Goal glow animation — new goals from other users shimmer with a subtle teal glow"
+   },
+   {
+    "icon": "🔔",
+    "text": "Section pulse — dashboard cards pulse when goals change in that section"
+   },
+   {
+    "icon": "⚡",
+    "text": "Toast notifications — incoming changes trigger a brief toast in the navbar"
+   },
+   {
+    "icon": "📦",
+    "text": "Static asset caching — rina images, pfps, and fonts now have infinite browser cache"
+   },
+   {
+    "icon": "🛡️",
+    "text": "Service worker v3 — precaches static assets, network-first for dashboard pages"
+   }
+  ]
+ },
+ "0.3.2": {
+  "type": "patch",
+  "title": "Code Quality & Modularization",
+  "entries": [
+   {
+    "icon": "🧩",
+    "text": "Component extraction — DonutChart, SectionDetail, EditUserModal, CreateUserModal, PfpUpload split from monolithic files"
+   },
+   {
+    "icon": "🪝",
+    "text": "Custom hooks — useCountUp, useFileUpload for shared logic"
+   },
+   {
+    "icon": "📦",
+    "text": "Shared type system — GoalData, SectionData, UserData centralized in src/types"
+   },
+   {
+    "icon": "⏳",
+    "text": "Loading skeleton states for dashboard, section, and admin pages"
+   },
+   {
+    "icon": "♿",
+    "text": "Accessibility — checkbox roles, aria-checked, prefers-reduced-motion"
+   },
+   {
+    "icon": "🧹",
+    "text": "Lint cleanup — 39 issues resolved (39 → 1, remaining is dev script only)"
+   },
+   {
+    "icon": "🗺️",
+    "text": "SEO sitemap generation via src/app/sitemap.ts"
+   }
+  ]
+ },
+ "0.3.0": {
+  "type": "minor",
+  "title": "Catarina got an upgrade!",
+  "entries": [
+   {
+    "icon": "🎉",
+    "text": "Update celebration system — you'll now see what's new after each release"
+   },
+   {
+    "icon": "✨",
+    "text": "Tiered celebration modals for major, minor, and patch updates"
+   },
+   {
+    "icon": "📋",
+    "text": "In-app changelog — tap the notification to see what changed"
+   }
+  ]
+ },
+ "0.2.0": {
+  "type": "minor",
+  "title": "Profile System & Catarina Expressions",
+  "entries": [
+   {
+    "icon": "👤",
+    "text": "Edit your name, email, bio, profile photo, and password"
+   },
+   {
+    "icon": "🎨",
+    "text": "Catarina character expressions throughout the app"
+   },
+   {
+    "icon": "🎊",
+    "text": "Welcome celebration modal for first-time users"
+   },
+   {
+    "icon": "💬",
+    "text": "Comment notifications — section members are now notified"
+   },
+   {
+    "icon": "🔧",
+    "text": "Bug fixes and UI polish across the board"
+   }
+  ]
+ },
+ "0.1.0": {
+  "type": "major",
+  "title": "Catarina is live!",
+  "entries": [
+   {
+    "icon": "🚀",
+    "text": "Initial release — full team planning and tracking system"
+   },
+   {
+    "icon": "📊",
+    "text": "Monthly goal tracking with sections, steps, and comments"
+   },
+   {
+    "icon": "📈",
+    "text": "Live performance dashboard with animated charts"
+   },
+   {
+    "icon": "🔔",
+    "text": "In-app notification system with pinning and audio"
+   },
+   {
+    "icon": "📄",
+    "text": "Archive & PDF export for completed months"
+   },
+   {
+    "icon": "📱",
+    "text": "Progressive Web App — installable on any device"
+   }
+  ]
+ },
+ "0.7.0": {
+  "type": "minor",
+  "title": "Security Hardening — Headers, CSRF & Rate Limits",
+  "entries": [
+   {
+    "icon": "🛡️",
+    "text": "Security headers on every response — strict CSP (script-src self + inline, no remote/eval), frame-ancestors block, nosniff, DENY, strict-origin-when-cross-origin, and HSTS with preload in production."
+   },
+   {
+    "icon": "🧱",
+    "text": "Same-origin edge guard — every mutating /api call (POST/PUT/PATCH/DELETE) from the wrong Origin now answers 403 before it reaches the handler; the HttpOnly cookie stays SameSite=Lax."
+   },
+   {
+    "icon": "⏱️",
+    "text": "Rate limited auth — login, register, password change, refresh and logout are each throttled to 10 requests/minute per IP (429 beyond that), grinding the public auth surface."
+   },
+   {
+    "icon": "🔑",
+    "text": "Weak-secret boot warning — a short or guessable JWT_SECRET is surfaced loudly at startup (still fails hard if it's missing entirely) so a dev never ships with a forgeable token."
+   },
+   {
+    "icon": "⬆️",
+    "text": "Dependencies — Next.js patched to 16.3.6, clearing the critical unauthenticated RCE plus the sharp/libvips, postcss and nanoid advisories. Prisma stays 7.x (the audit's suggested 'fix' was only a downgrade)."
+   },
+   {
+    "icon": "🔍",
+    "text": "Audited every route and input — no untrusted data reaches eval, no origin bypasses the guard, and hashed refresh tokens plus HttpOnly cookies and granular per-section permissions hold the line."
+   }
+  ]
+ }
 }
