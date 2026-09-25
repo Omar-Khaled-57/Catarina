@@ -174,22 +174,32 @@ model Approval {
 }
 
 // ─── RefreshToken Model ──────────────────────────────────────────────────────
-// Long-lived per-device "remember me" token. The short-lived HttpOnly JWT
-// session cookie expires, so the client stores this token in localStorage and
-// silently exchanges it for a fresh session cookie on every visit. Tokens are
-// stored as sha256 hashes (never the raw value), never expire, and are only
-// invalidated by logout (`revoked`) or by deleting the user.
+// Per-device "remember me" token. The short-lived HttpOnly JWT session cookie
+// expires, so the client stores this token in localStorage and silently
+// exchanges it for a fresh session cookie on every visit. Only the sha256 hash
+// is stored, never the raw value.
+//
+// Every exchange ROTATES the token: the presented one is marked spent
+// (`usedAt`) and a replacement in the same `familyId` is issued, so a stolen
+// token is single-use. Presenting an already-spent token means the value
+// leaked, so the whole family is revoked rather than just rejecting the call.
+// `expiresAt` bounds each token, and the family's lifetime is bounded by its
+// oldest member's `createdAt` — so no lineage can stay valid forever.
 model RefreshToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique // sha256 of the raw token value
-  revoked   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  tokenHash String    @unique // sha256 of the raw token value
+  familyId  String // shared by every rotation of one login lineage
+  revoked   Boolean   @default(false)
+  usedAt    DateTime? // set when this token is exchanged (single-use)
+  expiresAt DateTime // absolute expiry; rotation cannot push past the family ceiling
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([revoked])
+  @@index([familyId])
 }
 
 // ─── Notification Model ───────────────────────────────────────────────────────

@@ -172,6 +172,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).catch(() => null);
 
           if (rr?.ok) {
+            /* Rotation: the server spent the token we just sent and returned a
+               replacement. Persist it immediately — keeping the spent copy
+               would make the next load look like a stolen-token replay and get
+               the whole family revoked. */
+            const rotated = await rr.json().catch(() => null);
+            if (rotated?.refreshToken) {
+              saveStoredRefreshToken(rotated.refreshToken);
+            }
             await refreshUser();
             return;
           }

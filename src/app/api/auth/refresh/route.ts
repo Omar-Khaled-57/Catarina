@@ -1,12 +1,17 @@
-// POST /api/auth/refresh — Silently re-issue the session cookie from a
-// long-lived per-device refresh token (stored in the client's localStorage).
+// POST /api/auth/refresh — Silently re-issue the session cookie from the
+// per-device refresh token (stored in the client's localStorage).
 // Returns a fresh JWT cookie + the current user, mirroring /api/auth/login.
 // Used on every app load when the session cookie has expired.
+//
+// Rotation: the presented token is single-use. Every successful exchange
+// returns a REPLACEMENT refresh token, which the client must persist — keeping
+// the spent one would make the next load look like a stolen-token replay and
+// revoke the family. Returns a fresh JWT cookie + the current user.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createToken } from "@/lib/auth.server";
-import { verifyRefreshToken } from "@/lib/refreshToken";
+import { rotateRefreshToken } from "@/lib/refreshToken";
 import { buildAuthUser } from "@/lib/auth-session";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
@@ -30,15 +35,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 });
     }
 
-    /* Fail-closed: unknown, revoked, or orphaned tokens all answer 401 with
-       the same generic message so the endpoint can't probe token state. */
-    const userId = await verifyRefreshToken(refreshToken);
-    if (!userId) {
+    /* Single-use exchange. Every rejection path (unknown, revoked, orphaned,
+       expired, or a replayed spent token) answers 401 with the same generic
+       message so the endpoint can't probe token state. */
+    const rotation = await rotateRefreshToken(refreshToken);
+    if (!rotation.ok) {
       return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: rotation.userId },
       include: { userSections: { select: { section: true } } },
     });
     if (!user) {
@@ -53,7 +59,12 @@ export async function POST(req: Request) {
       section: primarySection,
     });
 
-    return NextResponse.json({ user: buildAuthUser(user) });
+    /* The replacement token must reach the client: the one just presented is
+       now spent, and reusing it would be treated as theft. */
+    return NextResponse.json({
+      user: buildAuthUser(user),
+      refreshToken: rotation.refreshToken,
+    });
   } catch (error) {
     console.error("[REFRESH]", error);
     return NextResponse.json(

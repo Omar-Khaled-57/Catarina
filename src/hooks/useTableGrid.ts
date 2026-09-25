@@ -28,6 +28,9 @@ export interface TableDocument {
   isDateBased: boolean;
   grid: GridState;
   stickers: StickerData[];
+  /** ISO updatedAt of the revision this document was loaded from — the CAS
+      token echoed back on every save so the server rejects stale writes. */
+  updatedAt: string | null;
 }
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -42,6 +45,10 @@ export function useTableGrid(tableId: string | null) {
 
   const docRef = useRef<TableDocument | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* Guards the 409-rebase fetch in persist(): if the hook has already unmounted
+     (e.g. the user navigated away mid-save) we must not call setDoc/setSaveError
+     on a dead component. Set true in the unmount cleanup below. */
+  const cancelledRef = useRef(false);
 
   /* ── Load ─────────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -69,6 +76,10 @@ export function useTableGrid(tableId: string | null) {
           isDateBased: table.isDateBased,
           grid: table.cells,
           stickers: Array.isArray(table.stickers) ? table.stickers : [],
+          /* CAS token: the revision we loaded. The server requires it on every
+             PATCH — a doc without it is stale-by-definition and would clobber a
+             peer, so a missing value here must echo null and fail closed. */
+          updatedAt: table.updatedAt ?? null,
         };
         docRef.current = next;
         setDoc(next);
@@ -100,8 +111,40 @@ export function useTableGrid(tableId: string | null) {
           isDateBased: d.isDateBased,
           cells: d.grid,
           stickers: d.stickers,
+          /* CAS token: the updatedAt of the revision we loaded. Without it the
+             server (which now enforces optimistic concurrency fail-closed)
+             rejects the write; with it we only bump when nobody else wrote in
+             the meantime, so a second editor's live changes are never silently
+             clobbered. */
+          expectedUpdatedAt: d.updatedAt,
         }),
       });
+      if (res.status === 409) {
+        /* Someone else saved a newer revision since we loaded. Fetch the
+           freshest row so the next save rebases on it instead of overwriting
+           that editor's work. Surface it as a visible conflict, not a silent
+           last-write-wins. */
+        const latestRes = await fetch(`/api/tables/${d.id}`);
+        const latestData = latestRes.ok ? await latestRes.json() : null;
+        if (!cancelledRef.current && latestData?.table) {
+          const latest = latestData.table;
+          const next: TableDocument = {
+            id: latest.id,
+            section: latest.section,
+            name: latest.name,
+            color: latest.color,
+            isDateBased: latest.isDateBased,
+            grid: latest.grid,
+            stickers: Array.isArray(latest.stickers) ? latest.stickers : [],
+            updatedAt: latest.updatedAt,
+          };
+          docRef.current = next;
+          setDoc(next);
+          setSaveError("Someone else changed this table — we loaded their latest copy. Your edits weren't lost; please re-apply on top.");
+          return;
+        }
+        throw new Error("save failed");
+      }
       if (!res.ok) throw new Error("save failed");
       setLastSavedAt(Date.now());
     } catch {
@@ -123,6 +166,7 @@ export function useTableGrid(tableId: string | null) {
     const doc = docRef.current;
     const timer = saveTimer.current;
     return () => {
+      cancelledRef.current = true;
       saveTimer.current = null;
       if (timer && doc) {
         clearTimeout(timer);

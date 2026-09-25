@@ -121,22 +121,60 @@ export async function PATCH(req: Request, { params }: Params) {
     return jsonError("No fields to update", 400);
   }
 
-  const updated = await prisma.teamTable.update({
-    where: { id },
-    data,
-    select: {
-      id: true,
-      section: true,
-      name: true,
-      color: true,
-      isDateBased: true,
-      createdById: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+  /* CAS token the client echoed back: the `updatedAt` of the revision it
+     loaded. Required (fail-closed): a save that omits it is stale by
+     definition and would clobber a peer — the exact regression this patch
+     closes — so we refuse rather than guess. */
+  const rawExpected = asString(body.expectedUpdatedAt, 40);
+  const expected = rawExpected ? new Date(rawExpected) : null;
+  if (!expected || Number.isNaN(expected.getTime())) {
+    return jsonError("Missing or invalid updatedAt (CAS token)", 400);
+  }
+
+  /* Compare-and-swap on updatedAt: the client must send the `updatedAt` value
+     it last loaded (the optimistic-concurrency token, mirroring the drawer
+     tree's version CAS). updateMany() — not update() — lets the WHERE clause
+     carry the expected token, so a stale writer touches zero rows. Prisma's
+     @updatedAt auto-bump DOES NOT fire on updateMany, so we set it explicitly
+     — the app reads row.updatedAt back in GET, so manual bump keeps the new
+     token form  consumed by the next save. */
+  const cas = await prisma.teamTable.updateMany({
+    where: { id, updatedAt: expected, deletedAt: null },
+    data: { ...data, updatedAt: new Date() },
   });
 
-  return NextResponse.json({ table: updated });
+  if (cas.count === 0) {
+    const latest = await findTable(id);
+    if (!latest) return jsonError("Table not found", 404);
+    /* 409 + the freshest row: the client must rebase (merge its live edits on
+       top of the winning document) instead of silently overwriting a peer's
+       work — the entire point of the lost-update fix. */
+    return NextResponse.json(
+      { conflict: true, table: serializeTable(latest) },
+      { status: 409 },
+    );
+  }
+
+  const updated = await findTable(id) as NonNullable<Awaited<ReturnType<typeof findTable>>>;
+
+  return NextResponse.json({ table: serializeTable(updated) });
+}
+
+/** Shared table serializer so the 200 and 409 payloads keep the same shape —
+ *  cells/stickers are parsed to live objects (like GET) either way. */
+function serializeTable(t: NonNullable<Awaited<ReturnType<typeof findTable>>>) {
+  return {
+    id: t.id,
+    section: t.section,
+    name: t.name,
+    color: t.color,
+    cells: parseJson(t.cells, { rows: [[]], cols: 1 }),
+    stickers: parseJson(t.stickers, []),
+    isDateBased: t.isDateBased,
+    createdById: t.createdById ?? null,
+    createdAt: t.createdAt.toISOString(),
+    updatedAt: t.updatedAt.toISOString(),
+  };
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
