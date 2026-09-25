@@ -61,9 +61,9 @@ function getDb(): Client | null {
  * INVARIANT: SWEEP_MARGIN_MS must always exceed the longest window used by any
  * caller PLUS clock skew between serverless instances, otherwise this sweep
  * could delete events that still belong to a live window. Longest window today
- * is register (5 min). See src/app/api/auth/register/route.ts.
+ * is login's per-account layer (15 min). See src/app/api/auth/login/route.ts.
  */
-const SWEEP_MARGIN_MS = 10 * 60_000; // 10 min > 5 min max window
+export const SWEEP_MARGIN_MS = 20 * 60_000; // 20 min > 15 min max window, 5 min skew headroom
 const SWEEP_INTERVAL_MS = 60_000; // at most once per minute per instance
 
 let lastGlobalSweep = 0;

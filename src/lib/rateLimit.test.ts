@@ -1,10 +1,11 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createClient, type Client } from "@libsql/client";
-import { tursoSlidingWindowCheck } from "./rateLimit";
+import { tursoSlidingWindowCheck, SWEEP_MARGIN_MS } from "./rateLimit";
 import { randomUUID } from "node:crypto";
 
-const SWEEP_MARGIN_MS = 10 * 60_000;
+/** Longest window any caller uses: login's per-account layer. */
+const LONGEST_WINDOW_MS = 15 * 60_000;
 
 let db: Client;
 
@@ -129,15 +130,21 @@ test("throttled global sweep clears abandoned rows for all keys", async () => {
 
 test("global sweep never removes in-window events (retention >= longest window)", async () => {
   const key = `test:${randomUUID()}`;
-  const windowMs = 300_000; // longest app window (register)
+  const windowMs = LONGEST_WINDOW_MS;
   const max = 2;
 
-  await check(key, max, windowMs, 10_000);
-  await check(key, max, windowMs, 20_000);
+  assert.ok(
+    SWEEP_MARGIN_MS > windowMs,
+    `SWEEP_MARGIN_MS (${SWEEP_MARGIN_MS}) must exceed the longest window (${windowMs})`,
+  );
 
-  // Fresh check 5 minutes later: both prior events are still inside the
-  // 5-minute window, so the forced global sweep must NOT delete them.
-  const now = 301_001;
+  await check(key, max, windowMs, 1_000);
+  await check(key, max, windowMs, 2_000);
+
+  // 12 minutes later both events are still inside the 15-minute window, but
+  // they are older than the old 10-minute sweep margin — so this check fails if
+  // the margin is ever lowered again.
+  const now = 12 * 60_000;
   const r = await check(key, max, windowMs, now, { forceSweep: true });
   assert.equal(r.limited, true); // 2 old + current → 3rd attempt blocked
   assert.equal(await countRows(key), 3); // 2 old + current — nothing swept

@@ -34,13 +34,14 @@ First login: `admin@team.com` / `admin123`. **Change the seeded admin password a
 | `npm run build` / `start` | Production build / serve |
 | `npm run lint` | ESLint (ignores `dev/**` via `eslint.config.mjs`) |
 | `npm run test` | Unit tests: `node --import tsx --test "src/**/*.test.ts"` |
-| `npm run db:setup` | `prisma db push --env-file=.env` + `db:seed` |
-| `npm run db:seed` | `tsx --env-file=.env prisma/seed.ts` (wipes all data first!) |
-| `npm run db:reset` | `prisma migrate reset --force` + seed (wipes data) |
+| `npm run db:setup` | `prisma db push --env-file=.env` (local) + `db:seed` (Turso) |
+| `npm run db:seed` | `tsx --env-file=.env prisma/seed.ts` — **writes to Turso and deletes rows first** (see `docs/data-model.md` for exactly which tables) |
+| `npm run db:reset` | `prisma migrate reset --force` + seed (local migrate, then destructive Turso seed) |
 | `npm run db:migrate` | `prisma migrate dev` (local `dev.db` only) |
 | `npm run db:push` | `prisma db push --env-file=.env` (local `dev.db` only — see below) |
-| `npm run db:status` | `prisma migrate status` |
-| `npm run db:studio` | Prisma Studio browser |
+| `npm run db:status` | `prisma migrate status` (local `dev.db` only) |
+| `npm run db:seed-tables` | `tsx --env-file=.env prisma/seed-tables.ts` — **destructive:** deletes every `TeamTable` row in Turso and writes showcase grids |
+| `npm run db:studio` | Prisma Studio browser (local `dev.db`) |
 
 ### Critical: two databases, two workflows
 
@@ -48,12 +49,24 @@ First login: `admin@team.com` / `admin123`. **Change the seeded admin password a
 - **Prisma CLI** (`prisma.config.ts`) points at local `file:./dev.db` because the CLI
   **does not support `libsql://` URLs**. So `db:push`, `db:migrate`, `db:status` never touch Turso.
 
+This is the single most common way to break a deploy: change the schema, run `db:push`, see it
+succeed locally, and ship — leaving production with the old schema and a broken app.
+
 When you change `prisma/schema.prisma`:
 
 1. Locally: edit schema → `npm run db:migrate` (or `db:push`) to keep `dev.db` in sync.
-2. For Turso: apply the equivalent SQL via one-off scripts (`turso-push.mjs` reads `migrate.sql`,
-   or `update-turso-schema.mjs`) using `@libsql/client`. Both files are in the repo root.
-   Keep these scripts in sync with schema changes before deploying.
+2. For Turso: apply the equivalent SQL with `@libsql/client`, then verify the columns and indexes
+   landed **before** deploying code that reads them. `dev/SCHEMA-UPDATE-GUIDE.md` (gitignored) has a
+   worked example; the pattern is one `execute()` per statement, because `@libsql/client`'s
+   `executeMultiple` and DDL path have proven unreliable from some networks.
+3. **Order matters.** Apply the production migration *before* the code that needs it. Deploying
+   code that selects a new column against an un-migrated database breaks the feature for everyone.
+4. There is no `vercel.json`, so the Vercel build runs `npm run build` only and **never migrates**.
+   Migration is always a manual, deliberate step.
+
+> **Deprecated:** `turso-push.mjs` + root `migrate.sql`, and `update-turso-schema.mjs`. These replay
+> a stale root `migrate.sql` that is out of sync with `prisma/schema.prisma` and contains no
+> `RefreshToken` table. Do not use them for new migrations; write a purpose-built script instead.
 
 ## Project layout
 
@@ -178,22 +191,40 @@ Node's built-in test runner with `tsx`:
 npm test
 ```
 
-Current suites: `src/lib/rateLimit.test.ts` (sliding-window behavior), `src/lib/mergeGoals.test.ts`
-(delta merging + dedupe), `src/lib/permissions.test.ts`, `src/lib/utils.test.ts`,
-`src/lib/table/grid.test.ts` (grid merge/split/insert/delete/resize), `src/lib/table/date.test.ts`
-(date detection/today strip), `src/lib/table/table-permissions.test.ts` (write-scoped flags).
+Current suites (26 files, 194 tests). New security policy modules are unit-tested in isolation:
+`rateLimit.test.ts` + `rateLimitPolicy.test.ts` (sliding window, sweep invariant, IP/account keying),
+`loginPolicy.test.ts` (timing-equalized verification), `originGuard.test.ts` (CSRF origin
+classification), `passwordPolicy.test.ts` (length/byte cap + breach blocklist),
+`registrationPolicy.test.ts`, `publicSection.test.ts`, `refreshPolicy.test.ts` (rotation + family
+ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `table/` suites
+(grid merge/split/insert/delete/resize, date detection, write-scoped flags).
 
 > **Mock tables for local testing:** `dev/seed-tables.mjs` (gitignored, dev-only) seeds a few
 > sample tables into Turso via direct `@libsql` inserts — run with `node --env-file=.env dev/seed-tables.mjs`.
 > The main seed (`prisma/seed.ts` / `npm run db:seed`) does not create tables.
+>
+> ⚠️ The **tracked** `npm run db:seed-tables` (`prisma/seed-tables.ts`) is a *different, destructive*
+> script: it deletes every `TeamTable` row in Turso and writes showcase grids. Don't reach for it
+> when you only want a couple of mock tables.
 
 ## Deployment (Vercel)
 
 1. Push to GitHub; import into Vercel as a new project.
-2. Add the 5 env vars (`NEXT_PUBLIC_TEAM_NAME`, `NEXT_PUBLIC_SITE_URL`, `DATABASE_URL`,
-   `TURSO_AUTH_TOKEN`, `JWT_SECRET`).
+2. Add the env vars:
+
+   | Variable | Required | Notes |
+   |---|---|---|
+   | `NEXT_PUBLIC_TEAM_NAME` | Yes | Team/org name shown in nav, footers, PDFs |
+   | `NEXT_PUBLIC_SITE_URL` | Yes | Deployed URL |
+   | `DATABASE_URL` | Yes | Turso `libsql://` connection string |
+   | `TURSO_AUTH_TOKEN` | Yes | Turso auth token |
+   | `JWT_SECRET` | Yes | 32+ random chars; the app refuses to start without it and warns on weak values |
+   | `TRUSTED_IP_HEADER` | Recommended | `x-forwarded-for` on Vercel. Without it every visitor shares one rate-limit bucket (safe, but blunt) |
+
 3. Build command: `npx prisma generate && next build`
-4. Apply any schema changes to Turso with the seed/update scripts (CLI won't reach Turso).
+4. **Apply schema changes to Turso manually, before deploying the code that needs them.** There is
+   no `vercel.json`, so the build never migrates. The Prisma CLI cannot reach Turso — see
+   [two databases](#critical-two-databases-two-workflows).
 
 > `db:reset` and `db:seed` will wipe the production DB if you accidentally run them against Turso —
 > prefer one-off migration scripts for production schema changes.
@@ -204,8 +235,23 @@ Current suites: `src/lib/rateLimit.test.ts` (sliding-window behavior), `src/lib/
 - **Section checks are DB-based**, not JWT-snapshot based, so reassigned members can't keep old access.
 - **Last-admin guard**: you cannot demote/delete the last `ADMIN`.
 - **Data-loss guard**: you cannot delete a member who authored goals.
-- **Registration is approval-gated**: new accounts only activate via admin approval.
-- **Rate limits** are shared across Vercel instances (Turso), fail-open on DB errors (so a Turso
-  hiccup doesn't brick login), and sweep old events (10-min margin ≥ longest 5-min window).
+- **Registration is approval-gated and create-only**: a signup can never overwrite an existing
+  account, and every conflict returns one uniform message. Stale requests are cleared by admins.
+- **Rate limits are shared across Vercel instances (Turso) and fail CLOSED.** If Turso errors, the
+  request falls through to a bounded in-memory counter rather than being allowed — a database
+  hiccup must not become an open floodgate. Auth routes are double-keyed: a cheap per-IP layer plus
+  a per-account layer hashed from the email, so rotating forged IPs cannot reset a brute-force budget.
+- **The sweep margin is a tested invariant.** `SWEEP_MARGIN_MS` (20 min) must exceed the longest
+  window (login's per-account 15 min) plus clock skew; `rateLimit.test.ts` fails if it doesn't.
+  Widen a window and the test will tell you.
+- **Per-IP keying reads only `TRUSTED_IP_HEADER`.** Never trust a client-chosen header, or the
+  attacker picks their own bucket.
+- **CSRF**: the session cookie is `SameSite=Lax` + `HttpOnly`, and independently the edge proxy
+  requires a same-origin `Origin` on every mutating `/api` call, failing closed on `Origin: null`.
+- **Refresh tokens rotate and are single-use**, with reuse revoking the whole family and a hard
+  30-day ceiling. A stolen token is usable at most once.
+- **Login is timing-equalized**: exactly one bcrypt comparison per attempt, whatever the input.
 - **HttpOnly cookie + HS256 JWT** + required secret keeps tokens out of JS and unforgeable.
-- **Password length is capped** (200) to avoid bcrypt DoS on absurd inputs.
+- **Password length is capped** (200 chars, 72 bytes) to avoid bcrypt DoS on absurd inputs, and new
+  passwords must clear a common/breached-password blocklist. Existing weak passwords still work —
+  the policy applies on write, so nobody is locked out.

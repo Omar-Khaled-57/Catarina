@@ -1,6 +1,6 @@
 # API Reference
 
-All routes are under `/api`. Responses are JSON. Errors use a consistent shape:
+All routes are under `/api`. Responses are JSON, **with one exception**: `GET /api/drawers/files/[id]` streams raw bytes. Errors use a consistent shape:
 
 ```json
 { "error": "message" }
@@ -11,12 +11,14 @@ with an appropriate HTTP status (`400`, `401`, `403`, `404`, `409`, `429`, `500`
 ## Authentication & Authorization
 
 - Session auth uses an **HttpOnly cookie** named `catarina-token` (JWT, HS256, 7-day expiry, signed with `JWT_SECRET`).
-- **Persistent (one-time) login**: on success, `POST /api/auth/login` also returns a long-lived per-device `refreshToken` (stored by the client in `localStorage["catarina-refresh"]`, hashed server-side in the `RefreshToken` table). When the cookie has expired, the client calls `POST /api/auth/refresh` to silently re-issue it, so returning users are never bounced back to the login form. Logout revokes the token server-side.
-- Helpers live in `src/lib/api-helpers.ts`, `src/lib/auth.server.ts`, `src/lib/auth-session.ts`, and `src/lib/refreshToken.ts`.
+- **Persistent login with rotating refresh tokens**: on success, `POST /api/auth/login` also returns a per-device `refreshToken` (stored by the client in `localStorage["catarina-refresh"]`, hashed server-side in the `RefreshToken` table). Refresh tokens are **single-use and rotate on every call**: each refresh issues a new token and marks the old one spent. Presenting a spent token is treated as theft and **revokes the entire token family**, forcing a fresh login. A family has a hard **30-day ceiling** regardless of activity. When the cookie expires, the client calls `POST /api/auth/refresh`; logout revokes the family server-side.
+- Helpers live in `src/lib/api-helpers.ts`, `src/lib/auth.server.ts`, `src/lib/auth-session.ts`, `src/lib/refreshToken.ts`, and `src/lib/refreshPolicy.ts`.
 - `requireUser()` → returns `{ ok:true, data: JWT payload }` or a 401 response.
 - `requireAdmin()` → same as above but re-reads the role from the DB, so a demoted admin loses admin access immediately (returns 403).
 - `requireGoalAccess(userId, role, goalId)` → 404 if the goal doesn't exist, 403 if a non-admin isn't in the goal's section, else `{ ok:true, goal }`.
-- The Vercel Edge `src/proxy.ts` verifies the JWT for every `/dashboard/:path*` page request and redirects unauthenticated users to `/`.
+- The Vercel Edge `src/proxy.ts` runs on `["/dashboard/:path*", "/tools/:path*", "/api/:path*"]` and does two things:
+  1. **Auth guard** for `/dashboard/*` and `/tools/*` — verifies the HttpOnly JWT cookie and redirects unauthenticated users to `/`.
+  2. **Same-origin (CSRF) guard** for every mutating `/api` request (`POST`, `PUT`, `PATCH`, `DELETE`) — requires the `Origin` (falling back to `Referer`) to match the request host, answering `403` before the handler runs. It **fails closed**: a present-but-opaque (`Origin: null`, e.g. a sandboxed iframe), malformed, or non-HTTP origin is rejected, and a missing `Host` header rejects too. The decision logic lives in `src/lib/originGuard.ts` so it is unit-tested.
 
 ### Roles & permissions
 
@@ -42,18 +44,19 @@ Admins always have all permissions (`ADMIN_PERMISSIONS`). Parse/resolve via `src
 Creates a **pending approval request**. The account is not active until an admin approves it.
 
 - Content-Type: `multipart/form-data`
-- Fields: `name`, `email`, `password` (min 6), `section` (uppercase section key), `pfp` (optional File; jpg/png/gif/webp, ≤2 MB)
-- Rate limited: **3 attempts / 5 min / IP**
-- Validations: name ≤100 chars, RFC-ish email regex, section must exist via `getSectionKeys()`.
-- `409` if email already registered or already has a PENDING approval.
+- Fields: `name`, `email`, `password` (min 8, max 200, and not a commonly-breached password), `section` (uppercase section key), `pfp` (optional File; jpg/png/gif/webp, ≤2 MB)
+- Rate limited: **3 attempts / 5 min / IP** *and* **3 / 5 min per email** (the per-email key is a SHA-256 hash, so rotating forged IPs cannot bypass it)
+- Validations: name ≤100 chars, RFC-ish email regex, section must exist via `getSectionKeys()`, password policy via `asValidPassword` (`src/lib/passwordPolicy.ts`).
+- **Create-only.** A `409` with one uniform message is returned if *any* row already exists for that email — a pending request, a rejected request, an earlier approved request, or a registered account. Registration can never overwrite an existing user. An admin can clear a stale request with `DELETE /api/admin/approvals` so that email may try again.
 - Notifies admins (`SIGNUP_REQUEST`).
 - Response 200: `{ message }`
 
 ### `POST /api/auth/login`
 - Body: `{ email, password }`
-- Rate limited: **10 attempts / min / IP**
-- `403` + distinct messages for REJECTED (`"Your signup request was rejected by an admin."`) and PENDING approvals.
-- On success sets the `catarina-token` cookie, mints a long-lived per-device refresh token (hashed into the `RefreshToken` table), and returns 200:
+- Rate limited on **two independent layers**: **10 attempts / min / IP** and **10 attempts / 15 min per account** (keyed on a SHA-256 hash of the normalized email, so neither a botnet nor a forged-IP rotation gets more than 10 against one account). Either layer being over its limit answers `429`.
+- **Every credential failure returns the same `401` `{ "error": "Invalid email or password" }`** — wrong password, unknown email, rejected signup, and pending signup are indistinguishable. There is no `403` and no per-state message.
+- **Timing-safe by construction:** exactly one bcrypt comparison runs on every attempt whether or not the account exists, so response time cannot be used to enumerate accounts.
+- On success sets the `catarina-token` cookie, mints a per-device refresh token (hashed into the `RefreshToken` table), and returns 200:
 ```json
 {
   "user": {
@@ -68,20 +71,24 @@ Creates a **pending approval request**. The account is not active until an admin
 - The client stores `refreshToken` in `localStorage["catarina-refresh"]` for silent re-auth on future visits.
 
 ### `POST /api/auth/refresh`
-Silently re-issues the session cookie from a device's long-lived refresh token (used on app load when `catarina-token` has expired).
+Silently re-issues the session cookie from a device's refresh token (used on app load when `catarina-token` has expired).
 
 - Body: `{ refreshToken }`
-- Verifies the token (non-revoked, user still exists — fail-closed with a generic `401` for unknown/revoked/orphaned tokens). Rejects malformed tokens with `401`.
+- **Tokens are single-use and rotate.** Each successful refresh marks the presented token spent and returns a new one. Presenting an already-spent token is treated as theft: the **entire family is revoked** and the call fails with a generic `401`, so the real user must sign in again.
+- **30-day absolute ceiling.** A family's expiry is fixed at creation (`familyCreatedAt + 30 days`); refreshing never extends it. Past that point refresh fails even if the token was never spent.
+- Also fails closed with a generic `401` for revoked tokens, unknown tokens, and tokens whose user no longer exists.
 - On success sets a fresh `catarina-token` cookie and returns 200:
 ```json
 { "user": { "id": "…", "name": "…", "email": "…", "role": "…", "pfp": "…", "bio": "…",
-            "primarySection": "…", "welcomeSeen": true, "permissions": {…}, "sections": ["…"] } }
+            "primarySection": "…", "welcomeSeen": true, "permissions": {…}, "sections": ["…"] },
+  "refreshToken": "64-char-hex" }
 ```
+- **The client must persist the returned `refreshToken`**, replacing the old one. Dropping it means the next refresh presents a spent token and revokes the family.
 - The user shape matches `/api/auth/login` and `/api/auth/me` exactly (built by `buildAuthUser`).
-- The refresh token never expires by design — it is invalidated only by logout or by deleting the user.
 
 ### `GET /api/auth/me`
-- `401` if no valid token. Returns the fresh user (sections read live from DB) plus update detection against `src/lib/changelog.json`:
+- **Always `200`, including when signed out** — it answers `{ "user": null, "hasUpdate": false }` so the client can distinguish "logged out" from "server error" without treating it as a failure.
+- Authenticated: returns the fresh user (sections read live from DB) plus update detection against `src/lib/changelog.json`:
 ```json
 {
   "user": { "id": "…", "name": "…", "email": "…", "role": "…", "pfp": "…", "bio": "…",
@@ -90,6 +97,7 @@ Silently re-issues the session cookie from a device's long-lived refresh token (
 }
 ```
   When `hasUpdate` is true it also includes `updateVersion`, `updateType` (`major`|`minor`|`patch`), `updateTitle`, `updateEntries` (`[{ icon, text }]`).
+- `src/lib/changelog.json` must contain an entry for the current version or this endpoint falls back to a generic title/entry.
 - Side effects: ensures the hardcoded "Why Catarina? 🌸" welcome notification exists; creates a `VERSION_UPDATE` notification when a new version is detected.
 
 ### `POST /api/auth/logout`
@@ -104,7 +112,7 @@ Update your own profile. All fields optional:
   "currentPassword": "…", "newPassword": "…" }
 ```
 - `pfp: ""` clears the picture; otherwise `pfp` is a data-URI string ≤ 2,000,000 chars.
-- Password change requires `currentPassword` (bcrypt-verified); **rate limited 5 / min / user**. New password min 6 chars, max 200.
+- Password change requires `currentPassword` (bcrypt-verified); **rate limited 5 / min / user**. New password: min 8, max 200, max 72 bytes (bcrypt's limit — the 200-char cap is only reachable well under it), and not a commonly-breached password. The policy applies to the **new** password only, so nobody is locked out by an existing weak one.
 - Email change checks uniqueness (`409` if in use).
 - Response: `{ user: { id, name, email, pfp, bio } }`
 
@@ -132,8 +140,19 @@ Ordered by name. Used for the goal assignment picker.
 ## Sections
 
 ### `GET /api/sections`
-- Any authenticated user (calls `getSections()` which caches active sections for 30s, falling back to `FALLBACK_SECTIONS` if the DB is empty/unreachable).
-- Returns: `{ sections: [{ id, key, label, prefix, color, sortOrder, isActive }] }`
+- **Public and unauthenticated** — the registration form lives on the login page, where no session exists yet, and needs the section list to render its dropdown.
+- Rate limited: **30 requests / min / IP**.
+- Calls `getSections()`, which caches active sections for 30s and falls back to `FALLBACK_SECTIONS` if the DB is empty or unreachable.
+- Returns **only the four display fields the form needs** (`src/lib/publicSection.ts`), so no primary keys or internal metadata leak to an unauthenticated caller:
+```json
+{ "sections": [{ "key": "MARKETING", "label": "Marketing", "color": "#FF4D6A", "prefix": "MRK-" }] }
+```
+  Note the absence of `id`, `sortOrder`, and `isActive` — that is intentional.
+- Admins who need the full set, including inactive sections, use `GET /api/admin/sections`.
+
+### `GET /api/admin/sections`  *(admin)*
+- Returns **all** sections — active and inactive — sorted by `sortOrder`. This is what the admin UI uses; it is deliberately separate from the public endpoint above.
+- Response: `{ sections: [{ id, key, label, prefix, color, sortOrder, isActive }] }`
 
 ### `POST /api/admin/sections`  *(admin)*
 - Body: `{ key, label, prefix, color }`
@@ -145,6 +164,8 @@ Ordered by name. Used for the goal assignment picker.
 - Body (any subset): `{ label, prefix, color, sortOrder, isActive }`
 - Same format validations as create. Prefix uniqueness checked (`409`).
 - `404` if not found (`P2025`). Response: `{ section }`
+
+> **Note:** uniqueness of both `key` and `prefix` is enforced by a read-before-write pre-check, not by a database constraint. It is correct under normal use, but a genuinely concurrent double-submit can slip past it and surface a `500`. `key` additionally carries a real `@unique` constraint in the schema.
 
 ### `DELETE /api/admin/sections/[id]` *(admin)*
 - **Soft delete**: sets `isActive: false`. Response: `{ section }`
@@ -168,7 +189,9 @@ Ordered by name. Used for the goal assignment picker.
 - Response 201: `{ month, carriedOver }`
 
 ### `DELETE /api/months/[id]` *(admin)*
-- Deletes the month (cascades to its goals). `404` on `P2025`. Response: `{ success: true }`
+- **Archives, it does not delete.** Sets `isArchived: true`; goals, steps, comments and archives stay intact and the month remains browsable in the archive report. Nothing is cascaded away.
+- Idempotent: re-archiving an already-archived month succeeds as a no-op.
+- `404` if the month does not exist. Response: `{ success: true, archived: true }`
 
 ---
 
@@ -228,11 +251,14 @@ Query params (all optional): `monthId`, `section`, `since` (ISO date → filters
 - Body: `{ text (≤500), order? }`. Notifies goal assignees (`STEP_ADDED`, excludes actor). Response **201**: `{ step }`
 
 ### `PUT /api/steps/[stepId]`
-- Body (any subset): `{ text?, done?, order? }` (text ≤500, `order` ≥0 int).
-- Section check via the step's parent goal. `404` if step missing. Response: `{ step }`
+- Body (any subset): `{ text?, done?, order? }` (text ≤500, `order` ≥0 int). At least one field required, else `400`.
+- **Two different capabilities gate this endpoint**, resolved from the step's parent goal:
+  - editing `text` or `order` requires **`canEdit`** → `403` otherwise
+  - toggling `done` only requires **`canCheck`** → `403` otherwise
+- `404` if step missing. Response: `{ step }`
 
 ### `DELETE /api/steps/[stepId]`
-- Section check via the parent goal. Response: `{ ok: true }`
+- Section check plus **`canEdit`** on the parent goal; `403` without it. Response: `{ ok: true }`
 
 ---
 
@@ -242,9 +268,9 @@ Query params (all optional): `monthId`, `section`, `since` (ISO date → filters
 - Response: `{ assignments: [{ userId, name, pfp, canCheck, canEdit }] }`
 
 ### `PUT /api/goals/[id]/assignments` *(admin)*
-- Body: `{ assignments: [{ userId, canCheck?, canEdit? }] }`
-- **Replaces all assignments** for the goal in a transaction. `canCheck` defaults true, `canEdit` defaults false.
-- Validates users exist, else `400`. Response: `{ success: true }`
+- Body: `{ assignments: [{ userId, canCheck, canEdit }] }`
+- **`canCheck` and `canEdit` are both required and must be real booleans** — they are never defaulted. Omitting one (or sending a non-boolean) fails the whole request with `400 "canCheck and canEdit must be booleans for each assignment"`. Send both explicitly for every entry.
+- **Replaces all assignments** for the goal in a transaction. Validates users exist, else `400`. Response: `{ success: true }`
 
 ---
 
@@ -322,7 +348,7 @@ Delta-polling endpoint for realtime clients. Query params (optional): `since=<IS
 
 ### `POST /api/admin/users/create`
 - Body: `{ name, email, password, role?, sections?, permissions?, pfp?, bio? }`
-- Email regex validated; password min 6; `409` if email exists.
+- Email regex validated; password must satisfy the shared policy (min 8, max 200, max 72 bytes, not commonly breached); `409` if email exists.
 - Permissions: only `PERMISSION_KEYS` booleans accepted, defaulted from `DEFAULT_PERMISSIONS`.
 - Sections uppercased, deduped, must be valid (`getSectionKeys()`); invalid ones silently dropped.
 - Response 201: `{ user: { id, name, email, role, pfp, bio, permissions, sections } }`
@@ -352,12 +378,20 @@ Delta-polling endpoint for realtime clients. Query params (optional): `since=<IS
 ## Admin: Approvals
 
 ### `GET /api/admin/approvals`
-- PENDING approvals, newest first. Response: `{ approvals: [{ id, name, email, section, pfp, status, createdAt, updatedAt }] }`
+- Query param (optional): `?includeStale=1`.
+  - **Default:** PENDING approvals only, newest first — the actionable queue.
+  - **`?includeStale=1`:** every status (PENDING, APPROVED, REJECTED), newest first — this is what backs the admin UI's "Previous Requests" card.
+- Response: `{ approvals: [{ id, name, email, section, pfp, status, createdAt, updatedAt }] }`
 
 ### `PUT /api/admin/approvals`
 - Body: `{ id, action: "approve" | "reject" }` (`400` otherwise; `404` if not PENDING).
 - **approve:** in a transaction creates a `MEMBER` user (default section pfp via `getDefaultPfp(section)` if none), adds their `UserSection`, marks the approval `APPROVED`. `409` on duplicate email (`P2002`). Notifies the new member (`MEMBER_JOINED`) and admins.
 - **reject:** marks the approval `REJECTED`; notifies admins (`SIGNUP_REJECTED`).
+
+### `DELETE /api/admin/approvals`  *(the only way to clear a stale request)*
+- Body: `{ id }`. Deletes the approval row outright.
+- **Why this exists:** registration is strictly create-only, so once any row exists for an email — pending, rejected, *or* already approved — further signups for that address return `409` forever. Deleting the stale row is what lets that person legitimately try again. Without it, a rejected applicant can never re-register.
+- A `404` (`P2025`) if the id does not exist. Response: `{ success: true }`
 
 ---
 
@@ -389,9 +423,15 @@ on which writer stored them — normalize with `JSON.parse` when the value is a 
 - `404` if missing or soft-deleted. Response: `{ table }`.
 
 ### `PATCH /api/tables/[id]`
-- Write-checked (`canWriteTable`). Body: any subset of `{ name?, color?, isDateBased?, cells?, stickers? }` (empty body → `400`).
+- Write-checked (`canWriteTable`). Body: **any subset of `{ name?, color?, isDateBased?, cells?, stickers? }`, plus a mandatory `expectedUpdatedAt`** (empty body → `400`).
+- **`expectedUpdatedAt` is required, not optional.** It is the `updatedAt` value from the revision the client loaded, and it is what makes concurrent edits safe. Omitting it or sending an unparseable value fails with `400 "Missing or invalid updatedAt (CAS token)"` — a blind write is refused rather than guessed at, because it would silently clobber a peer's work.
 - `cells`: `{ cols: number, rows: GridCell[][] }`; rejected with `400` if `rows.length > 200` or `cols > 200` (`MAX_GRID_SIZE`). `stickers`: array of `{ id, sprite, x, y, w?, locked?, mirrored?, state? }`.
-- Response: `{ table: { id, section, name, color, isDateBased, createdById, createdAt, updatedAt } }`.
+- **On a stale write, returns `409`:**
+```json
+{ "conflict": true, "table": { "id": "…", "updatedAt": "…", "…": "current server state" } }
+```
+  The client must **rebase** — merge its live edits on top of the returned document — and retry with the new `updatedAt`. Overwriting the returned row instead will just conflict again.
+- On success, response: `{ table: { id, section, name, color, isDateBased, createdById, createdAt, updatedAt } }` with a freshly bumped `updatedAt` to use as the next CAS token.
 
 ### `DELETE /api/tables/[id]`
 - Soft-delete (`deletedAt` set). Allowed for **ADMIN, the creator, or any section writer**.
@@ -416,7 +456,14 @@ storage. All routes require auth (`src/app/api/drawers/**`, logic in `src/lib/dr
 - Responses: `{ ok: true }` and/or the updated tree.
 
 ### `GET /api/drawers/files/[id]`
-- Returns a stored workspace file (the assembled blob): `{ id, sectionKey, projectId, envelopeId?, itemId, name, mime, size, data (base64), createdBy }`. Scoped to the caller's sections.
+- **The one non-JSON endpoint in the API.** Returns the stored blob as **raw bytes**, not a JSON envelope and not base64. Streaming the bytes keeps large files clear of the platform's JSON body cap.
+- Scoped to the caller's sections. A caller who may not access the file's section gets `404`, not `403`, so the response is indistinguishable from a missing id.
+- Headers:
+  - `Content-Type` — the stored mime **only if the bytes re-sniff to a known-safe non-executable image** (`jpeg`, `png`, `gif`, `webp`); otherwise `application/octet-stream`. The stored mime is never trusted; the server decides from the actual bytes.
+  - `Content-Disposition` — `inline` for safe images, otherwise `attachment; filename="drawer-file.bin"`. **The stored filename is never echoed** — it is client-supplied and could inject CRLF into the header. Previews still work because the client builds an object URL from a `Blob` over `fetch`.
+  - `X-Content-Type-Options: nosniff` — always.
+  - `Cache-Control: private, max-age=3600`, `Content-Length`.
+- Anything scriptable or document-like (HTML, SVG, XML, or bytes merely *declared* as an image) is forced to download, so drawer bytes are never rendered as a document at the app's own origin.
 
 ---
 
@@ -424,8 +471,9 @@ storage. All routes require auth (`src/app/api/drawers/**`, logic in `src/lib/dr
 
 - **Section-scoping is enforced server-side** against live DB data (`getUserContext`), never the JWT snapshot.
 - **Admins are DB-reverified** on every admin route (`requireAdmin`).
-- **Rate limiting** is a Turso sliding window on the `rate_limit_events` table, shared across Vercel instances. In local dev (no `DATABASE_URL`) it falls back to an in-memory Map.
-- **No filesystem uploads**: avatars/signup photos travel as base64 data URIs stored in the `User.pfp` / `Approval.pfp` columns. Drawer files are stored as base64/bytes **in the DB** via chunked uploads.
+- **Rate limiting** is a Turso sliding window on the `rate_limit_events` table, shared across Vercel instances. It is **fail-closed**: if Turso errors, the request falls through to a bounded in-memory counter rather than being allowed. In local dev (no `DATABASE_URL`) that in-memory counter is the only store.
+- **Per-account limits are keyed on a SHA-256 hash** of the normalized email, so the shared table never holds a plaintext address. The per-IP layer reads only the header named by `TRUSTED_IP_HEADER`; unset, every caller shares one bucket.
+- **No filesystem uploads**: avatars/signup photos travel as base64 data URIs stored in the `User.pfp` / `Approval.pfp` columns. Drawer files are stored as raw bytes **in the DB** via chunked uploads, and served back as raw bytes.
 - **Tables & drawers are section-scoped server-side** like goals; JSON columns (`cells`, `stickers`, `tree`) must be normalized (string-or-parsed) before use.
 - All route handlers log errors with a `[PREFIX]` tag (e.g. `[GOALS_POST]`, `[REGISTER]`).
 - Prisma error codes handled: `P2025` → 404 (not found), `P2002` → 409 (unique constraint).

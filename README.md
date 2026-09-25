@@ -7,14 +7,16 @@
     <img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma" alt="Prisma 7" />
     <img src="https://img.shields.io/badge/database-Turso-4FB8FF?style=flat-square" alt="Turso Database" />
     <img src="https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4" />
-    <img src="https://img.shields.io/badge/version-0.7.0-blue?style=flat-square" alt="Version 0.7.0" />
+    <img src="https://img.shields.io/badge/version-0.7.1-blue?style=flat-square" alt="Version 0.7.1" />
     <img src="https://img.shields.io/badge/PWA-ready-green?style=flat-square" alt="PWA Ready" />
   </p>
 </div>
 
-## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.7.0
+## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.7.1
 
-**One-Time Login & Password Toggle** — sign in once and stay signed in: a long-lived per-device refresh token silently re-issues the session on every visit, already-authenticated users are redirected straight to `/dashboard`, and every password field now has a show/hide toggle.
+**Breach-Ready: The Nine Hardening Fixes** — closes a rate-limit bypass, a login timing oracle, and a CSRF `Origin: null` bypass; rotates refresh tokens so a stolen one works only once; fixes stored XSS via drawer files and lost updates on team tables. 194 tests, up from 126.
+
+Requires a one-time additive production migration — see [docs/developer-guide.md](docs/developer-guide.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for full details.
 
@@ -95,17 +97,27 @@ cp .env.example .env
 | `NEXT_PUBLIC_SITE_URL` | Yes | Your deployed URL (e.g. `https://catarina-yourteam.vercel.app`) |
 | `DATABASE_URL` | Yes | Turso `libsql://` connection string |
 | `TURSO_AUTH_TOKEN` | Yes | Turso auth token |
-| `JWT_SECRET` | Yes | Random string for signing session tokens |
+| `JWT_SECRET` | Yes | Random string for signing session tokens (32+ chars) |
+| `TRUSTED_IP_HEADER` | Recommended | The request header your proxy overwrites with the real client IP, e.g. `x-forwarded-for` on Vercel. Only this header is read for rate-limit keying. Unset means every visitor shares one IP bucket, which is safe but blunt. |
+
+> **On Vercel**, set `TRUSTED_IP_HEADER=x-forwarded-for`. Leaving it unset does not break anything, but all visitors collapse into a single rate-limit bucket.
 
 ---
 
-### <img src="public/rina/excited.webp" width="60" align="center" /> Step 4: Push Schema & Seed Data
+### <img src="public/rina/excited.webp" width="60" align="center" /> Step 4: Create the Schema & Seed Data
+
+> **Catarina has two databases.** The app talks to Turso at runtime, but the Prisma CLI is pinned to a local `dev.db` (`prisma.config.ts`) and **cannot reach Turso**. Schema changes must be applied to each separately.
 
 ```bash
-# Push schema to Turso (Prisma CLI uses local SQLite — this pushes to the remote DB)
+# 1. Local dev.db — used by the Prisma CLI and by `npm run dev` tooling
 npx prisma db push --env-file=.env
 
-# Seed default sections, admin user, and demo goals
+# 2. Turso — apply the schema as SQL. The Prisma CLI cannot do this.
+#    See docs/developer-guide.md for the two-database workflow.
+
+# 3. Seed default sections, admin user, and demo goals.
+#    This DOES write to Turso, and it DELETES existing rows first —
+#    never run it against a database you care about.
 npm run db:seed
 ```
 
@@ -114,7 +126,7 @@ This creates:
 - 1 admin user (`admin@team.com` / `admin123`)
 - Current month with 4 demo goals
 
-> **First time?** You can also run `npm run db:setup` which does both steps above.
+> **First time?** `npm run db:setup` runs steps 1 and 3 for you. It still does not create the Turso schema.
 
 ---
 
@@ -217,7 +229,7 @@ A dedicated tools hub at `/tools`. **Drawers** gives every section a shared clou
 | **Language** | [TypeScript](https://www.typescriptlang.org) 5.x | Type safety |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com) 4.x | Utility-first CSS |
 | **Database** | [Turso](https://turso.tech) (libSQL) | Distributed SQLite edge database |
-| **ORM** | [Prisma](https://prisma.io) 7.x | Schema migrations & type-safe queries |
+| **ORM** | [Prisma](https://prisma.io) 7.x | Type-safe queries (CLI migrations are local-only; production is changed with SQL) |
 | **Auth** | [jose](https://github.com/panva/jose) + [bcryptjs](https://github.com/nicolo-ribaudo/bcryptjs) | Stateless sessions & hashed passwords |
 | **Rate Limiting** | [Turso](https://turso.tech) (libSQL) | Shared sliding-window over `rate_limit_events` table |
 | **Animations** | [Framer Motion](https://www.framer.com/motion/) 12.x | Route transitions & UI animations |
@@ -234,13 +246,14 @@ A dedicated tools hub at `/tools`. **Drawers** gives every section a shared clou
 | **Build** | `npm run build` | Production build |
 | **Start** | `npm run start` | Start production server |
 | **Lint** | `npm run lint` | Run ESLint |
-| **Test** | `npm run test` | Run the unit test suite (goal merging, permissions, helpers) |
-| **Setup DB** | `npm run db:setup` | First-time: push schema + seed |
-| **Seed DB** | `npm run db:seed` | Seed default sections, admin, and demo goals |
-| **Reset DB** | `npm run db:reset` | Wipe database and re-seed from scratch |
-| **Push Schema** | `npm run db:push` | Push schema changes to Turso |
+| **Test** | `npm test` | Run the unit test suite (194 tests: security policies, permissions, rate limits, helpers) |
+| **Setup DB** | `npm run db:setup` | First-time: push local schema + seed |
+| **Seed DB** | `npm run db:seed` | Seed sections, admin, and demo goals. **Deletes existing rows first** |
+| **Reset DB** | `npm run db:reset` | Wipe and re-seed from scratch |
+| **Push Schema** | `npm run db:push` | Push schema to the **local** `dev.db` only — never Turso |
 | **Migrate (dev)** | `npm run db:migrate` | Create a new migration file (local dev only) |
-| **Migration Status** | `npm run db:status` | Show which migrations are pending |
+| **Migration Status** | `npm run db:status` | Show which local migrations are applied |
+| **Seed Tables** | `npm run db:seed-tables` | **Destructive:** deletes every team table and writes showcase grids to Turso |
 | **Prisma Studio** | `npm run db:studio` | Open database browser |
 
 ---

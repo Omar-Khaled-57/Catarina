@@ -98,7 +98,9 @@ export async function POST(request: NextRequest) {
 
   /* Drawer mutations write to the shared Turso store (chunked uploads can fill
      it), so here too the app's shared-window limiter applies — keyed per user,
-     never tripped by a serial client queue, fail-open like every other route. */
+     never tripped by a serial client queue, and fail-closed like every other
+     route: a Turso error degrades to the in-memory backstop rather than
+     allowing the request. */
   const rateLimit = await checkRateLimit(`drawer-mutate:${auth.data.id}`, 240, 60_000);
   if (rateLimit.limited) {
     return jsonError("Too many drawer actions — please slow down.", 429);

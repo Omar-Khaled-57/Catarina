@@ -20,10 +20,10 @@ model User {
   email     String   @unique
   password  String   // bcrypt hash
   role      String   @default("MEMBER") // ADMIN | MEMBER
-  pfp       String?  // Profile picture path (e.g. /uploads/xxx.gif)
+  pfp       String?  // Uploaded picture as a data URI ("data:image/png;base64,…"); a section default is a "/pfps/xxx.gif" path
   bio       String?  // Short bio / line (nullable)
   primarySection String? // Admin-only: which section to highlight on dashboard
-  permissions String   @default("{}") // JSON: { canCreateGoals, canEditGoals, canDeleteGoals, canManageMembers, canCreateMonths }
+  permissions String   @default("{}") // JSON: { canCreateGoals, canEditGoals, canDeleteGoals, canManageMembers, canCreateMonths, canManageTables }
   welcomeSeen      Boolean  @default(false) // Show celebration modal on first login
   lastSeenVersion  String   @default("0.3.2") // Last seen app version for update celebrations
   createdAt DateTime @default(now())
@@ -311,8 +311,9 @@ model DrawerSection {
 // server-side into a single WorkspaceFile BLOB. The drawer tree only keeps a
 // `file://<id>` reference, so the shared JSON stays small on every read.
 // Accessed through the raw @libsql/client at runtime (like rate_limit_events);
-// Prisma just owns the DDL so both `migrate dev` (local) and `db push` (Turso)
-// create the tables.
+// Prisma owns the DDL for the LOCAL database only. The Prisma CLI is pinned to
+// `file:./dev.db` (see prisma.config.ts) and can never reach Turso — production
+// schema changes must be applied as SQL (see docs/developer-guide.md).
 model WorkspaceUpload {
   id          String  @id // uploadId (crypto.randomUUID)
   sectionKey  String // owning section (runtime SQL inserts/selects it; keep in sync)

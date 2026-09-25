@@ -24,7 +24,7 @@ Month ──1:N──▶ Archive
 SectionConfig (standalone)
 Approval (standalone)
 RateLimitEvent (standalone, append-only, sweeped)
-RefreshToken (per-device session, hashed value, never expires)
+RefreshToken (per-device session; hashed, single-use, rotates; 30-day family ceiling)
 TeamTable (standalone per section; soft-deletable)
 DrawerSection (standalone; one JSON tree per section)
 WorkspaceUpload / WorkspaceUploadChunk / WorkspaceFile (chunked file storage)
@@ -90,7 +90,7 @@ AppConfig (standalone key/value — currently unused)
 | `createdAt` / `updatedAt` | DateTime | — |
 
 - Unique constraint: `[year, month]`. `409` on duplicate when creating via `POST /api/months/create`.
-- Deleting a month cascades to its goals.
+- **"Deleting" a month is a soft archive:** `DELETE /api/months/[id]` sets `isArchived: true` and nothing else. Goals, steps, comments and archives are left intact and the month stays browsable in the archive report, so the `monthId` cascade below only ever fires if a row is genuinely removed from the database.
 
 ### `Goal`
 | Column | Type | Default | Notes |
@@ -179,12 +179,13 @@ AppConfig (standalone key/value — currently unused)
 | Column | Type | Notes |
 |---|---|---|
 | `id` | String (randomUUID) | Primary key |
-| `key` | String | Rate-limit key: `"login:1.2.3.4"`, `"register:1.2.3.4"`, `"upload:1.2.3.4"`, `"profile:password:u_xxx"` |
+| `key` | String | Rate-limit key: `"login:1.2.3.4"`, `"login:acct:<sha256(email)>"`, `"register:1.2.3.4"`, `"upload:1.2.3.4"`, `"profile:password:u_xxx"` |
 | `ts` | BigInt | Epoch milliseconds |
 
 - Indexed on `[key, ts]`, `[ts]`. Append-only. Rows are **swept** by `src/lib/rateLimit.ts`:
   - Per-key: events older than `now - windowMs` are deleted on every check.
-  - Global sweep: events older than `now - 10 min` (the `SWEEP_MARGIN_MS`, chosen to exceed the longest window, which is 5 min for register) are deleted at most once per minute per instance.
+  - Global sweep: events older than `now - 20 min` (the `SWEEP_MARGIN_MS`) are deleted at most once per minute per instance, across all keys.
+- **The 20-minute margin is an invariant, not a preference.** It must exceed the longest window any caller uses *plus* clock skew between serverless instances, or the sweep would delete events belonging to a live window. The longest window today is login's per-account layer at **15 minutes**, so the margin carries 5 minutes of skew headroom. `rateLimit.test.ts` asserts `SWEEP_MARGIN_MS > 15 min` and exercises 12-minute-old in-window events, so lowering the margin below the longest window fails the suite.
 
 ### `RefreshToken`
 | Column | Type | Default | Notes |
@@ -192,12 +193,17 @@ AppConfig (standalone key/value — currently unused)
 | `id` | String (cuid) | auto | Primary key |
 | `userId` | String | — | FK → `User.id` (cascade delete) |
 | `tokenHash` | String | — | **sha256** of the raw token value (unique) — the DB never stores the raw token |
-| `revoked` | Boolean | false | Set `true` by logout |
+| `familyId` | String | — | Groups every token descended from one login. Revoking a family logs out all of its descendants at once. Indexed |
+| `usedAt` | DateTime? | null | Set when the token is spent by a refresh. A second presentation of a used token is treated as theft and revokes the family |
+| `expiresAt` | DateTime | — | Hard 30-day ceiling for the **family**, fixed at first login. Refreshing never extends it |
+| `revoked` | Boolean | false | Set `true` by logout or by reuse detection |
 | `createdAt` | DateTime | now | — |
 
-- Indexed on `userId`, `revoked`. Written by `src/lib/refreshToken.ts` (`generateRefreshToken` / `verifyRefreshToken` / `revokeRefreshToken`).
-- Backs the **persistent one-time login**: one row per successful login (per device), held by the client in `localStorage["catarina-refresh"]`. The short-lived session cookie expires independently; `POST /api/auth/refresh` exchanges a valid (non-revoked) token for a fresh cookie.
-- Tokens **never expire by design** — only logout or user deletion invalidates them. A leaked DB dump exposes hashes only, unusable directly.
+- Indexed on `userId`, `revoked`, and `familyId`. Written by `src/lib/refreshToken.ts` (`generateRefreshToken` / `rotateRefreshToken` / `revokeRefreshToken`); the decisions live in `src/lib/refreshPolicy.ts` and are unit-tested there.
+- Backs the **persistent login**: one row per successful login (per device), held by the client in `localStorage["catarina-refresh"]`. The short-lived session cookie expires independently; `POST /api/auth/refresh` exchanges a valid token for a fresh cookie **and a replacement token**.
+- **Tokens are single-use and rotate.** Each refresh marks the presented token spent and issues a successor in the same family. Presenting an already-spent token means the token leaked, so the entire family is revoked.
+- **Tokens do expire** — 30 days after the original login, regardless of use. Logout, reuse detection, and user deletion also invalidate them.
+- A leaked DB dump exposes only sha256 hashes, which are not directly usable.
 
 ### `TeamTable`
 | Column | Type | Default | Notes |
@@ -293,18 +299,23 @@ AppConfig (standalone key/value — currently unused)
 
 ### Seed script
 
-`prisma/seed.ts` (run via `npm run db:seed` or `npm run db:setup`):
-1. Wipes **all tables** (goalAssignment, step, notification, comment, goal, archive, month, userSection, sectionConfig, user, approval).
+`prisma/seed.ts` (run via `npm run db:seed` or `npm run db:setup`). It builds its own client from `DATABASE_URL`, so it **writes to Turso**, not to the local `dev.db`.
+1. Deletes every row from these 11 tables, in this order: `goalAssignment`, `step`, `notification`, `comment`, `goal`, `archive`, `month`, `userSection`, `sectionConfig`, `user`, `approval`.
 2. Creates the 4 default `SectionConfig` rows.
 3. Creates one `ADMIN` user (`admin@team.com` / `admin123`) assigned to all sections, with `primarySection: "MANAGEMENT"`.
 4. Creates the current month and one demo goal per section (all by the admin, `deadlineSetByAdmin: true`, deadline = 28th of the current month).
 
-> ⚠️ The seed wipes all data. Use `db:reset` only in development.
+> ⚠️ **The seed is destructive, and it is not a full wipe.** It empties the 11 tables listed above, but it **leaves `TeamTable`, `DrawerSection`, `WorkspaceUpload`/`WorkspaceUploadChunk`/`WorkspaceFile`, `AppConfig`, `RefreshToken`, and `rate_limit_events` untouched**. So after re-seeding you get brand-new user and goal IDs while team tables and drawer files still reference the old ones. Use `db:reset` / `db:seed` in development only.
 
-### Table-tool seed (dev only)
+### Table-tool seed (two different scripts)
 
-`dev/seed-tables.mjs` (gitignored, dev-only) seeds a few **mock tables** into Turso for local
-testing of the Team Tables tool — idempotent, run with `node --env-file=.env dev/seed-tables.mjs`.
+There are **two** ways to seed team tables, and they are not interchangeable:
+
+| Script | Command | Effect on Turso |
+|---|---|---|
+| `prisma/seed-tables.ts` (**tracked**) | `npm run db:seed-tables` | **Destructive** — deletes every `TeamTable` row, then writes showcase grids. Never run against data you want to keep |
+| `dev/seed-tables.mjs` (gitignored, dev-only) | `node --env-file=.env dev/seed-tables.mjs` | Idempotent; seeds a few mock tables for local testing |
+
 `prisma/seed.ts` does **not** create tables.
 
 ---

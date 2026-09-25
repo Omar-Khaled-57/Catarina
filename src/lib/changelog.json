@@ -399,9 +399,51 @@
     "icon": "⬆️",
     "text": "Dependencies — Next.js patched to 16.3.6, clearing the critical unauthenticated RCE plus the sharp/libvips, postcss and nanoid advisories. Prisma stays 7.x (the audit's suggested 'fix' was only a downgrade)."
    },
+    {
+     "icon": "🔍",
+     "text": "Audited every route and input — no untrusted data reaches eval, no origin bypasses the guard, and hashed refresh tokens plus HttpOnly cookies and granular per-section permissions hold the line."
+    }
+   ]
+  },
+ "0.7.1": {
+  "type": "minor",
+  "title": "Breach-Ready: The Nine Hardening Fixes",
+  "entries": [
    {
-    "icon": "🔍",
-    "text": "Audited every route and input — no untrusted data reaches eval, no origin bypasses the guard, and hashed refresh tokens plus HttpOnly cookies and granular per-section permissions hold the line."
+    "icon": "🛡️",
+    "text": "Rate-limit bypass closed — login is capped at 10 attempts/15min per account on top of 10/min per IP, register at 3/5min per account and per IP, and a forged IP header can no longer hand you a fresh bucket. That 15 minutes is now genuinely enforced too, not quietly cut short."
+   },
+   {
+    "icon": "🧲",
+    "text": "The limiter no longer fails open — if the database hiccups, requests fall back to a bounded in-memory counter instead of sailing through."
+   },
+   {
+    "icon": "⏱️",
+    "text": "Login no longer leaks which emails exist — every attempt costs exactly one password comparison, so response time can't be used to enumerate accounts."
+   },
+   {
+    "icon": "🔒",
+    "text": "A null Origin can no longer slip past the CSRF guard — any origin that is present but invalid is rejected instead of trusted."
+   },
+   {
+    "icon": "🔑",
+    "text": "Refresh tokens now rotate and work once — a stolen token is good for a single refresh before it is burned, reuse signs the whole session family out, and every family ends 30 days after sign-in."
+   },
+   {
+    "icon": "🗂️",
+    "text": "Uploaded drawer files can no longer run as pages — whether a file previews inline is decided by its actual bytes, never by its name or declared type, and everything else downloads with sniffing disabled."
+   },
+   {
+    "icon": "🧮",
+    "text": "Team tables stopped eating each other's edits — two people editing the same table now get asked to merge instead of one silently overwriting the other."
+   },
+   {
+    "icon": "👤",
+    "text": "Signing up can no longer take over an existing account — a repeat signup is refused with one uniform message, and admins can clear an old request so that person can try again."
+   },
+   {
+    "icon": "🔤",
+    "text": "Passwords need 8+ characters and can't be one of the usual leaked ones — checked whenever you set a new password, so nobody with an older password is locked out."
    }
   ]
  }

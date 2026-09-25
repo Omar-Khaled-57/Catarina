@@ -18,12 +18,16 @@ for depth; this file is the fast map.
    (`src/lib/constants.ts`) or admin user create/update silently drops them.
 5. **`NOTIFICATION_TYPES` is the canonical set.** New notification types: add the constant AND cover
    the frontend maps in `NotificationPanel.tsx` (`TYPE_ICON` / `TYPE_COLOR` / `TYPE_IMAGE` / `IMAGE_SIZES`).
-6. **Uploads are base64 data URIs, never filesystem writes** (Vercel-safe). Pfps are stored in DB.
+6. **Never write to the filesystem at runtime** (Vercel's filesystem is read-only). Pfps and signup
+   photos travel as base64 data URIs stored in DB columns. Drawer files are stored as raw BLOB
+   bytes in Turso via chunked upload and served back as raw bytes.
 7. **Follow the existing API pattern** — `requireUser()`/`requireAdmin()`/`jsonError()` from
    `src/lib/api-helpers.ts`; sanitize inputs; log with a `[TAG]` prefix.
-8. **Version bumping** touches four places: `package.json` (version), `src/lib/changelog.json`
-   (user-facing entries), `README.md` (badge), and `src/components/Footer.tsx` (footer version chip).
-   `src/app/api/auth/me/route.ts` + the update modal read the changelog at runtime.
+8. **Version bumping** touches five places: `package.json` + `package-lock.json` (version),
+   `src/lib/changelog.json` (user-facing entries — **required**, or the in-app update modal shows a
+   generic fallback), `CHANGELOG.md`, `README.md` (badge + latest-release block), and
+   `src/components/Footer.tsx` (footer version chip). `src/app/api/auth/me/route.ts` + the update
+   modal read the changelog at runtime.
 9. **Do not edit `src/generated/prisma/`** — it's generated output.
 10. **Do not touch `plan/`, `dev/`, or `/docs` history** unless asked. `dev/` is ESLint-ignored
     and fully gitignored (nothing in it is committed) and holds private notes.
@@ -36,16 +40,24 @@ for depth; this file is the fast map.
 prisma/
   schema.prisma           The data model (the source of truth)
   migrations/             SQL migration files (CLI-generated, local dev.db)
-  seed.ts                 Wipes DB, seeds 4 sections + admin + demo month
+  seed.ts                 Deletes 11 tables in Turso, seeds 4 sections + admin + demo month
 prisma.config.ts          CLI database config (local dev.db ONLY)
 src/
-  proxy.ts                Edge auth guard for /dashboard/:path* (JWT verify)
+  proxy.ts                Edge guard: JWT auth for /dashboard/* and /tools/*, plus
+                          same-origin CSRF check on every mutating /api/* request
   types/index.ts          Shared TS types + FALLBACK_SECTIONS
   lib/                    Shared helpers (no client code — server-safe)
     api-helpers.ts        requireUser/requireAdmin/requireGoalAccess + sanitizers
     auth.server.ts        JWT sign/verify + HttpOnly cookie (server-only imports)
     auth-session.ts       buildAuthUser — shared user shape for login/me/refresh
-    refreshToken.ts       Long-lived per-device refresh tokens (hash/verify/revoke)
+    refreshToken.ts       Rotating single-use refresh tokens (generate/rotate/revoke family)
+    refreshPolicy.ts      Pure refresh decisions: expiry, reuse detection, family ceiling
+    loginPolicy.ts        Timing-equalized credential verification (always one bcrypt compare)
+    originGuard.ts        Origin classification for the edge CSRF guard; fails closed
+    passwordPolicy.ts     Length/byte caps + common-password blocklist (isomorphic)
+    rateLimitPolicy.ts    IP resolution, account hashing, key builders
+    publicSection.ts      Field projection for the unauthenticated /api/sections
+    registrationPolicy.ts Create-only signup decision (pending/stale/existing conflicts)
     auth.ts               Client-safe section constants (SECTIONS, SECTION_LABELS,
                           SECTION_COLORS — derived from FALLBACK_SECTIONS)
     constants.ts          Roles, cookie name, NOTIFICATION_TYPES, PERMISSION_KEYS
@@ -187,7 +199,10 @@ section-scope 403 · 429 rate-limited.
 - Month carry-over preserves `current/target/deadline`, marks `carriedOver=true`,
   `deadlineSetByAdmin=true`, new ids + fresh goalNumber.
 - Welcome notification "Why Catarina? 🌸" is enforced (pinned, audio).
-- Rate-limiter sweep margin (10 min) must exceed the longest window (5 min register).
+- Rate-limiter sweep margin must exceed the longest window plus clock skew. The longest window is
+  login's per-account layer at **15 min**, and `SWEEP_MARGIN_MS` is **20 min**. This is enforced by
+  `rateLimit.test.ts` — widen a window without raising the margin and the suite fails.
+- The limiter **fails closed** on Turso errors (bounded in-memory backstop), never open.
 - `JWT_SECRET` missing → server throws at import (`auth.server.ts`).
 - The seeded admin (`admin@team.com`) should exist in every fresh environment.
 

@@ -66,7 +66,7 @@ Open your avatar menu → **Admin** (admins only):
 - **Users** — list, create users directly, edit name/email/bio/photo, assign sections, set permissions, update role (promote/demote), delete users.
   - A member can't demote themselves, and the last admin can't be demoted.
   - Deleting a user who owns goals is blocked unless those goals are reassigned/deleted first (data-loss guard).
-- **Approvals** — approve or reject pending signup requests.
+- **Approvals** — approve or reject pending signup requests, and review **Previous Requests** (already approved or rejected). Because a signup request can never overwrite an existing account, a rejected person is blocked from re-registering until you delete their old request from that list — that's the only way they can sign up again.
 - **Sections** — create/edit/drop sections (key, label, color, goal prefix). The prefix must look like `MRK-`.
 
 ## The Cabinet (`/tools`)
@@ -79,7 +79,7 @@ Each section owns a **chest**; open it and every project pulls out like a drawer
 
 - **Chest → project → envelope/file** — projects hold *envelopes* (for the fiddly sub-things) and *loose files* (notes, links, code, images, videos) riding on top.
 - **Everything syncs instantly** — the whole team sees the same drawer you just closed; there's no "save" button.
-- **Add anything** — upload a file, paste a link, scratch a note. Large files are uploaded in chunks and reassembled automatically, so size isn't a worry.
+- **Add anything** — upload a file, paste a link, scratch a note. Large files are uploaded in 3 MB chunks and reassembled automatically, up to **300 MB per file**, with a **4 GB total** shared across every section (the store is bounded on purpose, so one section can't fill it).
 - **Deletes are permanent** — removing a drawer, envelope, or file purges it for everyone with no undo.
 
 ### Team Tables — free-form grids
@@ -99,5 +99,6 @@ Every section can keep as many **tables** as it likes. Anyone with the **Manage 
 ## Habits that keep data safe
 
 - Change the seeded admin password (`admin@team.com` / `admin123`) right after first login.
+- New passwords must be at least 8 characters and can't be a commonly-used one. This applies when you *set* a password — an older weak password keeps working, so nobody gets locked out.
 - Admins: assign members to sections before they can collaborate.
-- Don't delete a month with goals you still need — deleted goals are gone (admins get a confirmation prompt).
+- Removing a month only **archives** it — its goals, steps, and comments stay intact and remain browsable in the archive report, so there's no rush to keep anything "just in case."
