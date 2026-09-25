@@ -18,18 +18,19 @@ import { sniffImageType } from "@/lib/image";
  * type; anything else is served as a download (attachment). The client builds
  * object URLs from a Blob over fetch, so download disposition doesn't break
  * previews — it only stops the browser treating the re-served bytes as HTML. */
+/* Exactly the types `sniffImageType` can actually verify. Every entry here must
+ * have a matching magic-byte branch in @/lib/image — an entry without one is
+ * unreachable, because isSafeInline requires the sniffed type to equal the
+ * stored mime and treats a null sniff as a fail-closed download. Video, audio
+ * and PDF blobs are therefore deliberately absent: they have no sniffer yet, so
+ * they are served as downloads. Adding a type to this set WITHOUT adding its
+ * sniffer branch changes nothing except the reader's impression of what is
+ * allowed inline. */
 const SAFE_INLINE_MIME = new Set([
   "image/jpeg",
   "image/png",
   "image/gif",
   "image/webp",
-  "image/avif",
-  "video/mp4",
-  "video/webm",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "application/pdf", /* PDFs render in the viewer, not as a scriptable doc. */
 ]);
 
 /** True when a stored blob is safe to show inline at the app origin. Bytes are
@@ -39,8 +40,8 @@ function isSafeInline(file: { mime: string; data: Uint8Array }): boolean {
   if (!SAFE_INLINE_MIME.has(file.mime)) return false;
   const sniffed = sniffImageType(file.data);
   if (sniffed) return sniffed === file.mime; /* Image: bytes must match mime. */
-  /* Non-image media has no sniff helper yet — round-trip it as a download to
-     stay fail-closed rather than trust a client-declared video/audio/pdf. */
+  /* No sniffer branch matched → fail closed and hand it over as a download.
+     This is also the path every non-image type takes today. */
   return false;
 }
 

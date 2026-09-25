@@ -14,6 +14,7 @@ import { createToken } from "@/lib/auth.server";
 import { rotateRefreshToken } from "@/lib/refreshToken";
 import { buildAuthUser } from "@/lib/auth-session";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { ipRateLimitKey } from "@/lib/rateLimitPolicy";
 
 export async function POST(req: Request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
      * (10/min) so an attacker who can't brute the session cookie can't harvest
      * refresh tokens faster than they could brute a password. */
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`refresh:${ip}`, 10, 60_000);
+    const rateLimit = await checkRateLimit(ipRateLimitKey("refresh", ip), 10, 60_000);
     if (rateLimit.limited) {
       return NextResponse.json(
         { error: "Too many attempts. Please try again later." },

@@ -1,13 +1,22 @@
 // POST /api/auth/register — Request a new account (creates pending approval)
 // Account is NOT active until an admin approves it in the admin panel
 // Rate limited: 3 attempts per 5 minutes per IP
+//
+// A signup may only CREATE an approval row. An existing request — pending or
+// stale — blocks the email until an admin clears it; see @/lib/registrationPolicy
+// for why rewriting one is an account-takeover path.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSectionKeys } from "@/lib/sections";
 import { notifyAdmins } from "@/lib/notify";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { accountRateLimitKey, ipRateLimitKey } from "@/lib/rateLimitPolicy";
 import { asValidPassword } from "@/lib/api-helpers";
+import {
+  REGISTRATION_CONFLICT_MESSAGE,
+  decideRegistration,
+} from "@/lib/registrationPolicy";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_SIZE,
@@ -15,15 +24,14 @@ import {
 } from "@/lib/image";
 import bcrypt from "bcryptjs";
 
-/** Single, non-enumerating message for any already-taken email. */
-const EMAIL_CONFLICT = "This email address is already in use.";
-
 export async function POST(req: Request) {
   try {
-    /* Rate limit: 3 registration attempts per 5 minutes */
+    /* Rate limit: 3 registration attempts per 5 minutes, per IP AND per email.
+       The per-email layer is keyed on a hash, so one address can't be spammed
+       with requests from a rotating set of forged IPs. */
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`register:${ip}`, 3, 5 * 60_000);
-    if (rateLimit.limited) {
+    const ipLimit = await checkRateLimit(ipRateLimitKey("register", ip), 3, 5 * 60_000);
+    if (ipLimit.limited) {
       return NextResponse.json(
         { error: "Too many registration attempts. Please try again later." },
         { status: 429 }
@@ -40,6 +48,19 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "All fields are required" },
         { status: 400 }
+      );
+    }
+
+    /* Per-email cap, mirroring login: bounded even when the IP is untrusted. */
+    const emailLimit = await checkRateLimit(
+      accountRateLimitKey("register", email),
+      3,
+      5 * 60_000,
+    );
+    if (emailLimit.limited) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { status: 429 }
       );
     }
 
@@ -67,22 +88,33 @@ export async function POST(req: Request) {
       );
     }
 
-    /* Check if email is already registered as a user */
-    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } }) as {
-      id: string;
-    } | null;
-    if (existingUser) {
-      return NextResponse.json({ error: EMAIL_CONFLICT }, { status: 409 });
-    }
+    /* Single decision for every conflict (existing user, pending request, or a
+       stale request an admin must clear) — one message, so this endpoint can't
+       be used to enumerate accounts or probe approval state. Any pre-existing
+       approval row blocks the request outright: rewriting one would let a
+       stranger replace the stored name/password/section and be handed the
+       identity by a routine admin approval. */
+    const [existingUser, existingApproval] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      }),
+      prisma.approval.findUnique({
+        where: { email: normalizedEmail },
+        select: { status: true },
+      }),
+    ]);
 
-    /* Check if there's already a pending approval for this email */
-    const existingApproval = await prisma.approval.findUnique({
-      where: { email: normalizedEmail },
-      select: { status: true },
+    const decision = decideRegistration({
+      userExists: !!existingUser,
+      approvalStatus: (existingApproval?.status ?? null) as
+        | "PENDING"
+        | "REJECTED"
+        | "APPROVED"
+        | null,
     });
-    if (existingApproval && existingApproval.status === "PENDING") {
-      /* Same generic answer as the registered-user conflict — no enumeration */
-      return NextResponse.json({ error: EMAIL_CONFLICT }, { status: 409 });
+    if (!decision.ok) {
+      return NextResponse.json({ error: REGISTRATION_CONFLICT_MESSAGE }, { status: 409 });
     }
 
     let pfpDataUri: string | null = null;
@@ -113,24 +145,37 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(pw.password, 12);
 
-    /* Create or update the approval request */
-    const approval = await prisma.approval.upsert({
-      where: { email: normalizedEmail },
-      update: {
-        name,
-        password: hashedPassword,
-        section,
-        pfp: pfpDataUri,
-        status: "PENDING",
-      },
-      create: {
-        name,
-        email: normalizedEmail,
-        password: hashedPassword,
-        section,
-        pfp: pfpDataUri,
-      },
-    });
+    /* Create-only. An earlier version used an upsert whose `update:` branch
+       rewrote name/password/section/pfp on an existing (REJECTED) request,
+       which let an unauthenticated caller hijack a rejected applicant's
+       identity through a later admin approval. The decision above guarantees no
+       row exists, so create is the only correct write — and a concurrent race
+       that slips a row in between is caught as a unique-constraint conflict
+       below rather than overwriting it. */
+    let approval;
+    try {
+      approval = await prisma.approval.create({
+        data: {
+          name,
+          email: normalizedEmail,
+          password: hashedPassword,
+          section,
+          pfp: pfpDataUri,
+        },
+      });
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2002"
+      ) {
+        /* Lost the race against a concurrent signup for the same email — answer
+           exactly like every other conflict and never overwrite it. */
+        return NextResponse.json({ error: REGISTRATION_CONFLICT_MESSAGE }, { status: 409 });
+      }
+      throw error;
+    }
 
     /* Notify all admins about the new signup request */
     await notifyAdmins({

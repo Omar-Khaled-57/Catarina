@@ -50,10 +50,15 @@ export default function AdminView() {
   const [deleteUser, setDeleteUser] = useState<UserData | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [approvals, setApprovals] = useState<{ id: string; name: string; email: string; section: string; createdAt: string }[]>([]);
+  /* Rejected / already-approved requests still block re-registration until an
+     admin clears them, so they need a visible cleanup path. */
+  const [staleApprovals, setStaleApprovals] = useState<{ id: string; name: string; email: string; section: string; status: string; createdAt: string }[]>([]);
 
-  /* Fetch sections */
+  /* Fetch sections — the admin endpoint, because this page manages sections
+     and needs the full rows (id, sortOrder, isActive). The public
+     /api/sections projection deliberately omits them. */
   useEffect(() => {
-    fetch("/api/sections")
+    fetch("/api/admin/sections")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load sections");
         return res.json();
@@ -113,10 +118,12 @@ export default function AdminView() {
   const fetchApprovals = async () => {
     if (!isAdmin) return;
     try {
-      const res = await fetch("/api/admin/approvals");
+      const res = await fetch("/api/admin/approvals?includeStale=1");
       if (!res.ok) throw new Error("Failed to load approvals");
       const data = await res.json();
-      setApprovals(data.approvals || []);
+      const list = data.approvals || [];
+      setApprovals(list.filter((a: { status?: string }) => a.status === "PENDING"));
+      setStaleApprovals(list.filter((a: { status?: string }) => a.status !== "PENDING"));
     } catch { /* silent */ }
   };
 
@@ -142,7 +149,7 @@ export default function AdminView() {
     }
 
     if (sectionChanged) {
-      fetch("/api/sections")
+      fetch("/api/admin/sections")
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load sections");
           return res.json();
@@ -172,6 +179,26 @@ export default function AdminView() {
       } else {
         const data = await res.json().catch(() => null);
         toast.error(data?.error || "Failed to process request");
+      }
+    } catch {
+      toast.error("Network error, please try again");
+    }
+  };
+
+  /* Clearing a stale request is what lets that email register again. */
+  const handleDeleteApproval = async (id: string) => {
+    try {
+      const res = await fetch("/api/admin/approvals", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        toast.success("Signup request cleared");
+        fetchApprovals();
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Failed to clear request");
       }
     } catch {
       toast.error("Network error, please try again");
@@ -275,6 +302,45 @@ export default function AdminView() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Stale signup requests — these emails stay blocked until cleared here. */}
+      {staleApprovals.length > 0 && (
+        <div className="mb-6">
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-text">
+                Previous Requests
+              </h2>
+              <span className="text-[10px] text-text-muted">
+                Clear one to let that email register again
+              </span>
+            </div>
+            <div className="space-y-2">
+              {staleApprovals.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-surface-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-text truncate">{a.name}</p>
+                    <p className="text-[10px] text-text-muted truncate">
+                      {a.email} · {a.section} · {a.status?.toLowerCase()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteApproval(a.id)}
+                    className="p-2 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 transition-colors shrink-0"
+                    title="Clear request"
+                    aria-label={`Clear signup request for ${a.email}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 

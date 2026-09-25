@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import PfpUpload from "@/components/PfpUpload";
 import useFileUpload from "@/hooks/useFileUpload";
+import { PASSWORD_MIN_LEN } from "@/lib/passwordPolicy";
 import {
   type MemberPermissions,
   PERMISSION_LABELS,
@@ -60,8 +61,8 @@ export default function EditUserModal({
   };
 
   const handleSave = async () => {
-    if (newPassword && newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (newPassword && newPassword.length < PASSWORD_MIN_LEN) {
+      toast.error(`Password must be at least ${PASSWORD_MIN_LEN} characters`);
       return;
     }
     setIsSaving(true);
@@ -156,8 +157,8 @@ export default function EditUserModal({
             id="eu-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            minLength={6}
-            placeholder="New password (min 6 chars)"
+            minLength={PASSWORD_MIN_LEN}
+            placeholder={`New password (min ${PASSWORD_MIN_LEN} chars)`}
             className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>

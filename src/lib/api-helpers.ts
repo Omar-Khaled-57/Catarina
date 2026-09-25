@@ -9,6 +9,7 @@ import { verifyToken, type JWTPayload } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { parsePermissions, type MemberPermissions } from "@/lib/permissions";
 import { ROLE_ADMIN, ROLE_MEMBER } from "@/lib/constants";
+import { decidePassword } from "@/lib/passwordPolicy";
 
 /* ─── Error responses ─────────────────────────────────────────────────────── */
 
@@ -206,34 +207,14 @@ export function asBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
-/* bcrypt only uses the first 72 bytes of the key — silently truncate would
- * make two passwords sharing a 72-byte prefix authenticate identically. */
-const PASSWORD_MIN_LEN = 6;
-const PASSWORD_MAX_LEN = 200;
-const PASSWORD_MAX_BYTES = 72;
-
-/** Validate a plaintext password: length bounds plus the bcrypt 72-byte cap. */
-export function asValidPassword(
-  value: unknown
-): { ok: true; password: string } | { ok: false; message: string } {
-  const password = typeof value === "string" ? value : null;
-  if (!password) return { ok: false, message: "Password is required" };
-  if (password.length < PASSWORD_MIN_LEN) {
-    return {
-      ok: false,
-      message: `Password must be at least ${PASSWORD_MIN_LEN} characters`,
-    };
-  }
-  if (password.length > PASSWORD_MAX_LEN) {
-    return {
-      ok: false,
-      message: `Password must be at most ${PASSWORD_MAX_LEN} characters`,
-    };
-  }
-  if (Buffer.byteLength(password, "utf8") > PASSWORD_MAX_BYTES) {
-    return { ok: false, message: "Password is too long (maximum 72 bytes)" };
-  }
-  return { ok: true, password };
+/**
+ * Validate a plaintext password: length bounds, the bcrypt 72-byte cap, and
+ * the common-password blocklist. The rules live in @/lib/passwordPolicy so they
+ * can be unit-tested without a database connection; this wrapper keeps the
+ * import surface every route already uses.
+ */
+export function asValidPassword(value: unknown) {
+  return decidePassword(value);
 }
 
 /** Valid Date parsed from ISO string, or null */

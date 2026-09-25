@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import PfpUpload from "@/components/PfpUpload";
 import useFileUpload from "@/hooks/useFileUpload";
+import { PASSWORD_MIN_LEN } from "@/lib/passwordPolicy";
 import {
   type MemberPermissions,
   DEFAULT_PERMISSIONS,
@@ -115,8 +116,8 @@ export default function CreateUserModal({
             id="cu-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
-            placeholder="Min 6 characters"
+            minLength={PASSWORD_MIN_LEN}
+            placeholder={`Min ${PASSWORD_MIN_LEN} characters`}
             className="w-full rounded-xl bg-surface-2 border border-border/60 px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
           />
         </div>

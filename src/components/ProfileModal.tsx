@@ -13,6 +13,7 @@ import { User, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
 import { themeSafeTextColor } from "@/lib/themeSafeColor";
+import { PASSWORD_MIN_LEN } from "@/lib/passwordPolicy";
 import PasswordInput from "@/components/ui/PasswordInput";
 
 interface ProfileModalProps {
@@ -291,7 +292,8 @@ export default function ProfileModal({
                   id="profile-new-pw"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); markChanged(); }}
-                  placeholder="Min 6 characters"
+                  placeholder={`Min ${PASSWORD_MIN_LEN} characters`}
+                  minLength={PASSWORD_MIN_LEN}
                   className="w-full rounded-lg bg-surface-2 border border-border/60 px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
                 />
               </div>

@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, jsonError } from "@/lib/api-helpers";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { ipRateLimitKey } from "@/lib/rateLimitPolicy";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_SIZE,
@@ -21,11 +22,11 @@ export async function POST(req: Request) {
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
-  const limited = await checkRateLimit(
-    `upload:${getClientIp(req)}`,
-    UPLOAD_MAX_PER_WINDOW,
-    UPLOAD_WINDOW_MS
-  );
+    const limited = await checkRateLimit(
+      ipRateLimitKey("upload", getClientIp(req)),
+      UPLOAD_MAX_PER_WINDOW,
+      UPLOAD_WINDOW_MS
+    );
   if (limited.limited) {
     return jsonError("Too many uploads, try again shortly", 429);
   }

@@ -14,6 +14,52 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ---
 
+## <img src="public/rina/update.webp" width="120" align="center" /> [0.7.1] — 2026-09-25 · *Breach-Ready: The Nine Hardening Fixes*
+
+> 0.7.0 made Catarina *hard to hack*. **0.7.1 makes it hard to stay hacked.** A second adversarial pass found and closed nine real weaknesses — three of them **Critical**: an attacker-supplied IP header could rotate the rate-limit key and brute-force an account indefinitely, login answered ~100× faster for unknown emails than for wrong passwords (a silent account-enumeration oracle), and a **sandboxed iframe sending `Origin: null` walked straight through the CSRF guard**. On top of that: refresh tokens now rotate and are single-use, drawer files can no longer execute as stored XSS, password floors move 6 → 8 with a breached-password blocklist, and the public section endpoint stops handing out internal database identifiers. **194 tests, up from 126.**
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Critical — The Three That Mattered
+
+- **Rate-limit bypass closed** — the limiter keyed on an IP taken from `x-forwarded-for`/`x-real-ip`, so anyone could send a *different* header value per request and get a *fresh* counter every time. Login brute-force was therefore effectively unlimited. Key derivation now lives in one audited module that only trusts a forwarded header when `TRUSTED_IP_HEADER` is explicitly configured, and **credential routes add a second, per-account layer keyed on a SHA-256 hash of the email** — a value no header can influence, and no plaintext email is ever stored in `rate_limit_events`. Login: 10/15min per account *and* 10/min per IP. Register: 3/5min per account *and* per IP.
+- **The limiter no longer fails open** — a Turso error used to log-and-allow, removing brute-force protection for exactly as long as the database was unhealthy. It now falls through to a bounded in-memory counter (10 000 keys, oldest-first eviction) so a database hiccup degrades the limit instead of deleting it.
+- **Login timing no longer enumerates accounts** — an unknown email returned before `bcrypt` ran, so it answered ~100× faster than a wrong password despite returning the identical 401. Every attempt now performs exactly one cost-12 comparison; unknown accounts are compared against a throwaway hash of a discarded random secret, so both paths cost the same and neither can authenticate.
+- **`Origin: null` no longer bypasses CSRF** — a sandboxed iframe (and `data:` documents) send the literal header `Origin: null`, which failed URL parsing and was treated as "no origin" → **allowed**. Any origin that is *present* must now be valid and must match; only total absence is treated as a non-browser client. Missing `Host` now fails closed. The decision moved into a pure, 20-case-tested `originGuard` module.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Session & Data Integrity
+
+- **Refresh tokens rotate and are single-use** — a stolen refresh token is now useless after one exchange. Each token belongs to a `familyId`; presenting an already-used token **revokes the entire family** (the standard reuse-detection response to token theft). `expiresAt` gives every family an absolute 30-day ceiling. Client and server exchange the token together, so a rotation can no longer be silently dropped.
+- **Stored XSS via drawer files closed** — uploads are re-served from `/api/drawers/files/[id]`, and a file stored as `text/html` or SVG would have rendered as a document at the app origin. The server now decides inline-vs-download from **magic bytes, never the client-declared MIME**, with `attachment` + `nosniff` as the fallback and no filename echoed into headers.
+- **Team-table lost updates fixed** — concurrent edits silently overwrote each other. Saves now use compare-and-swap on `updatedAt` and return **409** with the current table so the UI can reconcile instead of clobbering.
+- **Registration can no longer overwrite an existing account** — the create path used an upsert keyed on email, which could rewrite the approval row of an already-registered user. It is now strictly create-only, with a uniform conflict message (no account-enumeration leak) and a `P2002` race guard. Stale requests are resolved by the **admin deleting them** from a new *Previous Requests* panel.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Passwords & Dependencies
+
+- **Password floor 6 → 8, plus a blocklist** — new passwords only; existing hashes are never re-validated, so **nobody is locked out**. The ~45 most common breached passwords (`password123`, `1234567890`, `qwerty123`, …) are refused case-insensitively. Deliberately **no** composition rules — forced character classes mostly produce predictable variants like `Password1!`. All password inputs now share one constant, so the client can never disagree with the server again.
+- **Four vulnerable transitive dependencies pinned** (`brace-expansion` ×2, `js-yaml`, `fast-uri`) — high-severity advisories in the ESLint toolchain, **9 → 6** high findings, none left in code that ships.
+- **`prisma` moved to devDependencies** — the CLI is a build-time tool, not a runtime dependency. The runtime client (`@prisma/client`) is untouched.
+
+### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Honesty & Hygiene
+
+- **A false security claim was removed.** The CSP header was documented as backed by per-request nonces. It is not — nonces are unimplemented, and `'unsafe-inline'` remains required for Next's inline hydration payload. The comment now says so plainly and points at the real primary control (server-side byte sniffing). **The policy itself is unchanged.**
+- **The public `/api/sections` endpoint stopped leaking internals** — it must stay unauthenticated (the registration form runs before login), but it no longer serializes full database rows. Anonymous callers now receive only `key`, `label`, `color`, `prefix` — no primary keys, no `sortOrder`/`isActive`. Admins get the full set from the authenticated endpoint. It is also rate-limited now.
+- **A dead allowlist was corrected** — the inline-display MIME set advertised video, audio, PDF and AVIF support that the byte-sniffer cannot verify, so those entries were unreachable and misleading. The set now matches the sniffer exactly.
+
+### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Verification
+
+- **Full suite green** — `tsc --noEmit`, ESLint, **194/194 tests across 26 suites** (up from 126), and a production build.
+- **Every fix is regression-tested** — the new pure policy modules (`rateLimitPolicy`, `loginPolicy`, `passwordPolicy`, `originGuard`, `registrationPolicy`, `publicSection`) are each covered by unit tests, including the adversarial cases: `Origin: null`, hostname-spoofing prefixes, timing-path parity, and a projected payload that cannot widen when a column is added.
+
+### <img src="public/rina/update.webp" width="80" align="center" /> ✦ Known Limitations (honest disclosure)
+
+- **CSP still allows `'unsafe-inline'`.** Nonce-based CSP would remove it but needs plumbing through the edge proxy and App Router; until then the CSP is defence-in-depth only — it blocks remote and `eval`'d script, **not** injected inline script. Byte sniffing is the primary XSS control.
+- **Six high advisories remain in the Prisma CLI chain** (`mysql2`, `find-my-way`, …). The only offered fix is a **downgrade to Prisma 6.x**, which is rejected. They are dev/build tooling, excluded from production installs, and never execute in the deployed runtime. `@prisma/client` itself is clean.
+- **No automated SAST was run.** `semgrep` is not installed and has no runnable npm entrypoint, so this release was verified by manual adversarial review plus the test suite. Stated plainly rather than implied.
+- **Requires a one-time production migration** (`refresh_token_rotation`) — additive, and safe to apply while 0.7.0 is live.
+
+<br />
+
+---
+
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.7.0] — 2026-09-24 · *Security Hardening*
 
 > No weak point. This release makes Catarina **harder to hack** than it is to use: strict security headers and a real CSP on every response, a same-origin edge guard that answers **403 before any cross-origin mutating API call reaches a handler**, rate limits on the entire public auth surface (login, register, password change, refresh, logout — 10/min per IP), a loud boot-time warning on short or guessable `JWT_SECRET` values, and the auth/crypto surface re-audited route-by-route. Next.js is patched to **16.3.6**, clearing the critical unauthenticated RCE (plus the sharp/libvips, postcss and nanoid advisories) — Prisma deliberately stays 7.x because the audit's "fix" was only a downgrade.

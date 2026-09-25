@@ -1,13 +1,17 @@
 import type { NextConfig } from "next";
 
 /*
- * Global security headers. These are static (no per-request nonce) — a
- * pragmatic, low-breakage baseline that ships on every route without
- * depending on middleware. The strictest controls (per-request CSP nonce)
- * live where the payload is actually rendered; see src/proxy.ts.
+ * Global security headers. These are static — the same policy on every route.
  *
  * CSP notes:
  *  - script-src/needs 'unsafe-inline' for Next's inline RSC hydration payload.
+ *    This is a real, accepted weakening: a per-request nonce would remove it,
+ *    but that requires plumbing a nonce from the edge proxy through App Router
+ *    rendering, which is not implemented here. Until it is, treat the CSP as
+ *    defence in depth only — it blocks remote and eval'd script sources, NOT
+ *    injected inline script. The primary control against stored XSS is the
+ *    server-side byte sniffing in /api/drawers/files/[id], which decides
+ *    inline vs. download and never trusts a client-declared MIME type.
  *  - No 'unsafe-eval' — attacker eval() is blocked.
  *  - No remote origins — only scripts/styles/images served by Catarina itself,
  *    so a stolen API key or a compromised CDN can't be a script source.

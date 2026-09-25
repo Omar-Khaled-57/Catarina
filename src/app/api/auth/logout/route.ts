@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { removeToken } from "@/lib/auth.server";
 import { revokeRefreshToken } from "@/lib/refreshToken";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { ipRateLimitKey } from "@/lib/rateLimitPolicy";
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
      * writes (and it exposes the same localStorage-token state machine as
      * refresh, so it should be throttled the same way). */
     const ip = getClientIp(req);
-    const rateLimit = await checkRateLimit(`logout:${ip}`, 10, 60_000);
+    const rateLimit = await checkRateLimit(ipRateLimitKey("logout", ip), 10, 60_000);
     if (rateLimit.limited) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },

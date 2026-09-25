@@ -9,6 +9,9 @@
  *     PATCH, DELETE), require the browser's Origin (with Referer as a fallback
  *     for older browsers / cookie-less clients) to match the request host.
  *     Cross-origin mutating calls answer 403 before they reach the handler.
+ *     The decision itself lives in @/lib/originGuard so it can be unit-tested;
+ *     in particular it fails CLOSED on an Origin that was sent but is opaque
+ *     (`Origin: null`, e.g. a sandboxed iframe) or malformed.
  *
  * Why this lives at the edge instead of in each route:
  *  - One place to enforce the invariant for ALL current and future routes —
@@ -27,6 +30,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { isSameOrigin } from "@/lib/originGuard";
 
 const COOKIE_NAME = "catarina-token";
 const SECRET = process.env.JWT_SECRET
@@ -39,21 +43,6 @@ if (!SECRET) {
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-/** True when the request's Origin/Referer matches the request's own host. */
-function isSameOrigin(request: NextRequest): boolean {
-  const host = request.headers.get("host");
-  const origin = request.headers.get("origin") || request.headers.get("referer");
-  if (!origin) return true; /* No Origin/Referer → non-browser client (e.g. curl,
-                               native app). SameSite=Lax + HttpOnly still guards
-                               cookie state; don't lock out legitimate API clients. */
-  if (!host) return true;
-  try {
-    return new URL(origin).host === host;
-  } catch {
-    return true; /* Malformed Origin — treat as absent so valid traffic is unaffected. */
-  }
-}
-
 export async function proxy(request: NextRequest) {
   const isApi = request.nextUrl.pathname.startsWith("/api/");
   const token = request.cookies.get(COOKIE_NAME)?.value;
@@ -62,7 +51,11 @@ export async function proxy(request: NextRequest) {
   if (
     isApi &&
     MUTATING_METHODS.has(request.method) &&
-    !isSameOrigin(request)
+    !isSameOrigin({
+      origin: request.headers.get("origin"),
+      referer: request.headers.get("referer"),
+      host: request.headers.get("host"),
+    })
   ) {
     return NextResponse.json(
       { error: "Cross-origin requests are not allowed" },

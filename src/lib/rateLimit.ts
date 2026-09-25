@@ -9,7 +9,9 @@
  *   Turso lives outside Vercel, so ALL instances share the same counter.
  *
  * How it works (production):
- *   1. Request arrives → getClientIp extracts IP from x-forwarded-for
+ *   1. Request arrives → the caller supplies its key. Credential routes use a
+ *      per-ACCOUNT key (a hash of the email — no header can influence it) and
+ *      a coarse per-IP key; everything else uses a per-IP key.
  *   2. checkRateLimit(key, max, window) → records an event row + counts it
  *   3. DELETE this key's rows that fell out of the window (bounded per-key cleanup)
  *   4. INSERT an event for this attempt (blocked attempts are recorded too)
@@ -18,12 +20,17 @@
  *   7. Steps 3-5 run as ONE atomic batch (transaction) — a concurrent request can
  *      never undercount the window and slip past the limiter.
  *
- * Fail-open: if the store errors we log (throttled) and allow the request,
- * so a Turso hiccup never bricks login/upload/bcrypt is still the real defense.
+ * Fail-safe: if the store errors we fall through to a bounded in-memory
+ * counter instead of allowing the request. A limiter that fails open removes
+ * brute-force protection for exactly as long as the database is unhealthy.
+ * The in-memory path is per-instance, so it is a weaker backstop, not a
+ * replacement — but a bound beats no bound. See @/lib/rateLimitPolicy for why
+ * the IP key can no longer be chosen by the client.
  */
 
 import { createClient, type Client, type InStatement } from "@libsql/client";
 import { randomUUID } from "node:crypto";
+import { resolveClientIp } from "@/lib/rateLimitPolicy";
 
 const MAX_KEY_LENGTH = 160; // bound pathological header/userId rows
 
@@ -151,14 +158,19 @@ export async function checkRateLimit(
       // Throttle error logs to 1/min per instance to avoid log flooding during outages
       if (Date.now() - lastErrorLog > SWEEP_INTERVAL_MS) {
         lastErrorLog = Date.now();
-        console.error("[RATE_LIMIT] Turso check failed, fail-open:", (error as Error).message);
+        console.error("[RATE_LIMIT] Turso check failed, using in-memory backstop:", (error as Error).message);
       }
-      return { limited: false };
+      /* Fall THROUGH to the in-memory path rather than allowing the request.
+         A limiter that fails fully open removes brute-force protection for as
+         long as the store is down — the worst possible moment to be
+         unprotected. Per-instance, so it is weaker than the shared counter, but
+         it is a real bound instead of no bound. */
     }
   }
 
-  /* ── In-memory fallback (local dev) ────────────────── */
+  /* ── In-memory path (local dev, and the Turso-outage backstop) ── */
   const now = Date.now();
+  pruneMemStore(now);
   const entry = memStore.get(safeKey);
 
   if (!entry || now > entry.resetAt) {
@@ -176,7 +188,7 @@ export async function checkRateLimit(
   return { limited: false };
 }
 
-/* ── In-memory fallback store (local dev only) ────────── */
+/* ── In-memory fallback store (local dev + Turso-outage backstop) ── */
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -184,20 +196,44 @@ interface RateLimitEntry {
 
 const memStore = new Map<string, RateLimitEntry>();
 
-/** Get client IP from request headers.
- * Uses the RIGHTMOST x-forwarded-for hop (added by the closest trusted proxy)
- * or x-real-ip, so a client cannot rotate their rate-limit key by prepending a
- * spoofed x-forwarded-for header. */
-export function getClientIp(req: Request): string {
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp) return realIp;
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) {
-    const parts = fwd
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1];
+/** Hard ceiling on tracked keys, so a key flood can't grow memory without
+ *  bound. */
+const MEM_STORE_MAX_KEYS = 10_000;
+/** Sweep expired windows at most this often (the per-call path stays O(1)). */
+const MEM_PRUNE_INTERVAL_MS = 60_000;
+
+let lastMemPrune = 0;
+
+function pruneMemStore(now: number): void {
+  if (now - lastMemPrune < MEM_PRUNE_INTERVAL_MS) return;
+  lastMemPrune = now;
+
+  for (const [key, entry] of memStore) {
+    if (now > entry.resetAt) memStore.delete(key);
   }
-  return "unknown";
+  /* Still at the cap: evict oldest-inserted keys (Map preserves insertion
+     order) until there is room. Tracking the newest keys is the useful
+     property; the map must never grow without bound. */
+  while (memStore.size >= MEM_STORE_MAX_KEYS) {
+    const oldest = memStore.keys().next();
+    if (oldest.done) break;
+    memStore.delete(oldest.value);
+  }
+}
+
+/**
+ * Resolve the client IP for coarse rate-limit keying.
+ *
+ * SECURITY: this no longer trusts a client-chosen header. It reads only the
+ * header the deployment declares trusted (`TRUSTED_IP_HEADER`, e.g. the one
+ * its proxy overwrites) and otherwise returns a single shared bucket. The old
+ * behaviour — preferring `x-real-ip` and the rightmost `x-forwarded-for` —
+ * let an attacker mint unlimited buckets by rotating those headers, which
+ * silently disabled every rate limit in the app.
+ *
+ * The real brute-force control is the per-account layer (see
+ * @/lib/rateLimitPolicy), which no header can influence.
+ */
+export function getClientIp(req: Request): string {
+  return resolveClientIp(req.headers, process.env.TRUSTED_IP_HEADER);
 }

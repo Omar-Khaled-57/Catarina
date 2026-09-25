@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
+import { PASSWORD_MIN_LEN } from "@/lib/passwordPolicy";
 import SectionDropdown from "@/components/SectionDropdown";
 import { FALLBACK_SECTIONS } from "@/types";
 import { toast } from "sonner";
@@ -208,9 +209,9 @@ export default function LoginForm() {
                 id="login-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 6 characters"
+                placeholder={`Min ${PASSWORD_MIN_LEN} characters`}
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LEN}
                 className="w-full rounded-xl bg-surface-2 border border-border px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
               />
             </div>
