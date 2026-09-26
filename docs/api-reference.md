@@ -6,7 +6,11 @@ All routes are under `/api`. Responses are JSON, **with one exception**: `GET /a
 { "error": "message" }
 ```
 
-with an appropriate HTTP status (`400`, `401`, `403`, `404`, `409`, `429`, `500`).
+with an appropriate HTTP status (`400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`).
+
+A **`503` with `Retry-After: 2`** is the one *retryable* response. It means the database was
+transiently unreachable, not that the request was invalid — see
+[Transient database failures](#transient-database-failures-503).
 
 ## Authentication & Authorization
 
@@ -87,7 +91,8 @@ Silently re-issues the session cookie from a device's refresh token (used on app
 - The user shape matches `/api/auth/login` and `/api/auth/me` exactly (built by `buildAuthUser`).
 
 ### `GET /api/auth/me`
-- **Always `200`, including when signed out** — it answers `{ "user": null, "hasUpdate": false }` so the client can distinguish "logged out" from "server error" without treating it as a failure.
+- Signed out: **200** with `{ "user": null, "hasUpdate": false }`.
+- Authenticated: reads the user's current data from the database. If that required read fails, it returns **503** with `Retry-After: 2`; clients should retry and must not treat this as a logout.
 - Authenticated: returns the fresh user (sections read live from DB) plus update detection against `src/lib/changelog.json`:
 ```json
 {
@@ -98,7 +103,7 @@ Silently re-issues the session cookie from a device's refresh token (used on app
 ```
   When `hasUpdate` is true it also includes `updateVersion`, `updateType` (`major`|`minor`|`patch`), `updateTitle`, `updateEntries` (`[{ icon, text }]`).
 - `src/lib/changelog.json` must contain an entry for the current version or this endpoint falls back to a generic title/entry.
-- Side effects: ensures the hardcoded "Why Catarina? 🌸" welcome notification exists; creates a `VERSION_UPDATE` notification when a new version is detected.
+- Nonessential notification maintenance (the "Why Catarina? 🌸" welcome item and `VERSION_UPDATE`) runs after the response so a delayed notification query cannot hold up auth-state hydration.
 
 ### `POST /api/auth/logout`
 - Body (optional): `{ refreshToken }`.
@@ -180,6 +185,7 @@ Ordered by name. Used for the goal assignment picker.
 { "months": [{ "id": "…", "name": "…", "year": 2026, "month": 6, "isArchived": false,
                "createdAt": "…", "updatedAt": "…", "_count": { "goals": 5 } }] }
 ```
+- A transient database connectivity failure returns `503` with `Retry-After: 2`.
 
 ### `POST /api/months/create` *(admin — role-gated via `requireAdmin`; the `canCreateMonths` permission flag is NOT enforced here)*
 - Body (optional): `{ previousMonthId }`
@@ -290,6 +296,7 @@ Query params (all optional): `monthId`, `section`, `since` (ISO date → filters
 ### `GET /api/notifications`
 Query params (optional): `unread=true`, `since=<ISO>`.
 - Ordered by `pinned` desc then `createdAt` desc; `take` 100 (50 when `since` given).
+- A transient database connectivity failure returns `503` with `Retry-After: 2`.
 - Response:
 ```json
 { "notifications": [{ "id": "…", "userId": "…", "type": "GOAL_CREATED", "title": "…",
@@ -448,11 +455,14 @@ storage. All routes require auth (`src/app/api/drawers/**`, logic in `src/lib/dr
 ### `GET /api/drawers/workspace`
 - Returns the shared workspace for the caller: every registered section they belong to (admins see all) in registry order, each with its stored `projects` tree.
 - Unauthenticated → `401` (the client falls back to a local demo).
+- A transient database connectivity failure returns `503` with `Retry-After: 2`; the client may retry.
 - Response: `{ sections: [{ key, label, color, projects }] }`
 
 ### `POST /api/drawers/mutate`
 - Applies tree mutations (create / rename / move / delete drawers, envelopes, items, plus upload-part and assemble-file actions). Writes are **optimistic-locked** per section — a stale `DrawerSection.version` gets `409`.
 - Body shape depends on the action; see `src/lib/drawers.ts` + `src/lib/workspaceFiles.ts` for the current payload contract.
+- **Writes are never auto-replayed on a timeout.** A connection failure may have committed server-side before the socket dropped, so a `503` here is genuinely *unknown outcome*: refresh the workspace and inspect before retrying, or you may duplicate a mutation.
+- Returns `503` with `Retry-After: 2` when the drawer store is unavailable, including the specific case where no database client could be constructed at all.
 - Responses: `{ ok: true }` and/or the updated tree.
 
 ### `GET /api/drawers/files/[id]`
@@ -467,13 +477,35 @@ storage. All routes require auth (`src/app/api/drawers/**`, logic in `src/lib/dr
 
 ---
 
+## Transient database failures (`503`)
+
+Turso is a network service, so a connection can drop mid-request. Rather than letting that surface as
+an opaque `500`, the read paths classify the failure and answer **`503` with `Retry-After: 2`**.
+
+- **Detection** — `isDatabaseUnavailable(error)` in `src/lib/databaseError.ts` walks up to five nested
+  `cause` levels looking for a connection-class code (`UND_ERR_CONNECT_TIMEOUT`, `ECONNRESET`,
+  `ENETUNREACH`, `P1001`, …), a `ConnectTimeoutError` name, or a `fetch failed` message. Adapters wrap
+  the real cause several layers down, which is why the check recurses rather than reading
+  `error.code` once.
+- **Covered routes** — `GET /api/auth/me`, `GET /api/months`, `GET /api/notifications`,
+  `GET /api/drawers/workspace`, and `POST /api/drawers/mutate`.
+- **Client contract** — a `503` is retryable, and it is **never** a signal to log the user out. Hydrate
+  auth state and render an offline/retry affordance instead of treating it as a signed-out session.
+- **Writes are not replayed.** A drawer mutation that times out may already have committed before the
+  connection failed, so its outcome is genuinely unknown. Refresh the workspace and inspect before
+  retrying; blind retries can duplicate a mutation.
+- The helper is unit-tested in `src/lib/databaseError.test.ts`.
+
 ## Notes & invariants
 
 - **Section-scoping is enforced server-side** against live DB data (`getUserContext`), never the JWT snapshot.
 - **Admins are DB-reverified** on every admin route (`requireAdmin`).
-- **Rate limiting** is a Turso sliding window on the `rate_limit_events` table, shared across Vercel instances. It is **fail-closed**: if Turso errors, the request falls through to a bounded in-memory counter rather than being allowed. In local dev (no `DATABASE_URL`) that in-memory counter is the only store.
+- **Rate limiting** is a Turso sliding window on the `rate_limit_events` table, shared across Vercel instances. It is **fail-closed**: if Turso errors, the request falls through to a bounded in-memory counter rather than being allowed. In local development it uses the active app database — Turso, or `DEV_DATABASE_URL` when you have opted into a local file; with neither URL, the in-memory counter is the only store.
 - **Per-account limits are keyed on HMAC-SHA-256** of the normalized email using `JWT_SECRET`, so the shared table contains no plaintext address and a database-only reader cannot perform offline email guessing. The per-IP layer reads only the header named by `TRUSTED_IP_HEADER`; unset, every caller shares one bucket.
 - **No filesystem uploads**: avatars/signup photos travel as base64 data URIs stored in the `User.pfp` / `Approval.pfp` columns. Drawer files are stored as raw bytes **in the DB** via chunked uploads, and served back as raw bytes.
 - **Tables & drawers are section-scoped server-side** like goals; JSON columns (`cells`, `stickers`, `tree`) must be normalized (string-or-parsed) before use.
 - All route handlers log errors with a `[PREFIX]` tag (e.g. `[GOALS_POST]`, `[REGISTER]`).
 - Prisma error codes handled: `P2025` → 404 (not found), `P2002` → 409 (unique constraint).
+- **Section registry reads are coalesced and backed off.** `getSections()` serves its last-known value
+  during a Turso outage, falls back to defaults only on a cold cache, and retries after a short delay
+  instead of firing a duplicate query per concurrent caller.

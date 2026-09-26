@@ -1,6 +1,6 @@
 /**
- * Rate Limiter — Turso (libsql) true sliding window for production,
- * falls back to in-memory for local dev when DATABASE_URL isn't configured.
+ * Rate Limiter — Turso (libsql) true sliding window in production, an optional
+ * local libSQL database in development, and in-memory when neither URL exists.
  *
  * Why this matters on Vercel:
  *   Each serverless function invocation can be a NEW cold start with empty memory.
@@ -40,13 +40,15 @@ let db: Client | null = null;
 function getDb(): Client | null {
   if (db) return db;
 
-  const url = process.env.DATABASE_URL;
+  const localDevUrl =
+    process.env.NODE_ENV !== "production" ? process.env.DEV_DATABASE_URL : undefined;
+  const url = localDevUrl || process.env.DATABASE_URL;
   if (!url) return null;
 
   try {
     db = createClient({
       url,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      authToken: localDevUrl ? undefined : process.env.TURSO_AUTH_TOKEN,
       intMode: "number",
     });
   } catch {

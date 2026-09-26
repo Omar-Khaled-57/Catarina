@@ -23,14 +23,14 @@ for depth; this file is the fast map.
    bytes in Turso via chunked upload and served back as raw bytes.
 7. **Follow the existing API pattern** — `requireUser()`/`requireAdmin()`/`jsonError()` from
    `src/lib/api-helpers.ts`; sanitize inputs; log with a `[TAG]` prefix.
-8. **Version bumping** touches five places: `package.json` + `package-lock.json` (version),
+8. **Version bumping touches six files**: `package.json` + `package-lock.json` (version),
    `src/lib/changelog.json` (user-facing entries — **required**, or the in-app update modal shows a
    generic fallback), `CHANGELOG.md`, `README.md` (badge + latest-release block), and
    `src/components/Footer.tsx` (footer version chip). `src/app/api/auth/me/route.ts` + the update
    modal read the changelog at runtime.
 9. **Do not edit `src/generated/prisma/`** — it's generated output.
-10. **Do not touch `plan/`, `dev/`, or `/docs` history** unless asked. `dev/` is ESLint-ignored
-    and fully gitignored (nothing in it is committed) and holds private notes.
+10. **Do not touch `dev/` or `/docs` history** unless asked. `dev/` (including `dev/plan/`) is
+    ESLint-ignored and fully gitignored — nothing in it is committed — and holds private notes.
 
 ---
 
@@ -58,20 +58,24 @@ src/
     rateLimitPolicy.ts    IP resolution, account hashing, key builders
     publicSection.ts      Field projection for the unauthenticated /api/sections
     registrationPolicy.ts Create-only signup decision (pending/stale/existing conflicts)
+    loginAttempt.ts       Login account/IP budget bookkeeping (gate-before-bcrypt cutoff)
+    databaseError.ts      Transient-failure detection → retryable 503 responses
     auth.ts               Client-safe section constants (SECTIONS, SECTION_LABELS,
                           SECTION_COLORS — derived from FALLBACK_SECTIONS)
     constants.ts          Roles, cookie name, NOTIFICATION_TYPES, PERMISSION_KEYS
     permissions.ts        MemberPermissions (6 flags incl. canManageTables), parse/serialize/resolve
     notify.ts             notify / notifyMany / notifyAdmins / notifySection
     rateLimit.ts          Turso sliding-window limiter (+ in-memory dev fallback)
-    sections.ts           getSections() (30s cache) + FALLBACK fallback
+    sections.ts           getSections() (30s cache, coalesced + backed off) + FALLBACK fallback
     prisma.ts             PrismaClient singleton (libSQL adapter → Turso)
     mergeGoals.ts         Delta merge + temp-goal dedupe (unit tested)
     toastSuppress.ts      Suppress next coming-change toast (own mutation)
     pdf-palette.ts        Report PDF color palettes (dark/light)
     drawers.ts            Drawer workspace tree load/save + optimistic locking
     workspaceFiles.ts     Chunked drawer uploads → assembled WorkspaceFile blobs
-    table/                grid.ts · date.ts · pdf.ts · table-permissions.ts (all unit tested)
+    utils.ts              Shared formatting/sanitizing helpers (getDefaultPfp, …)
+    table/                grid.ts · date.ts · pdf.ts · table-permissions.ts ·
+                          tablePayload.ts · persistTable.ts (all unit tested)
     tools.ts              Tool registry — single source of truth for /tools cards
     changelog.json        Version → {type,title,entries} for the update modal
   app/
@@ -137,9 +141,15 @@ npm run db:studio    # Prisma Studio (local dev.db)
 There is **no `npm run typecheck`**; `next build` type-checks. Run `npm run lint` and
 `npm run build` (or `npx tsc --noEmit`) after changes.
 
-**Turso schema sync (production DB):** edit `prisma/schema.prisma` → update
-`turso-push.mjs` (reads `migrate.sql`) or `update-turso-schema.mjs` (inline statements),
-then `node --env-file=.env turso-push.mjs`. The CLI never touches Turso.
+**Turso schema sync (production DB):** the Prisma CLI cannot reach `libsql://`, so production schema
+changes are **hand-written SQL** applied through `@libsql/client` — one `execute()` per statement.
+Sequence: edit `prisma/schema.prisma` → run `npm run db:migrate` (keeps local `dev.db` in sync) →
+write a purpose-built script for the equivalent Turso statements → **apply it to production before
+deploying code that reads the new columns** → verify the columns and indexes landed.
+
+> ⚠️ **Do not use `turso-push.mjs`, the root `migrate.sql`, or `update-turso-schema.mjs`.** They are
+> deprecated: they replay a stale root `migrate.sql` that has drifted from `prisma/schema.prisma` and
+> contains no `RefreshToken` table. Running one will silently leave production out of sync.
 
 ---
 
@@ -156,12 +166,15 @@ then `node --env-file=.env turso-push.mjs`. The CLI never touches Turso.
 | Goals | `GET /api/goals` · `POST /api/goals` · `GET/PUT/DELETE /api/goals/[id]` · `PATCH /api/goals/[id]/toggle` · `GET/POST /api/goals/[id]/steps` · `GET/PUT /api/goals/[id]/assignments` (admin) · `GET/POST /api/goals/[id]/comments` |
 | Steps | `PUT/DELETE /api/steps/[stepId]` |
 | Users | `GET /api/users?section=` (assignment picker) · admin: `GET /api/admin/users`, `POST /api/admin/users/create`, `PUT/DELETE /api/admin/users/[userId]`, `PUT /api/admin/users/[userId]/sections`, `POST /api/admin/users/[userId]/promote` |
-| Approvals | `GET /api/admin/approvals` · `PUT /api/admin/approvals` `{id, action: approve|reject}` |
+| Approvals | `GET /api/admin/approvals` (`?includeStale=1` for the Previous Requests view) · `PUT /api/admin/approvals` `{id, action: approve\|reject}` · `DELETE /api/admin/approvals` `{id}` — **the only way to clear a stale request** so that email may register again |
 | Tables | `GET /api/tables` (section-scoped list) · `POST /api/tables` (RL 20/5min/user) · `GET/PATCH/DELETE /api/tables/[id]` (PATCH = full-document `cells` overwrite, max 200×200) |
-| Drawers | `GET /api/drawers/workspace` · `POST /api/drawers/mutate` (optimistic-locked per section) · `GET /api/drawers/files/[id]` |
+| Drawers | `GET /api/drawers/workspace` · `POST /api/drawers/mutate` (optimistic-locked per section) · `GET /api/drawers/files/[id]` (raw bytes, not JSON) |
 
-**Consistent**: error shape `{error}` · 404 on `P2025` · 409 on `P2002` · auth 401 · role 403 ·
-section-scope 403 · 429 rate-limited.
+**Consistent**: error shape `{error}` · 404 on `P2025` · 409 on `P2002` / stale table CAS · auth 401 ·
+role 403 · section-scope 403 · 429 rate-limited · **503 + `Retry-After: 2` on transient database
+failures** (`/api/auth/me`, `/api/months`, `/api/notifications`, `/api/drawers/*`) — detected by
+`isDatabaseUnavailable` in `src/lib/databaseError.ts`. Never treat a 503 as a logout, and never
+auto-replay a drawer write whose commit outcome is unknown.
 
 ---
 
@@ -173,7 +186,7 @@ section-scope 403 · 429 rate-limited.
 | Add a Cabinet tool | `src/lib/tools.ts` (registry) → `/tools` card auto-renders; add route handlers under `src/app/api/<tool>/`, components under `src/components/tools/<tool>/` |
 | Modify tables tool | `src/lib/table/grid.ts` (pure engine + tests) · `date.ts` · `pdf.ts` · `table-permissions.ts` · UI in `src/components/tools/tables/` |
 | Modify drawers tool | `src/lib/drawers.ts` (tree) · `src/lib/workspaceFiles.ts` (chunked uploads) · `src/app/api/drawers/**` |
-| Version bump | `package.json` + `package-lock.json` + `src/lib/changelog.json` + `README.md` badge + `src/components/Footer.tsx` chip |
+| Version bump | `package.json` + `package-lock.json` + `src/lib/changelog.json` + `CHANGELOG.md` + `README.md` (badge & release block) + `src/components/Footer.tsx` chip |
 | Add a goal field | `prisma/schema.prisma` → local `db:migrate` → Turso script → `src/types/index.ts` `GoalData` → `GoalForm.tsx` / `GoalCard.tsx` → `validateGoalFields` in `api-helpers.ts` |
 | Add a notification type | `src/lib/constants.ts` (`NOTIFICATION_TYPES`) + `NotificationPanel.tsx` maps |
 | Add a member permission | `src/lib/constants.ts` (`PERMISSION_KEYS`) + `src/lib/permissions.ts` + admin UI (`CreateUserModal`/`EditUserModal`, `PERMISSION_LABELS`) |
@@ -218,8 +231,9 @@ section-scope 403 · 429 rate-limited.
 - **Base64 pfp in DB grows rows** — bounded by the 2 MB (2,000,000-char) validation at the API layer.
 - **Cookie name is duplicated** in `src/lib/constants.ts` and `src/proxy.ts` and
   `src/lib/auth.server.ts` — keep them in sync.
-- **`update-turso-schema.mjs` is idempotent-ish** (skips already-applied statements) but reviews
-  its generated SQL carefully.
+- **`turso-push.mjs`, root `migrate.sql`, and `update-turso-schema.mjs` are deprecated** — they
+  replay a stale `migrate.sql` that has drifted from `prisma/schema.prisma` (no `RefreshToken` table)
+  and will quietly leave production out of sync. Write a purpose-built `@libsql/client` script instead.
 - **`public/uploads` holds old demo images** and is gitignored (`/public/uploads`) — the app no
   longer writes files there.
 

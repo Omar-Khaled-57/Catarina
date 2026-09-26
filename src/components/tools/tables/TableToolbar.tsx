@@ -47,9 +47,13 @@ function SavePill({ saveState }: { saveState: SaveState }) {
     return null;
   if (saveState.error) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-[11px] font-bold text-danger">
+      <span
+        title={saveState.error}
+        aria-label={`Save failed: ${saveState.error}`}
+        className="inline-flex items-center gap-1.5 rounded-full border border-danger/30 bg-danger/10 px-3 py-1 text-[11px] font-bold text-danger"
+      >
         <span className="h-1.5 w-1.5 rounded-full bg-danger animate-pulse" />
-        Retrying…
+        Save failed
       </span>
     );
   }

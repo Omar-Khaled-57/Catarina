@@ -10,12 +10,20 @@ import { prisma } from "@/lib/prisma";
 import { parsePermissions, type MemberPermissions } from "@/lib/permissions";
 import { ROLE_ADMIN, ROLE_MEMBER } from "@/lib/constants";
 import { decidePassword } from "@/lib/passwordPolicy";
+import { isDatabaseUnavailable } from "@/lib/databaseError";
 
 /* ─── Error responses ─────────────────────────────────────────────────────── */
 
 /** Consistent error response shape used across all routes */
 export function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
+}
+
+export function databaseUnavailableResponse() {
+  return NextResponse.json(
+    { error: "Database is temporarily unavailable. Please retry shortly." },
+    { status: 503, headers: { "Retry-After": "2" } },
+  );
 }
 
 /* ─── Auth helpers ────────────────────────────────────────────────────────── */
@@ -34,10 +42,16 @@ export async function requireUser(): Promise<AuthResult<JWTPayload>> {
    * The same re-read also invalidates sessions revoked by a password
    * change/reset, which bumps `sessionVersion` — the row is already being
    * fetched here, so the check costs no extra round trip. */
-  const exists = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: { id: true, sessionVersion: true },
-  });
+  let exists;
+  try {
+    exists = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, sessionVersion: true },
+    });
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return { ok: false, response: databaseUnavailableResponse() };
+  }
   if (!exists) return { ok: false, response: jsonError("Unauthorized", 401) };
   if ((payload.sv ?? 0) !== exists.sessionVersion) {
     return { ok: false, response: jsonError("Unauthorized", 401) };
@@ -90,10 +104,16 @@ export async function requireUserContext(): Promise<
    * working, and a user without database rows can't be a member. The
    * `sessionVersion` comparison additionally kills every session issued before
    * a password change/reset; the row is fetched here anyway, so it is free. */
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    include: { userSections: { select: { section: true } } },
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { userSections: { select: { section: true } } },
+    });
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return { ok: false, response: databaseUnavailableResponse() };
+  }
   if (!user) return { ok: false, response: jsonError("Unauthorized", 401) };
   if ((payload.sv ?? 0) !== user.sessionVersion) {
     return { ok: false, response: jsonError("Unauthorized", 401) };

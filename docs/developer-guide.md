@@ -21,10 +21,20 @@ First login: `admin@team.com` / `admin123`. **Change the seeded admin password a
 | `NEXT_PUBLIC_SITE_URL` | yes | Deployed URL for SEO/sitemap/OG |
 | `DATABASE_URL` | yes | `libsql://…turso.io` connection string |
 | `TURSO_AUTH_TOKEN` | yes | Turso auth token |
+| `DEV_DATABASE_URL` | no | Optional local-only runtime DB override (for example `file:./dev.db`); used only outside production and not synced with Turso |
 | `JWT_SECRET` | yes | HS256 signing secret for the `catarina-token` cookie |
+| `TRUSTED_IP_HEADER` | recommended | The one request header your proxy overwrites with the real client IP (e.g. `x-forwarded-for` on Vercel). Only this header is read for per-IP rate-limit keys. Unset ⇒ every visitor shares one bucket: safe, but blunt |
 
-> Rate limiting uses the **same** Turso DB (`rate_limit_events` table) — no extra config.
-> Without `DATABASE_URL`, the rate limiter falls back to an in-memory Map (dev only).
+> Rate limiting uses the active app database (`rate_limit_events` table): Turso by default,
+> or `DEV_DATABASE_URL` when opted into local development. With neither URL it uses an
+> in-memory Map.
+
+For a local app session that should not make remote Turso calls, set
+`DEV_DATABASE_URL="file:./dev.db"` in `.env.local`. The override is used by both
+Prisma and rate limiting in non-production environments. The local database is
+separate from Turso and does not inherit its users, tables, or data. Apply the
+Prisma schema to it with `npm run db:push`; the seed commands documented here
+still target Turso. Leave `DEV_DATABASE_URL` unset when you need shared cloud data.
 
 ## Scripts (`package.json`)
 
@@ -61,8 +71,9 @@ When you change `prisma/schema.prisma`:
    `executeMultiple` and DDL path have proven unreliable from some networks.
 3. **Order matters.** Apply the production migration *before* the code that needs it. Deploying
    code that selects a new column against an un-migrated database breaks the feature for everyone.
-4. There is no `vercel.json`, so the Vercel build runs `npm run build` only and **never migrates**.
-   Migration is always a manual, deliberate step.
+4. **No deployment ever migrates.** The only `vercel.json` sets the function `regions` array — it
+   adds no `buildCommand` hook and no migration step, so Vercel still runs `npm run build` and
+   nothing else. Migration is always a manual, deliberate step.
 
 > **Deprecated:** `turso-push.mjs` + root `migrate.sql`, and `update-turso-schema.mjs`. These replay
 > a stale root `migrate.sql` that is out of sync with `prisma/schema.prisma` and contains no
@@ -81,16 +92,23 @@ src/
   app/layout.tsx            Root layout (fonts, providers, sonner, SWR)
   app/globals.css           Tailwind v4 + design tokens
   app/manifest.ts           PWA manifest
-  app/proxy.ts              ← actually src/proxy.ts (edge auth)
+  proxy.ts                  Edge auth guard + CSRF origin check (lives in src/, not src/app/)
   components/
-    ui/                     Button, Card, Badge, Modal, ProgressBar, CountUp, InView
+    ui/                     Button, Card, Badge, Modal, ConfirmModal, ProgressBar, CountUp,
+                            InView, PasswordInput
     admin/                  CreateUserModal, EditUserModal (used by admin page)
     tools/                  ToolCard, ToolGrid; tools/tables/*; tools/drawers/*
     <feature>.tsx           Navbar, GoalCard, GoalForm, MonthSelector, NotificationPanel…
   contexts/                 AuthContext, ThemeContext
   hooks/                    usePolling, useRealtimeSync, useGoalMerge, useFileUpload, useModalA11y, useTableGrid
-  lib/                      api-helpers, auth.server, notify, rateLimit, sections, permissions, drawers, workspaceFiles
-    table/                  grid, date, pdf, table-permissions (all unit-tested)
+  lib/                      api-helpers, auth.server, auth-session, refreshToken, auth, constants,
+                            permissions, notify, rateLimit, sections, prisma, drawers, workspaceFiles,
+                            mergeGoals, toastSuppress, tools, pdf-palette, download, image, utils
+    ├ policy modules        loginPolicy, loginAttempt, refreshPolicy, originGuard, passwordPolicy,
+    │                       rateLimitPolicy, registrationPolicy, publicSection (all pure, all tested)
+    ├ databaseError.ts      transient-failure detection → retryable 503s (tested)
+    └ table/                grid, date, pdf, table-permissions, tablePayload, persistTable
+                            (all unit-tested)
   types/index.ts            Shared TS types + FALLBACK_SECTIONS
   generated/prisma/         Prisma client (generated — don't edit)
 public/                     Static assets: /icons, /rina (Catarina stickers), /pfps, /media
@@ -191,12 +209,13 @@ Node's built-in test runner with `tsx`:
 npm test
 ```
 
-Current suite: **290 tests across 39 suites**. Security policy modules are unit-tested in isolation:
+Current suite: **294 tests across 39 suites**. Security policy modules are unit-tested in isolation:
 `rateLimit.test.ts` + `rateLimitPolicy.test.ts` (sliding window, sweep invariant, trusted IP and secret-keyed HMAC account keys), `loginAttempt.test.ts` (the ten-failure cutoff and gate-before-bcrypt ordering),
 `loginPolicy.test.ts` (timing-equalized verification), `originGuard.test.ts` (CSRF origin
 classification), `passwordPolicy.test.ts` (length/byte cap + breach blocklist),
 `registrationPolicy.test.ts`, `publicSection.test.ts`, `refreshPolicy.test.ts` (rotation + family
-ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `table/` suites
+ceiling), `databaseError.test.ts` (transient-failure classification through nested adapter causes),
+plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `table/` suites
 (grid merge/split/insert/delete/resize, date detection, payload bounds, PDF escaping, and CAS persistence).
 
 > **Mock tables for local testing:** `dev/seed-tables.mjs` (gitignored, dev-only) seeds a few
@@ -229,9 +248,14 @@ ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `
    | `TRUSTED_IP_HEADER` | Recommended | `x-forwarded-for` on Vercel. Without it every visitor shares one rate-limit bucket (safe, but blunt) |
 
 3. Build command: `npx prisma generate && next build`
-4. **Apply schema changes to Turso manually, before deploying the code that needs them.** There is
-   no `vercel.json`, so the build never migrates. The Prisma CLI cannot reach Turso — see
+4. **Apply schema changes to Turso manually, before deploying the code that needs them.** Nothing in
+   the Vercel build migrates the database — the Prisma CLI cannot reach Turso, so see
    [two databases](#critical-two-databases-two-workflows).
+
+`vercel.json` places Vercel Functions in `hnd1` (Tokyo), near this instance's
+Turso database in `aws-ap-northeast-1`. This affects deployment only; local
+`next dev` still connects from the developer machine unless `DEV_DATABASE_URL`
+is set.
 
 > `db:reset` and `db:seed` will wipe the production DB if you accidentally run them against Turso —
 > prefer one-off migration scripts for production schema changes.
@@ -261,6 +285,12 @@ ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `
   30-day ceiling. A stolen token is usable at most once.
 - **Login is timing-equalized**: exactly one bcrypt comparison per attempt, whatever the input.
 - **HttpOnly cookie + HS256 JWT** + required secret keeps tokens out of JS and unforgeable.
+- **Section config reads are coalesced and backed off** during Turso errors. The loader serves its
+  last-known section registry when possible, uses defaults only on a cold cache, and retries after
+  a short delay instead of launching duplicate reads for every concurrent caller.
+- **Database connectivity failures return retryable `503`s** from auth context and the month,
+  notification, and drawer read paths. Drawer writes are never auto-replayed on a timeout because
+  the database may have committed before the connection failed; refresh and inspect before retrying.
 - **Password length is capped** (200 chars, 72 bytes) to avoid bcrypt DoS on absurd inputs, and new
   passwords must clear a common/breached-password blocklist. Existing weak passwords still work —
   the policy applies on write, so nobody is locked out.

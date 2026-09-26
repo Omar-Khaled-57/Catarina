@@ -16,7 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ## <img src="public/rina/update.webp" width="120" align="center" /> [0.7.1] — 2026-09-25 · *Breach-Ready: The Nine Hardening Fixes*
 
-> 0.7.0 made Catarina *hard to hack*. **0.7.1 makes it hard to stay hacked.** A second adversarial pass found and closed nine real weaknesses — three of them **Critical**: an attacker-supplied IP header could rotate the rate-limit key and brute-force an account indefinitely, login answered ~100× faster for unknown emails than for wrong passwords (a silent account-enumeration oracle), and a **sandboxed iframe sending `Origin: null` walked straight through the CSRF guard**. On top of that: refresh tokens now rotate and are single-use, drawer files can no longer execute as stored XSS, password floors move 6 → 8 with a breached-password blocklist, and the public section endpoint stops handing out internal database identifiers. The initial release gate passed **194 tests**; follow-up coverage now passes **290 tests across 39 suites**.
+> 0.7.0 made Catarina *hard to hack*. **0.7.1 makes it hard to stay hacked.** A second adversarial pass found and closed nine real weaknesses — three of them **Critical**: an attacker-supplied IP header could rotate the rate-limit key and brute-force an account indefinitely, login answered ~100× faster for unknown emails than for wrong passwords (a silent account-enumeration oracle), and a **sandboxed iframe sending `Origin: null` walked straight through the CSRF guard**. On top of that: refresh tokens now rotate and are single-use, drawer files can no longer execute as stored XSS, password floors move 6 → 8 with a breached-password blocklist, and the public section endpoint stops handing out internal database identifiers. The initial release gate passed **194 tests**; current follow-up coverage passes **294 tests across 39 suites**.
 
 ### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Critical — Brute Force, Timing & CSRF
 
@@ -51,11 +51,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 - **Table editing is more resilient** — merging over existing merged cells no longer leaves orphaned covered cells; weekday names and abbreviations are recognized as date axes; the modal stack traps focus and Escape closes only the topmost dialog.
 - **Sticker controls are complete** — wheel resizing uses a small bounded step, plus/minus resizing respects minimum and maximum sizes, and the picker includes categorized Rina/decorative sprites plus a live “you” profile-photo sticker.
 - **Developer seed helper** — `dev/seed-month.mjs` adds sample goals, steps and drawer projects/envelopes/files (including stored file bytes) to the newest month. It is additive and idempotent, has a `--dry-run` mode, and is a local gitignored helper rather than shipped application code.
-- **Updated verification** — `tsc --noEmit`, ESLint, production build, and **290/290 tests across 39 suites** pass. This includes account-limit boundary and keyed-HMAC regression coverage.
+- **Updated verification** — `tsc --noEmit`, ESLint, production build, and **294/294 tests across 39 suites** pass. This includes account-limit boundary and keyed-HMAC regression coverage.
+- **Turso outages fail clearly** — auth-context, month, notification, and drawer reads return a retryable `503` instead of an uncaught `500`; drawer writes are not automatically replayed when the commit result is uncertain. `/api/auth/me` no longer waits for nonessential notification maintenance, and section reads coalesce concurrent queries, reuse last-known data, and back off retries.
+- **Database locality options** — Vercel Functions target `hnd1` (Tokyo), near this Turso database. Local development can opt into `DEV_DATABASE_URL` for both Prisma and rate limiting; it is a separate database and is not populated from Turso automatically.
+- **LCP hint corrected** — the above-the-fold navbar and login logos load eagerly.
 
 ### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Verification
 
-- **Full suite green** — `tsc --noEmit`, ESLint, **194/194 tests across 26 suites** (up from 126), and a production build.
+- **Full suite green at the release gate** — `tsc --noEmit`, ESLint, **194/194 tests across 26 suites** (up from 126), and a production build. The 0.7.1 follow-up above raises this to **294 across 39 suites**; 194 is the figure the initial gate actually passed.
 - **Every fix is regression-tested** — the new pure policy modules (`rateLimitPolicy`, `loginPolicy`, `passwordPolicy`, `originGuard`, `registrationPolicy`, `publicSection`) are each covered by unit tests, including the adversarial cases: `Origin: null`, hostname-spoofing prefixes, timing-path parity, and a projected payload that cannot widen when a column is added.
 - **Every document was re-checked against the code** — all eight docs plus the schema comments, the in-app changelog, and the env template. That pass is what surfaced the sweep-margin defect above, along with documentation that had drifted from the code: refresh tokens still described as never expiring, a `db:push` step that claimed to push to Turso (it cannot), password minimums of 6, month deletion described as a cascade when it archives, the file endpoint described as returning JSON when it streams raw bytes, the table-save CAS contract missing entirely, and three separate claims that the rate limiter "fails open" when it does the opposite.
 
@@ -64,6 +67,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 - **CSP still allows `'unsafe-inline'`.** Nonce-based CSP would remove it but needs plumbing through the edge proxy and App Router; until then the CSP is defence-in-depth only — it blocks remote and `eval`'d script, **not** injected inline script. Byte sniffing is the primary XSS control.
 - **Seven advisories remain in the Prisma CLI dependency graph** (six high, one moderate; including `mysql2`, `find-my-way`, and related packages). The offered remediation is a **breaking downgrade to Prisma 6.x**, which is rejected. `prisma` is a development dependency and optional peer of `@prisma/client`; `npm audit --omit=dev` still reports this optional-peer graph, so production reachability was not independently established by that command.
 - **No automated SAST or secret scan was run for the follow-up.** Semgrep and Gitleaks are unavailable in the audit environment; manual review and regression tests were used instead.
+- **Turso reachability remains external to the app.** A connection timeout to the database host can still produce a retryable `503`; region placement reduces deployment RTT but cannot repair an outage or the developer machine's network path.
 - **Requires a one-time production migration** (`refresh_token_rotation`) — additive, and safe to apply while 0.7.0 is live.
 
 <br />
@@ -84,7 +88,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 
 ### <img src="public/rina/excited.webp" width="80" align="center" /> ✦ Re-verified, route by route
 
-- **Every input validated** — no untrusted data reaches an execution sink; magic-byte sniffing + 2 MB cap + no-SVG stays on uploads, 72-byte cap on bcrypt, `rateLimit` fail-open documented on Turso error.
+- **Every input validated** — no untrusted data reaches an execution sink; magic-byte sniffing + 2 MB cap + no-SVG stays on uploads, 72-byte cap on bcrypt, `rateLimit` fail-open on Turso error *(as of this release — 0.7.1 inverted this to fail-closed; see above)*.
 - **CSP blocks the eval vector** — the dominant XSS path (attacker-controlled remote/eval script) is cut; the pragmatic inline allowance is Next RSC hydration, no exceptions for remote origins.
 - **Full suite green** — lint, `tsc --noEmit`, tests (113+), and a production build pass before this ships.
 
@@ -402,7 +406,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 ### <img src="public/rina/excited.webp" width="08" align="center" /> ✦ Custom Hooks & Helper Modules
 
 - **`useCountUp` Hook**: Extracted animated integer counter logic into `src/lib/useCountUp.ts`.
-- **`useFileUpload` Hook**: Extracted FormData upload handling into `src/lib/useFileUpload.ts`.
+- **`useFileUpload` Hook**: Extracted FormData upload handling into `src/hooks/useFileUpload.ts`.
 - **`pdf-palette.ts`**: Extracted PDF styling tokens and palettes into `src/lib/pdf-palette.ts`.
 
 ### <img src="public/rina/happy.webp" width="80" align="center" /> ✦ Shared Type System

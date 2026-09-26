@@ -2,7 +2,7 @@
    browsers free of console 401 noise (Lighthouse "browser errors" audit).
    Clients treat user:null the same as a 401. */
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth.server";
 import { prisma } from "@/lib/prisma";
 import { buildAuthUser } from "@/lib/auth-session";
@@ -28,6 +28,68 @@ function classifyUpdate(oldV: string, newV: string): "major" | "minor" | "patch"
   return "patch";
 }
 
+async function maintainWelcomeNotification(userId: string): Promise<void> {
+  try {
+    const welcome = await prisma.notification.findFirst({
+      where: { userId, title: "Why Catarina? 🌸" },
+    });
+    if (welcome) {
+      if (welcome.message !== "هو كده يكتفمك") {
+        await prisma.notification.update({
+          where: { id: welcome.id },
+          data: {
+            message: "هو كده يكتفمك",
+            pinned: true,
+            refType: "audio",
+            refId: "/media/fun.mp3",
+          },
+        });
+      }
+      return;
+    }
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: "SYSTEM",
+        title: "Why Catarina? 🌸",
+        message: "هو كده يكتفمك",
+        pinned: true,
+        refType: "audio",
+        refId: "/media/fun.mp3",
+      },
+    });
+  } catch (error) {
+    console.error("[AUTH_ME] welcome notification maintenance failed:", error);
+  }
+}
+
+async function maintainVersionNotification(
+  userId: string,
+  version: string,
+  entries: { icon: string; text: string }[],
+): Promise<void> {
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: { userId, type: "VERSION_UPDATE", refId: version },
+    });
+    if (existing) return;
+
+    const preview = entries.slice(0, 2).map((entry) => `${entry.icon} ${entry.text}`).join("\n");
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: "VERSION_UPDATE",
+        title: `Catarina updated to v${version}`,
+        message: preview,
+        refType: "update",
+        refId: version,
+      },
+    });
+  } catch (error) {
+    console.error("[AUTH_ME] version notification maintenance failed:", error);
+  }
+}
+
 export async function GET() {
   const payload = await verifyToken();
   if (!payload) {
@@ -39,22 +101,7 @@ export async function GET() {
   const currentVersion: string = pkg.version;
 
   /* Fetch fresh user data with sections */
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      pfp: true,
-      bio: true,
-      primarySection: true,
-      permissions: true,
-      welcomeSeen: true,
-      lastSeenVersion: true,
-      userSections: { select: { section: true } },
-    },
-  }) as {
+  let user: {
     id: string;
     name: string;
     email: string;
@@ -67,43 +114,33 @@ export async function GET() {
     lastSeenVersion: string;
     userSections: { section: string }[];
   } | null;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        pfp: true,
+        bio: true,
+        primarySection: true,
+        permissions: true,
+        welcomeSeen: true,
+        lastSeenVersion: true,
+        userSections: { select: { section: true } },
+      },
+    });
+  } catch (error) {
+    console.error("[AUTH_ME] user lookup failed:", error);
+    return NextResponse.json(
+      { error: "Authentication status is temporarily unavailable" },
+      { status: 503, headers: { "Retry-After": "2" } },
+    );
+  }
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  /* Ensure every user has the hardcoded welcome notification */
-  const hasWelcome = await prisma.notification.findFirst({
-    where: {
-      userId: user.id,
-      title: "Why Catarina? 🌸",
-    },
-  });
-
-  if (hasWelcome) {
-    if (hasWelcome.message !== "هو كده يكتفمك") {
-      await prisma.notification.update({
-        where: { id: hasWelcome.id },
-        data: {
-          message: "هو كده يكتفمك",
-          pinned: true,
-          refType: "audio",
-          refId: "/media/fun.mp3",
-        },
-      });
-    }
-  } else {
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        type: "SYSTEM",
-        title: "Why Catarina? 🌸",
-        message: "هو كده يكتفمك",
-        pinned: true,
-        refType: "audio",
-        refId: "/media/fun.mp3",
-      },
-    });
   }
 
   /* ─── Version update check ────────────────────────────────────────────── */
@@ -123,29 +160,17 @@ export async function GET() {
     updateTitle = entry?.title || `Catarina updated to v${currentVersion}`;
     updateEntries = entry?.entries || [{ icon: "🎉", text: "Something new arrived!" }];
 
-    /* Create VERSION_UPDATE notification if not already present for this version */
-    const existing = await prisma.notification.findFirst({
-      where: {
-        userId: user.id,
-        type: "VERSION_UPDATE",
-        refId: currentVersion,
-      },
-    });
-
-    if (!existing) {
-      const preview = updateEntries.slice(0, 2).map((e) => `${e.icon} ${e.text}`).join("\n");
-      await prisma.notification.create({
-        data: {
-          userId: user.id,
-          type: "VERSION_UPDATE",
-          title: `Catarina updated to v${currentVersion}`,
-          message: preview,
-          refType: "update",
-          refId: currentVersion,
-        },
-      });
-    }
   }
+
+  /* Notification maintenance is not required to hydrate auth state. Schedule
+     it after the response so Turso retries/timeouts cannot hold up navigation. */
+  after(async () => {
+    const jobs = [maintainWelcomeNotification(user.id)];
+    if (hasUpdate && updateEntries) {
+      jobs.push(maintainVersionNotification(user.id, currentVersion, updateEntries));
+    }
+    await Promise.all(jobs);
+  });
 
   return NextResponse.json({
     user: buildAuthUser(user),

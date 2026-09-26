@@ -193,6 +193,24 @@ describe("persistTable rebases on conflict without losing local edits", () => {
 /* ─── Failure modes ──────────────────────────────────────────────────────── */
 
 describe("persistTable reports why a save failed", () => {
+  test("a transient server error is retried once", async () => {
+    const store = makeStore(makeDoc());
+    let calls = 0;
+    const recover = (async () => {
+      calls++;
+      if (calls === 1) return new Response("", { status: 500 });
+      return new Response(JSON.stringify({ table: { updatedAt: "recovered" } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const outcome = await persistTable({
+      getDoc: store.getDoc,
+      adoptToken: () => {},
+      isCancelled: () => false,
+      fetchImpl: recover,
+    });
+    assert.equal(outcome.status, "saved");
+    assert.equal(calls, 2, "transient server error was not retried once");
+  });
+
   test("surfaces the server's own rejection reason", async () => {
     const store = makeStore(makeDoc());
     const server = makeServer([{ status: 400, body: { error: "Cell text is too long" } }]);
@@ -214,7 +232,9 @@ describe("persistTable reports why a save failed", () => {
 
   test("a network failure is reported as offline, not as a rejection", async () => {
     const store = makeStore(makeDoc());
+    let calls = 0;
     const boom = (async () => {
+      calls++;
       throw new TypeError("network down");
     }) as unknown as typeof fetch;
     const outcome = await persistTable({
@@ -225,6 +245,7 @@ describe("persistTable reports why a save failed", () => {
     });
     assert.equal(outcome.status, "offline");
     assert.equal(outcome.status === "offline" ? outcome.message : "", OFFLINE_MESSAGE);
+    assert.equal(calls, 2, "network retries were not bounded");
   });
 
   test("an unmounted editor does not touch state", async () => {

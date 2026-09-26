@@ -3,8 +3,14 @@
 // DELETE /api/notifications — Delete a notification or clear all read
 
 import { NextResponse } from "next/server";
-import { requireUser, asBoolean, jsonError } from "@/lib/api-helpers";
+import {
+  requireUser,
+  asBoolean,
+  jsonError,
+  databaseUnavailableResponse,
+} from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { isDatabaseUnavailable } from "@/lib/databaseError";
 
 export async function GET(req: Request) {
   const auth = await requireUser();
@@ -17,24 +23,26 @@ export async function GET(req: Request) {
     return jsonError("Invalid 'since' parameter", 400);
   }
 
-  const notifications = await prisma.notification.findMany({
-    where: {
-      userId: auth.data.userId,
-      ...(unreadOnly ? { read: false } : {}),
-      ...(sinceRaw ? { createdAt: { gt: new Date(sinceRaw) } } : {}),
-    },
-    orderBy: [
-      { pinned: "desc" },
-      { createdAt: "desc" },
-    ],
-    take: sinceRaw ? 50 : 100,
-  });
-
-  const unreadCount = await prisma.notification.count({
-    where: { userId: auth.data.userId, read: false },
-  });
-
-  return NextResponse.json({ notifications, unreadCount });
+  try {
+    const [notifications, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: {
+          userId: auth.data.userId,
+          ...(unreadOnly ? { read: false } : {}),
+          ...(sinceRaw ? { createdAt: { gt: new Date(sinceRaw) } } : {}),
+        },
+        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+        take: sinceRaw ? 50 : 100,
+      }),
+      prisma.notification.count({
+        where: { userId: auth.data.userId, read: false },
+      }),
+    ]);
+    return NextResponse.json({ notifications, unreadCount });
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) return databaseUnavailableResponse();
+    throw error;
+  }
 }
 
 export async function PATCH(req: Request) {

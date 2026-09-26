@@ -44,6 +44,14 @@ export const CONFLICT_MESSAGE =
 export const OFFLINE_MESSAGE =
   "Your last change didn't save — check your connection and try again";
 
+const TRANSIENT_RETRY_DELAY_MS = 200;
+
+function waitBeforeRetry(attempt: number): Promise<void> {
+  return new Promise((resolve) =>
+    setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS * (attempt + 1)),
+  );
+}
+
 export interface PersistOptions {
   /** Reads the freshest document. Called again before every attempt. */
   getDoc: () => TableSaveDoc | null;
@@ -79,8 +87,10 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 export async function persistTable(opts: PersistOptions): Promise<PersistOutcome> {
   const { getDoc, adoptToken, isCancelled, maxAttempts = 2 } = opts;
   const doFetch = opts.fetchImpl ?? fetch;
+  const attempts = Math.max(1, maxAttempts);
+  let rebased = false;
 
-  for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const doc = getDoc();
     if (!doc) return { status: "cancelled" };
 
@@ -92,6 +102,18 @@ export async function persistTable(opts: PersistOptions): Promise<PersistOutcome
         body: saveBody(doc),
       });
     } catch {
+      if (attempt + 1 < attempts) {
+        await waitBeforeRetry(attempt);
+        continue;
+      }
+      return { status: "offline", message: OFFLINE_MESSAGE };
+    }
+
+    if (res.status === 408 || res.status >= 500) {
+      if (attempt + 1 < attempts) {
+        await waitBeforeRetry(attempt);
+        continue;
+      }
       return { status: "offline", message: OFFLINE_MESSAGE };
     }
 
@@ -111,7 +133,8 @@ export async function persistTable(opts: PersistOptions): Promise<PersistOutcome
       }
 
       adoptToken(latest.updatedAt);
-      if (attempt + 1 < Math.max(1, maxAttempts)) continue; // retry with their token
+      rebased = true;
+      if (attempt + 1 < attempts) continue; // retry with their token
       return { status: "conflict", message: CONFLICT_MESSAGE };
     }
 
@@ -125,7 +148,7 @@ export async function persistTable(opts: PersistOptions): Promise<PersistOutcome
     const newToken = saved?.table?.updatedAt;
     if (!isCancelled() && typeof newToken === "string") adoptToken(newToken);
     if (isCancelled()) return { status: "cancelled" };
-    return attempt > 0 ? { status: "rebased", message: REBASE_MESSAGE } : { status: "saved" };
+    return rebased ? { status: "rebased", message: REBASE_MESSAGE } : { status: "saved" };
   }
 
   /* Unreachable: the loop always returns on its final attempt. */

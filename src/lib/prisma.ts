@@ -1,6 +1,6 @@
 // Prisma Client Singleton
 // Prevents multiple Prisma instances in development (hot-reload safe)
-// Uses LibSQL adapter for Turso (required by Prisma 7)
+// Uses the LibSQL adapter for Turso, or DEV_DATABASE_URL during local development
 // PrismaLibSql takes a config object {url, authToken} — NOT a pre-created client
 
 import { PrismaClient } from "@prisma/client";
@@ -11,7 +11,9 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  const url = process.env.DATABASE_URL;
+  const localDevUrl =
+    process.env.NODE_ENV !== "production" ? process.env.DEV_DATABASE_URL : undefined;
+  const url = localDevUrl || process.env.DATABASE_URL;
   if (!url) {
     /* Fail fast with an actionable message instead of a confusing adapter crash. */
     throw new Error(
@@ -20,7 +22,7 @@ function createPrismaClient(): PrismaClient {
   }
   const adapter = new PrismaLibSql({
     url,
-    authToken: process.env.TURSO_AUTH_TOKEN,
+    authToken: localDevUrl ? undefined : process.env.TURSO_AUTH_TOKEN,
   });
   return new PrismaClient({ adapter });
 }

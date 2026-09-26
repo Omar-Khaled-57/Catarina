@@ -19,6 +19,12 @@ export interface SectionData {
 let cachedSections: SectionData[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 30_000; // 30 seconds
+const FAILURE_BACKOFF_MS = 10_000;
+const FAILURE_LOG_INTERVAL_MS = 30_000;
+let retryAfter = 0;
+let nextFailureLogAt = 0;
+let cacheGeneration = 0;
+let sectionsRequest: Promise<SectionData[]> | null = null;
 
 /**
  * Get all active sections from DB (with 30s in-memory cache).
@@ -29,7 +35,20 @@ export async function getSections(): Promise<SectionData[]> {
   if (cachedSections && now - cacheTimestamp < CACHE_TTL) {
     return cachedSections;
   }
+  if (sectionsRequest) return sectionsRequest;
+  if (now < retryAfter) return cachedSections ?? fallbackSections();
 
+  const generation = cacheGeneration;
+  const request = loadSections(generation);
+  sectionsRequest = request;
+  try {
+    return await request;
+  } finally {
+    if (sectionsRequest === request) sectionsRequest = null;
+  }
+}
+
+async function loadSections(generation: number): Promise<SectionData[]> {
   try {
     const dbSections = await prisma.sectionConfig.findMany({
       where: { isActive: true },
@@ -37,29 +56,35 @@ export async function getSections(): Promise<SectionData[]> {
     }) as SectionData[];
 
     if (dbSections.length > 0) {
-      cachedSections = dbSections;
-      cacheTimestamp = now;
+      if (generation === cacheGeneration) {
+        cachedSections = dbSections;
+        cacheTimestamp = Date.now();
+        retryAfter = 0;
+      }
       return dbSections;
     }
-  } catch (error) {
-    /* Availability over strictness here: this loader feeds every page, so
-       rethrowing would turn a transient DB blip into a 500 app-wide. But the
-       defaults are only a guess about which sections are ACTIVE, so surface the
-       failure loudly — and, critically, do NOT cache a guess derived from an
-       error. Caching it would pin a possibly-stale section registry for the
-       full TTL, turning a momentary read failure into 30s of wrong answers. */
-    console.error(
-      "[SECTIONS] SectionConfig read failed, serving uncached defaults:",
-      (error as Error).message,
-    );
-    return fallbackSections();
-  }
 
-  // Genuine empty table (fresh deploy before seeding) — safe to cache.
-  const fallback = fallbackSections();
-  cachedSections = fallback;
-  cacheTimestamp = now;
-  return fallback;
+    // Genuine empty table (fresh deploy before seeding) — safe to cache.
+    const fallback = fallbackSections();
+    if (generation === cacheGeneration) {
+      cachedSections = fallback;
+      cacheTimestamp = Date.now();
+      retryAfter = 0;
+    }
+    return fallback;
+  } catch (error) {
+    const failedAt = Date.now();
+    if (generation === cacheGeneration) retryAfter = failedAt + FAILURE_BACKOFF_MS;
+    if (failedAt >= nextFailureLogAt) {
+      nextFailureLogAt = failedAt + FAILURE_LOG_INTERVAL_MS;
+      const source = cachedSections ? "last-known sections" : "default sections";
+      console.warn(
+        `[SECTIONS] SectionConfig read failed, serving ${source} during retry backoff:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    return cachedSections ?? fallbackSections();
+  }
 }
 
 function fallbackSections(): SectionData[] {
@@ -120,8 +145,11 @@ export async function getSectionPrefixes(): Promise<Record<string, string>> {
  * Invalidate the section cache (call after mutations).
  */
 export function invalidateSectionCache(): void {
+  cacheGeneration++;
   cachedSections = null;
   cacheTimestamp = 0;
+  retryAfter = 0;
+  sectionsRequest = null;
 }
 
 /**

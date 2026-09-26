@@ -133,7 +133,7 @@ export default function LoginForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Image src="/icons/logo.webp" alt="Catarina Logo" width={120} height={120} className="w-[80px] min-w-[80px] sm:w-[120px] sm:min-w-[120px] h-[80px] sm:h-[120px] mx-auto object-contain mb-4 drop-shadow-lg" />
+          <Image src="/icons/logo.webp" alt="Catarina Logo" width={120} height={120} loading="eager" className="w-[80px] min-w-[80px] sm:w-[120px] sm:min-w-[120px] h-[80px] sm:h-[120px] mx-auto object-contain mb-4 drop-shadow-lg" />
           <h1 className="text-3xl font-black text-text tracking-tight">Catarina</h1>
           <p className="text-text-muted mt-1">{teamName} Team Planner</p>
         </motion.div>

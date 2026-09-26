@@ -4,11 +4,12 @@
 // the local demo.
 
 import { NextResponse } from "next/server";
-import { requireUserContext } from "@/lib/api-helpers";
+import { databaseUnavailableResponse, requireUserContext } from "@/lib/api-helpers";
 import { ROLE_ADMIN } from "@/lib/constants";
 import { loadTree } from "@/lib/drawers";
 import { getSections } from "@/lib/sections";
 import type { DemoSection } from "@/components/tools/drawers/types";
+import { isDatabaseUnavailable } from "@/lib/databaseError";
 
 export async function GET() {
   const auth = await requireUserContext();
@@ -17,19 +18,24 @@ export async function GET() {
   /* Filter the registered sections by the caller's access FIRST, then load
      only their trees — each loadTree is a round trip to the remote store, and
      a member must never fetch a section the dashboard wouldn't let them in. */
-  const defs = await getSections();
-  const allowed = defs.filter(
-    (d) =>
-      auth.data.role === ROLE_ADMIN ||
-      auth.data.sections.includes(d.key.toUpperCase()),
-  );
-  const sections: DemoSection[] = await Promise.all(
-    allowed.map(async (d) => ({
-      key: d.key,
-      label: d.label,
-      color: d.color,
-      projects: await loadTree(d.key),
-    })),
-  );
-  return NextResponse.json({ sections });
+  try {
+    const defs = await getSections();
+    const allowed = defs.filter(
+      (d) =>
+        auth.data.role === ROLE_ADMIN ||
+        auth.data.sections.includes(d.key.toUpperCase()),
+    );
+    const sections: DemoSection[] = await Promise.all(
+      allowed.map(async (d) => ({
+        key: d.key,
+        label: d.label,
+        color: d.color,
+        projects: await loadTree(d.key),
+      })),
+    );
+    return NextResponse.json({ sections });
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) return databaseUnavailableResponse();
+    throw error;
+  }
 }

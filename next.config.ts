@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 /*
- * Global security headers. These are static — the same policy on every route.
+ * Global security headers. The production CSP remains strict; development adds
+ * eval only for React's source-map diagnostics.
  *
  * CSP notes:
  *  - script-src/needs 'unsafe-inline' for Next's inline RSC hydration payload.
@@ -12,7 +13,8 @@ import type { NextConfig } from "next";
  *    injected inline script. The primary control against stored XSS is the
  *    server-side byte sniffing in /api/drawers/files/[id], which decides
  *    inline vs. download and never trusts a client-declared MIME type.
- *  - No 'unsafe-eval' — attacker eval() is blocked.
+ *  - No 'unsafe-eval' in production. Next/React development diagnostics need
+ *    it to reconstruct component stacks, so it is added only outside prod.
  *  - No remote origins — only scripts/styles/images served by Catarina itself,
  *    so a stolen API key or a compromised CDN can't be a script source.
  *  - 'self' covers data: for user-uploaded images (cached under /pfps /rina).
@@ -39,22 +41,22 @@ const SECURITY_HEADERS = [
     key: "X-DNS-Prefetch-Control",
     value: "off",
   },
-  {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self' data:",
-      "connect-src 'self'",
-      "frame-ancestors 'none'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; "),
-  },
 ];
+
+function contentSecurityPolicy(isProd: boolean): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
 
 /* HSTS is emission-only in production; local `next dev` over http must stay
  * usable. max-age 6 months with includeSubDomains + preload. */
@@ -71,6 +73,7 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           ...SECURITY_HEADERS,
+          { key: "Content-Security-Policy", value: contentSecurityPolicy(isProd) },
           ...(isProd ? [HSTS_HEADER] : []),
         ],
       },

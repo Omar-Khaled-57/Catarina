@@ -14,7 +14,7 @@
 
 ## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.7.1
 
-**Breach-Ready: Security & Table Reliability** — closes rate-limit and CSRF bypasses, rotates refresh tokens, and hardens drawer file previews. The 0.7.1 follow-up also fixes the exact account lockout boundary, protects email rate-limit keys with HMAC, improves table merges/date axes and sticker controls, and brings the suite to 290 tests across 39 suites.
+**Breach-Ready: Security & Table Reliability** — closes rate-limit and CSRF bypasses, rotates refresh tokens, and hardens drawer file previews. The 0.7.1 follow-up also fixes the exact account lockout boundary, protects email rate-limit keys with HMAC, improves table merges/date axes and sticker controls, and brings the suite to 294 tests across 39 suites.
 
 Requires a one-time additive production migration — see [docs/developer-guide.md](docs/developer-guide.md).
 
@@ -98,6 +98,7 @@ cp .env.example .env
 | `DATABASE_URL` | Yes | Turso `libsql://` connection string |
 | `TURSO_AUTH_TOKEN` | Yes | Turso auth token |
 | `JWT_SECRET` | Yes | Random string for signing session tokens (32+ chars) |
+| `DEV_DATABASE_URL` | No | Optional local-only database override, e.g. `file:./dev.db`; used only outside production and not synced with Turso |
 | `TRUSTED_IP_HEADER` | Recommended | The request header your proxy overwrites with the real client IP, e.g. `x-forwarded-for` on Vercel. Only this header is read for rate-limit keying. Unset means every visitor shares one IP bucket, which is safe but blunt. |
 
 > **On Vercel**, set `TRUSTED_IP_HEADER=x-forwarded-for`. Leaving it unset does not break anything, but all visitors collapse into a single rate-limit bucket.
@@ -157,11 +158,17 @@ Open [http://localhost:3000](http://localhost:3000) and sign in:
    - `DATABASE_URL`
    - `TURSO_AUTH_TOKEN`
    - `JWT_SECRET`
+   - `TRUSTED_IP_HEADER` = `x-forwarded-for` — recommended, so each visitor gets their own rate-limit bucket
 5. In **Settings → General → Build Command**, set:
    ```
    npx prisma generate && next build
    ```
 6. Click **Deploy**.
+
+> `vercel.json` in this repo pins the function region to `hnd1` (Tokyo), close to this instance's
+> Turso database. It sets **no** migration step — applying schema changes to Turso is always manual
+> and must happen *before* you deploy code that reads the new columns. See
+> [docs/developer-guide.md](docs/developer-guide.md).
 
 ---
 
@@ -171,6 +178,23 @@ Open [http://localhost:3000](http://localhost:3000) and sign in:
 - **Site URL**: Change `NEXT_PUBLIC_SITE_URL` to update SEO metadata, sitemap, and social preview links.
 - **Sections**: Go to **Admin Panel → Section Manager** to add/remove/customize department sections.
 - **Members**: Approve signups, assign members to sections, and manage permissions from the Admin Panel.
+
+---
+
+## Documentation
+
+Full documentation lives in [`docs/`](docs/README.md):
+
+| Document | Audience | Covers |
+|---|---|---|
+| [User Guide](docs/user-guide.md) | Team members & admins | Using the app end to end: roles, goals, months, Cabinet tools |
+| [API Reference](docs/api-reference.md) | Developers & AI agents | Every endpoint, payloads, responses, and error contracts |
+| [Data Model](docs/data-model.md) | Developers & AI agents | Prisma schema, tables, relations, invariants, seeding |
+| [Developer Guide](docs/developer-guide.md) | Developers | Local setup, scripts, tests, the two-database workflow, deploy |
+| [AI Agent Guide](docs/ai-agent-guide.md) | AI coding agents | Repo map, commands, conventions, and invariants to preserve |
+
+Release history is in [CHANGELOG.md](CHANGELOG.md); the same notes drive the in-app update modal via
+`src/lib/changelog.json`.
 
 ---
 
@@ -246,7 +270,7 @@ A dedicated tools hub at `/tools`. **Drawers** gives every section a shared clou
 | **Build** | `npm run build` | Production build |
 | **Start** | `npm run start` | Start production server |
 | **Lint** | `npm run lint` | Run ESLint |
-| **Test** | `npm test` | Run the unit test suite (290 tests across 39 suites: security policies, permissions, rate limits, helpers, and table behavior) |
+| **Test** | `npm test` | Run the unit test suite (294 tests across 39 suites: security policies, permissions, rate limits, helpers, and table behavior) |
 | **Setup DB** | `npm run db:setup` | First-time: push local schema + seed |
 | **Seed DB** | `npm run db:seed` | Seed sections, admin, and demo goals. **Deletes existing rows first** |
 | **Reset DB** | `npm run db:reset` | Wipe and re-seed from scratch |

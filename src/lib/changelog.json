@@ -459,7 +459,23 @@
     },
     {
      "icon": "🧪",
-     "text": "Security and table regression coverage now passes 290 tests across 39 suites, alongside typecheck, lint, and production build."
+     "text": "Security and table regression coverage now passes 294 tests across 39 suites, alongside typecheck, lint, and production build."
+   },
+   {
+    "icon": "🌐",
+    "text": "Turso connection failures now return retryable 503 responses on auth, month, notification, and drawer reads; uncertain drawer writes are not replayed automatically."
+   },
+   {
+    "icon": "⚡",
+    "text": "Auth notification maintenance runs after the response, and section reads coalesce concurrent requests, reuse last-known data, and back off during Turso outages."
+   },
+   {
+    "icon": "📍",
+    "text": "Vercel Functions run in Tokyo (hnd1) near Turso; local development can opt into a separate DEV_DATABASE_URL for Prisma and rate limiting."
+   },
+   {
+    "icon": "🚀",
+    "text": "Above-the-fold navbar and login logos load eagerly to avoid the Next.js LCP image warning."
    }
   ]
  }

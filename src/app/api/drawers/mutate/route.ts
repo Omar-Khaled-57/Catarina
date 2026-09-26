@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUserContext, jsonError } from "@/lib/api-helpers";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { ROLE_ADMIN } from "@/lib/constants";
+import { isDatabaseUnavailable } from "@/lib/databaseError";
 import {
   DrawerConflictError,
   DrawerQuotaError,
@@ -152,6 +153,12 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ section });
   } catch (error) {
+    if (isDatabaseUnavailable(error)) {
+      return NextResponse.json(
+        { error: "Drawer storage is temporarily unavailable. Refresh before retrying to check whether the change was saved." },
+        { status: 503, headers: { "Retry-After": "2" } },
+      );
+    }
     if (error instanceof DrawerConflictError) {
       return jsonError(error.message, 409);
     }

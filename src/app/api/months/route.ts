@@ -1,19 +1,22 @@
 // GET /api/months — List all planning months (authenticated)
 
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/api-helpers";
+import { databaseUnavailableResponse, requireUser } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { isDatabaseUnavailable } from "@/lib/databaseError";
 
 export async function GET() {
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
-  const months = await prisma.month.findMany({
-    orderBy: [{ year: "asc" }, { month: "asc" }],
-    include: {
-      _count: { select: { goals: true } },
-    },
-  });
-
-  return NextResponse.json({ months });
+  try {
+    const months = await prisma.month.findMany({
+      orderBy: [{ year: "asc" }, { month: "asc" }],
+      include: { _count: { select: { goals: true } } },
+    });
+    return NextResponse.json({ months });
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) return databaseUnavailableResponse();
+    throw error;
+  }
 }

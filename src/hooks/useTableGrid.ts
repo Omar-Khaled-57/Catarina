@@ -53,6 +53,9 @@ export function useTableGrid(tableId: string | null) {
 
   const docRef = useRef<TableDocument | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveInFlightRef = useRef(false);
+  const saveQueuedRef = useRef(false);
+  const persistCallbackRef = useRef<(() => Promise<void>) | null>(null);
   /* Guards the 409-rebase fetch in persist(): if the hook has already unmounted
      (e.g. the user navigated away mid-save) we must not call setDoc/setSaveError
      on a dead component. Set true in the unmount cleanup below. */
@@ -115,6 +118,12 @@ export function useTableGrid(tableId: string | null) {
      while a request was in flight is never dropped. */
   const persist = useCallback(async () => {
     if (!docRef.current) return;
+    if (saveInFlightRef.current) {
+      saveQueuedRef.current = true;
+      return;
+    }
+    saveInFlightRef.current = true;
+    setSaveError(null);
     setIsSaving(true);
     try {
       const outcome = await persistTable({
@@ -146,19 +155,36 @@ export function useTableGrid(tableId: string | null) {
         isCancelled: () => cancelledRef.current,
       });
       if (outcome.status === "cancelled") return;
-      if (outcome.status === "saved") {
+      if (outcome.status === "saved" || outcome.status === "rebased") {
         setLastSavedAt(Date.now());
+        setSaveError(null);
         return;
       }
       setSaveError(outcome.message);
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
+      if (saveQueuedRef.current && !cancelledRef.current) {
+        saveQueuedRef.current = false;
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(() => {
+          saveTimer.current = null;
+          void persistCallbackRef.current?.();
+        }, SAVE_DEBOUNCE_MS);
+      }
     }
   }, []);
 
+  useEffect(() => {
+    persistCallbackRef.current = persist;
+  }, [persist]);
+
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => void persist(), SAVE_DEBOUNCE_MS);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void persist();
+    }, SAVE_DEBOUNCE_MS);
   }, [persist]);
 
   /* Flush any pending debounce on unmount (or when switching tables) so a quick

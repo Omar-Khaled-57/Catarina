@@ -186,6 +186,7 @@ export default function Sticker({
           alt=""
           width={wide}
           height={wide}
+          loading="eager"
           unoptimized
           draggable={false}
           className="block h-auto w-full"

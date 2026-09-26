@@ -25,7 +25,11 @@
 *.pem
 /uploads
 /public/uploads
+# local SQLite files (root dev.db and prisma/dev.db) plus WAL sidecars
 dev.db
+dev.db-journal
+dev.db-wal
+dev.db-shm
 .windsurf/
 
 # debug
@@ -47,8 +51,21 @@ next-env.d.ts
 
 /src/generated/prisma
 
-/.agents/
-/.claude/
-/.kilo/
+# local-only & AI-agent tooling — never commit
+# These hold personal notes, private plans, security audit reports, per-machine
+# credentials and editor state. None of it belongs in the repository.
 /dev/
 /prisma/seed-august.ts
+
+# agent / AI-assistant config (machine-local: prompts, commands, sessions,
+# worktrees, skill pins)
+/.kilo/
+/.agents/
+/.claude/
+/.cursor/
+/.kilocode/
+/.opencode/
+/skills-lock.json
+
+# editor state — personal keybindings, tasks and launch configs per machine
+/.vscode/
