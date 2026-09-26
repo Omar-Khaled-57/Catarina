@@ -23,7 +23,7 @@
  * rate-limit table (the mandate forbids storing PII there).
  */
 
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 /** Bucket used when no trusted IP header is configured or present. */
 export const SHARED_IP_BUCKET = "shared";
@@ -71,16 +71,41 @@ export function resolveClientIp(
 
 /**
  * Build the per-account rate-limit key for a scope (e.g. "login").
- * Hashed: the shared table must never hold a plaintext email, and a hash can't
- * be walked back into an address book.
+ * Keyed: the shared table never holds a plaintext email, and a database-only
+ * reader cannot use a precomputed email list to reverse the account key.
  */
-export function accountRateLimitKey(scope: string, email: string): string {
+export function accountRateLimitKey(scope: string, email: string, secret: string): string {
+  if (!secret) throw new Error("JWT_SECRET is required to derive account rate-limit keys");
   const normalized = email.trim().toLowerCase();
-  const digest = createHash("sha256").update(normalized).digest("hex");
+  const digest = createHmac("sha256", secret).update(`${scope}:${normalized}`).digest("hex");
   return `${scope}:acct:${digest}`;
 }
 
 /** Per-IP key for a scope. */
 export function ipRateLimitKey(scope: string, ip: string): string {
   return `${scope}:ip:${ip}`;
+}
+
+/**
+ * Headroom multiplier for the shared IP bucket.
+ *
+ * WHY: when no trusted IP header is configured, `resolveClientIp` returns
+ * `SHARED_IP_BUCKET` for every caller — fail-closed against header spoofing,
+ * but it also means ONE bucket serves the entire userbase. At the per-client
+ * limits, a handful of teammates acting normally (a post-deploy login wave, a
+ * dashboard load) could exhaust the global allowance and lock EVERYONE out of
+ * login, refresh, and the public sections endpoint. That is a self-inflicted
+ * denial of service, not protection.
+ *
+ * Scaling the shared bucket up keeps a real ceiling for genuine floods while
+ * leaving normal team traffic unaffected. It does NOT weaken brute-force
+ * protection: login/register keep a separate per-ACCOUNT layer (hashed email,
+ * no header can rotate it) which stays at the strict limit, and that account
+ * layer — not the IP layer — is the actual anti-guessing control.
+ */
+export const SHARED_BUCKET_MULTIPLIER = 10;
+
+/** Widen a limit that would otherwise apply to the whole userbase at once. */
+export function scaleForSharedBucket(maxRequests: number, ip: string): number {
+  return ip === SHARED_IP_BUCKET ? maxRequests * SHARED_BUCKET_MULTIPLIER : maxRequests;
 }

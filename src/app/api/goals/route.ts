@@ -3,6 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isKnownSection } from "@/lib/sections";
 import {
   requireUser,
   getUserContext,
@@ -178,6 +179,12 @@ export async function POST(req: Request) {
       select: { id: true },
     });
     if (!monthExists) return jsonError("Month not found", 400);
+
+    /* The section must name a real, active one (see isKnownSection) — otherwise
+       a mistyped key produces a goal no member can ever match. */
+    if (!(await isKnownSection(section))) {
+      return jsonError("Invalid section", 400);
+    }
 
     /* Section restriction: members can only create goals in their assigned sections */
     if (ctx.role !== ROLE_ADMIN) {

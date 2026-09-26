@@ -68,6 +68,19 @@ const ITEM_ICONS: Record<DirItem["type"], LucideIcon> = {
 const isPreviewableUrl = (value: string) =>
   /^(blob:|https?:|data:)/i.test(value);
 
+/**
+ * Schemes that may be handed to a NAVIGATING sink — `window.open(...)` and an
+ * `<a href target="_blank">`.
+ *
+ * `data:` is deliberately excluded even though it is a legitimate inline preview
+ * source: a drawer item's content is written by any member of the section, so a
+ * planted `data:text/html,…` would otherwise be navigable by a teammate who
+ * clicks "Open externally". `isPreviewableUrl` still permits `data:` for
+ * media, where the URL only ever reaches an `<img>`/`<video>` src and cannot
+ * execute script.
+ */
+const isNavigableUrl = (value: string) => /^(blob:|https?:)/i.test(value);
+
 const TEXT_EXTENSIONS = [
   ".txt",
   ".md",
@@ -454,21 +467,20 @@ function FileDetail({
   const { url, loading: urlLoading } = useResolvedSource(rawContent);
   const isRef = rawContent.startsWith("file://");
   const hasRefUrl = isRef && !!url;
-  const isUrl =
-    !isRef &&
-    (isPreviewableUrl(rawContent) || /^(https?:|mailto:|tel:)/i.test(rawContent));
   const isMedia =
     (file.type === "IMAGE" || file.type === "VIDEO") &&
     !!rawContent &&
     (isRef ? hasRefUrl : isPreviewableUrl(rawContent));
   const showsImagePreview = file.type === "IMAGE";
-  const isLink = file.type === "LINK" && !!rawContent && isUrl;
+  /* Only ever navigate to a scheme we trust; see isNavigableUrl. */
+  const isNavigable = !isRef && isNavigableUrl(rawContent);
+  const isLink = file.type === "LINK" && !!rawContent && isNavigable;
   const canOpenExternally =
     file.type !== "CODE" &&
     file.type !== "NOTE" &&
     file.type !== "FILE" &&
     !!rawContent &&
-    isUrl;
+    isNavigable;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">

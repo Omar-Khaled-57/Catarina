@@ -37,6 +37,9 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   const data: Record<string, string | null | boolean> = {};
+  /* Set when this request resets the target's password, so the
+     session-invalidation bump is merged into the same UPDATE. */
+  let bumpSessionVersion = false;
 
   if (body.name !== undefined) {
     const name = asString(body.name, 100);
@@ -99,6 +102,16 @@ export async function PUT(req: Request, { params }: Params) {
     const newPw = asValidPassword(body.newPassword);
     if (!newPw.ok) return jsonError(newPw.message, 400);
     data.password = await bcrypt.hash(newPw.password, 12);
+    bumpSessionVersion = true;
+    /* An admin reset is how an account is recovered from a compromise, so it
+       must also end every session the old password had: bumping
+       `sessionVersion` invalidates the target's live JWT cookies and revoking
+       the refresh tokens stops their localStorage credentials from minting new
+       ones. */
+    await prisma.refreshToken.updateMany({
+      where: { userId, revoked: false },
+      data: { revoked: true },
+    });
   }
 
   /* Validate email uniqueness when changing */
@@ -127,7 +140,9 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const user = await prisma.user.update({
       where: { id: userId },
-      data,
+      data: bumpSessionVersion
+        ? { ...data, sessionVersion: { increment: 1 } }
+        : data,
       select: {
         id: true,
         name: true,

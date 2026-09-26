@@ -25,6 +25,9 @@ export async function PUT(req: Request) {
   }
 
   const data: Record<string, string | null> = {};
+  /* Set when this request changes the password, so the session-invalidation
+     bump is merged into the same UPDATE as the new hash. */
+  let bumpSessionVersion = false;
 
   if (body.name !== undefined) {
     const name = asString(body.name, 100);
@@ -90,6 +93,18 @@ export async function PUT(req: Request) {
     }
 
     data.password = await bcrypt.hash(newPw.password, 12);
+    /* Changing the password must end every other session — including one held
+       by whoever prompted the change after a compromise. Bumping
+       `sessionVersion` invalidates all outstanding JWT cookies (they carry the
+       older value), and revoking the refresh tokens stops the localStorage
+       credentials from silently re-issuing a fresh cookie. The version bump is
+       merged into the same UPDATE below so the new password and the session
+       revocation can never land apart. */
+    bumpSessionVersion = true;
+    await prisma.refreshToken.updateMany({
+      where: { userId: auth.data.userId, revoked: false },
+      data: { revoked: true },
+    });
   }
 
   if (Object.keys(data).length === 0) {
@@ -110,11 +125,13 @@ export async function PUT(req: Request) {
   try {
     const user = await prisma.user.update({
       where: { id: auth.data.userId },
-      data,
+      data: bumpSessionVersion
+        ? { ...data, sessionVersion: { increment: 1 } }
+        : data,
       select: { id: true, name: true, email: true, pfp: true, bio: true },
     });
 
-    return NextResponse.json({ user });
+    return NextResponse.json({ user, passwordChanged: bumpSessionVersion });
   } catch (error) {
     /* The check above can race; catch the unique violation directly. */
     if (

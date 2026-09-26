@@ -14,7 +14,7 @@
 
 ## <img src="public/rina/update.webp" width="80" align="center" /> Latest release: 0.7.1
 
-**Breach-Ready: The Nine Hardening Fixes** — closes a rate-limit bypass, a login timing oracle, and a CSRF `Origin: null` bypass; rotates refresh tokens so a stolen one works only once; fixes stored XSS via drawer files and lost updates on team tables. 194 tests, up from 126.
+**Breach-Ready: Security & Table Reliability** — closes rate-limit and CSRF bypasses, rotates refresh tokens, and hardens drawer file previews. The 0.7.1 follow-up also fixes the exact account lockout boundary, protects email rate-limit keys with HMAC, improves table merges/date axes and sticker controls, and brings the suite to 290 tests across 39 suites.
 
 Requires a one-time additive production migration — see [docs/developer-guide.md](docs/developer-guide.md).
 
@@ -246,7 +246,7 @@ A dedicated tools hub at `/tools`. **Drawers** gives every section a shared clou
 | **Build** | `npm run build` | Production build |
 | **Start** | `npm run start` | Start production server |
 | **Lint** | `npm run lint` | Run ESLint |
-| **Test** | `npm test` | Run the unit test suite (194 tests: security policies, permissions, rate limits, helpers) |
+| **Test** | `npm test` | Run the unit test suite (290 tests across 39 suites: security policies, permissions, rate limits, helpers, and table behavior) |
 | **Setup DB** | `npm run db:setup` | First-time: push local schema + seed |
 | **Seed DB** | `npm run db:seed` | Seed sections, admin, and demo goals. **Deletes existing rows first** |
 | **Reset DB** | `npm run db:reset` | Wipe and re-seed from scratch |

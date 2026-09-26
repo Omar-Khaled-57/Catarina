@@ -6,11 +6,15 @@ import {
   ipRateLimitKey,
   isValidIpToken,
   resolveClientIp,
+  scaleForSharedBucket,
+  SHARED_BUCKET_MULTIPLIER,
 } from "./rateLimitPolicy";
 
 function headers(map: Record<string, string>) {
   return { get: (name: string) => map[name.toLowerCase()] ?? null };
 }
+
+const RATE_LIMIT_TEST_SECRET = "test-only-rate-limit-key-secret";
 
 test("no trusted header configured => one shared bucket, not the client's claim", () => {
   // The regression: an attacker sending X-Real-IP per request used to mint a
@@ -54,26 +58,39 @@ test("ip token validation accepts real forms and rejects junk", () => {
 
 test("the account key cannot be rotated by forging any header", () => {
   // Same email => same key, always. This is what makes brute force stoppable.
-  const a = accountRateLimitKey("login", "User@Example.com ");
-  const b = accountRateLimitKey("login", "user@example.com");
+  const a = accountRateLimitKey("login", "User@Example.com ", RATE_LIMIT_TEST_SECRET);
+  const b = accountRateLimitKey("login", "user@example.com", RATE_LIMIT_TEST_SECRET);
   assert.equal(a, b);
   assert.match(a, /^login:acct:[0-9a-f]{64}$/);
 });
 
+test("the account key cannot be derived from the email without the server secret", () => {
+  const a = accountRateLimitKey("login", "victim@example.com", "secret-a");
+  const b = accountRateLimitKey("login", "victim@example.com", "secret-b");
+  assert.notEqual(a, b);
+});
+
+test("account key derivation fails closed without a server secret", () => {
+  assert.throws(
+    () => accountRateLimitKey("login", "victim@example.com", ""),
+    /JWT_SECRET is required/,
+  );
+});
+
 test("the account key never contains the plaintext email", () => {
-  const key = accountRateLimitKey("login", "victim@example.com");
+  const key = accountRateLimitKey("login", "victim@example.com", RATE_LIMIT_TEST_SECRET);
   assert.equal(key.includes("victim"), false);
   assert.equal(key.includes("example.com"), false);
 });
 
 test("scopes and accounts don't collide", () => {
   assert.notEqual(
-    accountRateLimitKey("login", "a@b.com"),
-    accountRateLimitKey("register", "a@b.com"),
+    accountRateLimitKey("login", "a@b.com", RATE_LIMIT_TEST_SECRET),
+    accountRateLimitKey("register", "a@b.com", RATE_LIMIT_TEST_SECRET),
   );
   assert.notEqual(
-    accountRateLimitKey("login", "a@b.com"),
-    accountRateLimitKey("login", "c@d.com"),
+    accountRateLimitKey("login", "a@b.com", RATE_LIMIT_TEST_SECRET),
+    accountRateLimitKey("login", "c@d.com", RATE_LIMIT_TEST_SECRET),
   );
 });
 
@@ -82,5 +99,34 @@ test("ip keys are namespaced by scope", () => {
   assert.notEqual(
     ipRateLimitKey("login", SHARED_IP_BUCKET),
     ipRateLimitKey("register", SHARED_IP_BUCKET),
+  );
+});
+
+/* ── shared-bucket headroom ────────────────────────────────────────────── */
+
+test("the shared bucket gets headroom so normal team traffic can't lock everyone out", () => {
+  // The failure this prevents: with no trusted IP header, every caller shares
+  // ONE bucket, so a post-deploy login wave could exhaust a 10/min global
+  // allowance and lock out every user at once.
+  assert.equal(
+    scaleForSharedBucket(10, SHARED_IP_BUCKET),
+    10 * SHARED_BUCKET_MULTIPLIER,
+  );
+  assert.ok(scaleForSharedBucket(10, SHARED_IP_BUCKET) > 10);
+});
+
+test("a real per-client IP keeps the strict limit", () => {
+  // The scaled value must not apply once a trusted header is configured,
+  // otherwise the coarse layer would stop bounding an individual flood.
+  for (const ip of ["203.0.113.7", "2001:db8::1", "10.0.0.4"]) {
+    assert.equal(scaleForSharedBucket(10, ip), 10);
+  }
+});
+
+test("scaling preserves relative strictness across scopes", () => {
+  // login (10) must stay looser than register (3) even after both are scaled.
+  assert.ok(
+    scaleForSharedBucket(10, SHARED_IP_BUCKET) >
+      scaleForSharedBucket(3, SHARED_IP_BUCKET),
   );
 });

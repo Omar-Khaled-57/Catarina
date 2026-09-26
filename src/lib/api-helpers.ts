@@ -30,12 +30,18 @@ export async function requireUser(): Promise<AuthResult<JWTPayload>> {
   const payload = await verifyToken();
   if (!payload) return { ok: false, response: jsonError("Unauthorized", 401) };
   /* Fail closed on zombie sessions: a deleted user's token must not keep
-   * working for its full 7-day lifetime (and must not crash writes with P2025). */
+   * working for its full 7-day lifetime (and must not crash writes with P2025).
+   * The same re-read also invalidates sessions revoked by a password
+   * change/reset, which bumps `sessionVersion` — the row is already being
+   * fetched here, so the check costs no extra round trip. */
   const exists = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true },
+    select: { id: true, sessionVersion: true },
   });
   if (!exists) return { ok: false, response: jsonError("Unauthorized", 401) };
+  if ((payload.sv ?? 0) !== exists.sessionVersion) {
+    return { ok: false, response: jsonError("Unauthorized", 401) };
+  }
   return { ok: true, data: payload };
 }
 
@@ -81,12 +87,17 @@ export async function requireUserContext(): Promise<
   const payload = await verifyToken();
   if (!payload) return { ok: false, response: jsonError("Unauthorized", 401) };
   /* Fail closed on zombie sessions: a deleted user's token must not keep
-   * working, and a user without databases rows can't be a member. */
+   * working, and a user without database rows can't be a member. The
+   * `sessionVersion` comparison additionally kills every session issued before
+   * a password change/reset; the row is fetched here anyway, so it is free. */
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     include: { userSections: { select: { section: true } } },
   });
   if (!user) return { ok: false, response: jsonError("Unauthorized", 401) };
+  if ((payload.sv ?? 0) !== user.sessionVersion) {
+    return { ok: false, response: jsonError("Unauthorized", 401) };
+  }
   return {
     ok: true,
     data: {

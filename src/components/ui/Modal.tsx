@@ -45,6 +45,14 @@ export default function Modal({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  /* One stable identity for this dialog's close handler. Both the Escape
+   * listener and the focus-trap effect compare it against the modal stack by
+   * reference, so it has to be the same function in both — and it must not be
+   * declared inside either effect. A bare `close` in the focus-trap effect
+   * would resolve to the DOM global window.close, which is never in the stack,
+   * silently disabling initial focus and the whole Tab trap. */
+  const close = useCallback(() => onCloseRef.current(), []);
+
   const handleScrollHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
     if (!el) return;
@@ -60,7 +68,6 @@ export default function Modal({
 
   useEffect(() => {
     if (!isOpen) return;
-    const close = () => onCloseRef.current();
     const handleKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (isTop(close)) close();
@@ -91,7 +98,7 @@ export default function Modal({
       }
       window.removeEventListener("keydown", handleKey);
     };
-  }, [isOpen]);
+  }, [isOpen, close]);
 
   useEffect(() => {
     if (!isOpen || !dialogRef.current) return;
@@ -129,7 +136,7 @@ export default function Modal({
     };
     window.addEventListener("keydown", handleTab);
     return () => window.removeEventListener("keydown", handleTab);
-  }, [isOpen]);
+  }, [isOpen, close]);
 
   if (!mounted) return null;
 

@@ -235,6 +235,36 @@ describe("mergeSelection", () => {
     assert.equal(g2.rows[0][0]?.rs, 2);
     assert.equal(g2.rows[0][0]?.cs, 2);
   });
+
+  test("merging a strip over an existing merge leaves no orphaned covered cells", () => {
+    const g0 = createGrid(3, 4);
+    const g1 = mergeSelection(g0, 0, 0, 1, 1); // 2×2 merge anchored at (0,0)
+    const g2 = mergeSelection(g1, 0, 0, 0, 3); // band-merge row 0 over it
+    // New anchor spans row 0 (1×4), value kept from the old merge.
+    assert.equal(g2.rows[0][0]?.rs, 1);
+    assert.equal(g2.rows[0][0]?.cs, 4);
+    assert.equal(g2.rows[0][0]?.v, "");
+    // Exposed formerly-covered cells are restored, never orphaned.
+    assert.deepEqual(g2.rows[1][0], { v: "", rs: 1, cs: 1 });
+    assert.deepEqual(g2.rows[1][1], { v: "", rs: 1, cs: 1 });
+    assert.deepEqual(g2.rows[1][2], { v: "", rs: 1, cs: 1 });
+    assert.deepEqual(g2.rows[1][3], { v: "", rs: 1, cs: 1 });
+    assert.deepEqual(g2.rows[2][0], { v: "", rs: 1, cs: 1 });
+  });
+
+  test("merging over the corner of a larger merge shrinks it and restores leftovers", () => {
+    const g0 = createGrid(3, 3);
+    const g1 = mergeSelection(g0, 0, 0, 1, 1); // 2×2 anchored at (0,0)
+    const g2 = mergeSelection(g1, 1, 1, 1, 2); // band-merge row 1 over its corner
+    // Old anchor outside the new rect is slimmed to 1×1 (value kept).
+    assert.deepEqual(g2.rows[0][0], { v: "", rs: 1, cs: 1 });
+    // New 1×2 merge anchors at (1,1); (1,2) covered.
+    assert.deepEqual(g2.rows[1][1], { v: "", rs: 1, cs: 2 });
+    assert.equal(g2.rows[1][2], null);
+    // Exposed covered cells are empty cells, not orphans.
+    assert.deepEqual(g2.rows[0][1], { v: "", rs: 1, cs: 1 });
+    assert.deepEqual(g2.rows[1][0], { v: "", rs: 1, cs: 1 });
+  });
 });
 
 /* ─── splitCell ──────────────────────────────────────────────────────────── */
@@ -374,5 +404,157 @@ describe("round-trip", () => {
     g = deleteRow(g, 1); // back to 2 rows, row 0 still has A
     assert.equal(g.rows.length, 2);
     assert.equal(g.rows[0][0]?.v, "A");
+  });
+});
+
+/* ─── Merge preservation across row/column insert & delete ─────────────────
+ * A merged cell is represented by ONE anchor carrying rs/cs; the cells it
+ * covers are null. These operations used to lose the anchor's text, or leave
+ * live cells underneath a widened span (two cells claiming one coordinate).
+ * `assertNoOverlapOrphans` is the invariant both classes of bug violate.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+function assertNoOverlapOrphans(state: GridState): void {
+  const claimed = new Set<string>();
+  state.rows.forEach((row, r) => {
+    assert.equal(row.length, state.cols, `row ${r} is not ${state.cols} wide`);
+    row.forEach((cell, c) => {
+      if (!cell) return;
+      const rs = cell.rs ?? 1;
+      const cs = cell.cs ?? 1;
+      assert.ok(r + rs <= state.rows.length, `span at ${r},${c} overflows rows`);
+      assert.ok(c + cs <= state.cols, `span at ${r},${c} overflows cols`);
+      for (let i = 0; i < rs; i++) {
+        for (let j = 0; j < cs; j++) {
+          const key = `${r + i},${c + j}`;
+          assert.ok(!claimed.has(key), `two cells claim ${key}`);
+          claimed.add(key);
+          if (i === 0 && j === 0) continue;
+          assert.equal(
+            state.rows[r + i]?.[c + j] ?? null,
+            null,
+            `cell at ${r},${c} covers a live cell at ${r + i},${c + j}`,
+          );
+        }
+      }
+    });
+  });
+}
+
+describe("merged cells survive row and column deletion", () => {
+  test("deleting a row keeps a column-spanning merge's text", () => {
+    let g = setCell(createGrid(3, 3), 0, 0, "Sprint goal");
+    g = mergeSelection(g, 0, 0, 0, 2); // 1 row x 3 cols
+    const after = deleteRow(g, 0);
+    assert.equal(vals(after)[0][0], "Sprint goal", "text was destroyed");
+    assertNoOverlapOrphans(after);
+  });
+
+  test("deleting a column keeps a row-spanning merge's text", () => {
+    let g = setCell(createGrid(3, 3), 0, 0, "Owner");
+    g = mergeSelection(g, 0, 0, 2, 0); // 3 rows x 1 col
+    const after = deleteCol(g, 0);
+    assert.equal(after.rows[0][0]?.v, "Owner", "text was destroyed");
+    assertNoOverlapOrphans(after);
+  });
+
+  test("deleting a row keeps a 3x3 block's text and shrinks it", () => {
+    let g = setCell(createGrid(4, 4), 0, 0, "Both");
+    g = mergeSelection(g, 0, 0, 2, 2);
+    const after = deleteRow(g, 0);
+    assert.equal(after.rows[0][0]?.v, "Both");
+    assert.equal(after.rows[0][0]?.rs, 2, "rowspan should shrink by one");
+    assert.equal(after.rows[0][0]?.cs, 3, "colspan should be unchanged");
+    assertNoOverlapOrphans(after);
+  });
+
+  test("deleting a column keeps a 3x3 block's text and shrinks it", () => {
+    let g = setCell(createGrid(4, 4), 0, 0, "Both");
+    g = mergeSelection(g, 0, 0, 2, 2);
+    const after = deleteCol(g, 0);
+    assert.equal(after.rows[0][0]?.v, "Both");
+    assert.equal(after.rows[0][0]?.cs, 2, "colspan should shrink by one");
+    assert.equal(after.rows[0][0]?.rs, 3, "rowspan should be unchanged");
+    assertNoOverlapOrphans(after);
+  });
+
+  test("deleting the last row or column of a block drops the merge safely", () => {
+    let g = setCell(createGrid(4, 4), 0, 0, "Both");
+    g = mergeSelection(g, 0, 0, 2, 2);
+    let rows = g;
+    for (let i = 0; i < 3; i++) rows = deleteRow(rows, 0);
+    assert.equal(rows.rows.length, 1);
+    assertNoOverlapOrphans(rows);
+    let cols = g;
+    for (let i = 0; i < 3; i++) cols = deleteCol(cols, 0);
+    assert.equal(cols.cols, 1);
+    assertNoOverlapOrphans(cols);
+  });
+});
+
+describe("merges absorb an inserted row or column without double-covering", () => {
+  test("inserting a row inside a block leaves the new row covered", () => {
+    let g = setCell(createGrid(4, 4), 0, 0, "Both");
+    g = mergeSelection(g, 0, 0, 2, 2);
+    const after = insertRow(g, 0);
+    assertNoOverlapOrphans(after);
+    assert.equal(vals(after).flat().filter(Boolean).length, 1, "only the merge has content");
+  });
+
+  test("inserting a column inside a block leaves the new column covered", () => {
+    let g = setCell(createGrid(4, 4), 0, 0, "Both");
+    g = mergeSelection(g, 0, 0, 2, 2);
+    const after = insertCol(g, 0);
+    assertNoOverlapOrphans(after);
+    assert.equal(vals(after).flat().filter(Boolean).length, 1);
+  });
+
+  test("inserting a row below an unrelated merge keeps the new row editable", () => {
+    // merge occupies row 0 only; inserting at row 1 must not touch it
+    let g = setCell(createGrid(4, 3), 0, 0, "Top");
+    g = mergeSelection(g, 0, 0, 0, 1);
+    const after = insertRow(g, 1);
+    assert.equal(after.rows[0][0]?.v, "Top");
+    assert.equal(after.rows[0][0]?.cs, 2, "colspan untouched");
+    assert.deepEqual(after.rows[2][0], { v: "", rs: 1, cs: 1 }, "new row is a live cell");
+    assertNoOverlapOrphans(after);
+  });
+
+  test("random operations never produce overlapping or orphaned cells", () => {
+    let g = createGrid(5, 5);
+    let seed = 12345;
+    const rnd = (n: number) => {
+      // deterministic LCG so a failure is reproducible
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    for (let i = 0; i < 2000 && g.rows.length > 1 && g.cols > 1; i++) {
+      switch (rnd(6)) {
+        case 0:
+          g = insertRow(g, rnd(g.rows.length) - 1);
+          break;
+        case 1:
+          g = insertCol(g, rnd(g.cols) - 1);
+          break;
+        case 2:
+          g = deleteRow(g, rnd(g.rows.length));
+          break;
+        case 3:
+          g = deleteCol(g, rnd(g.cols));
+          break;
+        case 4:
+          g = mergeSelection(
+            g,
+            rnd(g.rows.length),
+            rnd(g.cols),
+            rnd(g.rows.length),
+            rnd(g.cols),
+          );
+          break;
+        default:
+          g = setCell(g, rnd(g.rows.length), rnd(g.cols), `v${i}`);
+      }
+      assertNoOverlapOrphans(g);
+    }
   });
 });

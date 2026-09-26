@@ -407,11 +407,11 @@
   },
  "0.7.1": {
   "type": "minor",
-  "title": "Breach-Ready: The Nine Hardening Fixes",
+    "title": "Breach-Ready: Security & Table Reliability",
   "entries": [
    {
     "icon": "🛡️",
-    "text": "Rate-limit bypass closed — login is capped at 10 attempts/15min per account on top of 10/min per IP, register at 3/5min per account and per IP, and a forged IP header can no longer hand you a fresh bucket. That 15 minutes is now genuinely enforced too, not quietly cut short."
+        "text": "Rate-limit bypass closed — login stops after 10 failed password checks per account in 15 minutes, and the next guess is refused before comparison. Email keys use secret-keyed HMAC-SHA-256; forged IP headers cannot reset the bucket."
    },
    {
     "icon": "🧲",
@@ -444,6 +444,22 @@
    {
     "icon": "🔤",
     "text": "Passwords need 8+ characters and can't be one of the usual leaked ones — checked whenever you set a new password, so nobody with an older password is locked out."
+    },
+    {
+     "icon": "🧩",
+     "text": "Team Tables handle overlapping merges safely, recognize weekday names as date axes, and preserve concurrent edits with compare-and-swap rebase."
+    },
+    {
+     "icon": "🪟",
+     "text": "Dialogs now keep focus in the topmost modal and restore it on close; Escape no longer closes unrelated dialogs."
+    },
+    {
+     "icon": "✨",
+     "text": "Sticker picker adds categorized Rina and decoration sprites plus your own profile photo; bounded wheel and button resizing keep stickers usable."
+    },
+    {
+     "icon": "🧪",
+     "text": "Security and table regression coverage now passes 290 tests across 39 suites, alongside typecheck, lint, and production build."
    }
   ]
  }

@@ -8,6 +8,7 @@ import { ROLE_ADMIN } from "@/lib/constants";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { canWriteTable } from "@/lib/table/table-permissions";
 import { createGrid } from "@/lib/table/grid";
+import { isKnownSection } from "@/lib/sections";
 
 const DEFAULT_ROWS = 6;
 const DEFAULT_COLS = 4;
@@ -70,6 +71,13 @@ export async function POST(req: Request) {
 
   if (!canWriteTable(auth.data, { section })) {
     return jsonError("You don't have permission to create tables in this section", 403);
+  }
+
+  /* The section must name a real, active one. Without this an admin could
+     persist "Foo" or "MARKETING " and create a table no member can ever see,
+     because membership rows only ever hold canonical uppercase keys. */
+  if (!(await isKnownSection(section))) {
+    return jsonError("Invalid section", 400);
   }
 
   const grid = createGrid(DEFAULT_ROWS, DEFAULT_COLS);

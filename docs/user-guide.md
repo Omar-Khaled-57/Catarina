@@ -17,7 +17,16 @@ where goals are tracked month by month, with checklists, comments, and automatic
 3. Otherwise click **Sign up**: pick your name, email, password, and the section you work in, then wait for admin approval. You can log in as soon as your request is approved.
 4. First-time users see a welcome modal ("Why Catarina?") — click through to dismiss it. Fresh app versions show an update modal with the changelog.
 
-**One-time login** — after signing in on a device, Catarina keeps you signed in automatically: it stores a secure per-device token (in your browser's local storage) and silently re-issues the session every time you return. You won't be asked for your password again unless you **log out** or the admin deletes your account. Already signed in? Visiting the site takes you straight to the dashboard, skipping the login form.
+**One-time login** — after signing in on a device, Catarina keeps you signed in automatically: it stores a secure per-device token (in your browser's local storage) and silently re-issues the session every time you return. You won't be asked for your password again unless you **log out**, you **change your password**, or the admin deletes your account. Already signed in? Visiting the site takes you straight to the dashboard, skipping the login form.
+
+**Changing your password signs you out everywhere.** For safety, a password change (yours, or an admin's reset of yours) ends every active session on every device immediately — not just the one you changed it on. You'll be returned to the login screen and sign in again with the new password. This is deliberate: it's what makes a stolen session unusable once the owner changes their password.
+
+**If you see "Too many login attempts"** — Catarina allows 10 *failed* sign-in attempts for your email in any 15-minute window, counted across all devices. After that, sign-in is refused for the remainder of the window, even with the right password. Two things worth knowing:
+
+- Signing in *successfully* clears the count, so a few typos followed by a correct sign-in will not lock you out.
+- Your own successful sign-ins never count against you, so signing in repeatedly on several devices is safe.
+
+If you're locked out, wait for the window to pass (up to 15 minutes) and try again. If someone else has locked your account by guessing wrong, changing your password also clears the lockout.
 
 ## The dashboard
 
@@ -90,8 +99,11 @@ Every section can keep as many **tables** as it likes. Anyone with the **Manage 
 - **Edit cells** — click into any cell and type. Enter commits and moves down, Tab moves right, Escape closes the cell.
 - **Select** — click a cell to select it; click it again (or press **Escape**) to deselect. **Grab** a cell (click and hold) then drag across cells to select a rectangle for **merge**; select a merged cell and hit **split** to break it apart.
 - **Rows & columns** — add or delete rows/columns from the toolbar. Tap a cell edge to select a whole row/column; tap it again (or press **Escape**) to deselect. **Hold or drag** an edge to resize it (double-click restores auto-size).
-- **Date mode** — toggle it on and Catarina looks for dates in the first row or first column; today's whole column (or row) lights up in the table's accent color.
-- **Stickers** — open the sticker tray to drop Rina stickers anywhere on the grid. They dance; click to pause or tilt them, drag to reposition, and hover for lock/mirror/delete controls.
+- **Date mode** — toggle it on and Catarina looks for dates or weekday names/abbreviations in the first row or first column; today's whole column (or row) lights up in the table's accent color. Two or more matching cells are needed before it treats a row or column as a date axis, so a single date-like label won't trigger it.
+- **Stickers** — the picker separates *All*, *Rina*, and *Deco* sprites, including a live **You** sticker that uses your profile photo. Stickers dance; click to pause or tilt them, drag to reposition, use the **+ / −** controls or mouse wheel to resize within the supported bounds, and use the hover controls to lock, mirror, or delete.
+- **Deleting a row or column keeps merged text** — if a merged cell sits in the row or column you delete, its text moves into the surviving row/column and the merge shrinks to fit the space that's free. It is never silently discarded.
+- **Two people editing the same table** — Catarina saves shortly after you stop typing. If someone else saved in the meantime, your save is rebased onto their newer version and retried once automatically, keeping your edits on top of theirs; a banner tells you it happened. If they save again while that's happening, your edits stay on screen unsaved and the banner asks you to try again — nothing is overwritten silently in either case.
+- **Limits** — a single cell holds up to 2,000 characters, a table up to 500 stickers, and a whole table document is capped at ~4 MB. Rows must all be the same width as the table. A save that breaks these is rejected with a message rather than partially applied.
 - **Export PDF** — pick dark or light, portrait or landscape (or let Catarina auto-fit the page), and optionally include stickers on the print.
 
 > <img src="../public/rina/think.webp" width="44" align="center" /> **Note:** editing is limited to writers. A member without `canManageTables` sees tables read-only; admins are always writers.

@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, jsonError } from "@/lib/api-helpers";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { ipRateLimitKey } from "@/lib/rateLimitPolicy";
+import { ipRateLimitKey, scaleForSharedBucket } from "@/lib/rateLimitPolicy";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_SIZE,
@@ -22,9 +22,10 @@ export async function POST(req: Request) {
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 
+    const ip = getClientIp(req);
     const limited = await checkRateLimit(
-      ipRateLimitKey("upload", getClientIp(req)),
-      UPLOAD_MAX_PER_WINDOW,
+      ipRateLimitKey("upload", ip),
+      scaleForSharedBucket(UPLOAD_MAX_PER_WINDOW, ip),
       UPLOAD_WINDOW_MS
     );
   if (limited.limited) {

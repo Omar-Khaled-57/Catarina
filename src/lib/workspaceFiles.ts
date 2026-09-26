@@ -143,7 +143,14 @@ export async function createUpload(
   const chunkCount = chunkCountFor(data.totalBytes, chunkSize);
   const createdAt = Date.now();
 
-  await sweepStaleUploads(client);
+  /* Housekeeping only — a failure here (including a store hiccup) must never
+     stop the caller from starting a real upload. The stale rows age out on a
+     later attempt regardless. */
+  try {
+    await sweepStaleUploads(client);
+  } catch (error) {
+    console.error("[WORKSPACE] stale-upload sweep failed:", (error as Error).message);
+  }
 
   await client.execute(
     `INSERT INTO WorkspaceUpload
@@ -168,6 +175,20 @@ export async function createUpload(
   return { uploadId, chunkSize, chunkCount };
 }
 
+/**
+ * SQLite caps how many variables one statement may bind (999 on older builds).
+ * Both sweeps below build an `IN (?, ?, …)` list from a query, so a large
+ * backlog would otherwise fail with "too many SQL variables" and disable the
+ * feature outright. Batched well under the cap instead.
+ */
+const DELETE_BATCH_SIZE = 500;
+
+function batches<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 /** Remove sessions (and their parts) older than the TTL. */
 export async function sweepStaleUploads(client: Client): Promise<void> {
   const cutoff = Date.now() - UPLOAD_SESSION_TTL_MS;
@@ -177,20 +198,22 @@ export async function sweepStaleUploads(client: Client): Promise<void> {
   );
   const ids = res.rows.map((r) => String(r.id));
   if (ids.length === 0) return;
-  const placeholders = ids.map(() => "?").join(", ");
-  await client.batch(
-    [
-      {
-        sql: `DELETE FROM WorkspaceUploadChunk WHERE uploadId IN (${placeholders})`,
-        args: ids,
-      },
-      {
-        sql: `DELETE FROM WorkspaceUpload WHERE id IN (${placeholders})`,
-        args: ids,
-      },
-    ],
-    "write",
-  );
+  for (const batch of batches(ids, DELETE_BATCH_SIZE)) {
+    const placeholders = batch.map(() => "?").join(", ");
+    await client.batch(
+      [
+        {
+          sql: `DELETE FROM WorkspaceUploadChunk WHERE uploadId IN (${placeholders})`,
+          args: batch,
+        },
+        {
+          sql: `DELETE FROM WorkspaceUpload WHERE id IN (${placeholders})`,
+          args: batch,
+        },
+      ],
+      "write",
+    );
+  }
 }
 
 /** Store one assembled part. Returns how many parts have arrived.
@@ -203,15 +226,22 @@ export async function saveChunk(
   chunkIndex: number,
   data: Uint8Array,
   expectedSectionKey?: string,
+  expectedUserId?: string,
 ): Promise<{ received: number; chunkCount: number }> {
   const session = await client.execute(
-    "SELECT sectionKey, totalBytes, chunkSize, chunkCount FROM WorkspaceUpload WHERE id = ?",
+    "SELECT sectionKey, totalBytes, chunkSize, chunkCount, createdBy FROM WorkspaceUpload WHERE id = ?",
     [uploadId],
   );
   const row = session.rows[0];
   if (!row) throw new Error("Upload session not found — please try again.");
   if (expectedSectionKey && String(row.sectionKey) !== expectedSectionKey) {
     throw new Error("Upload session belongs to a different section");
+  }
+  /* Section membership alone is not ownership: a teammate in the same section
+     must not be able to append parts to, or complete, someone else's upload.
+     Same owner check abortUpload already applies. */
+  if (expectedUserId && String(row.createdBy) !== expectedUserId) {
+    throw new Error("Not your upload");
   }
   const totalBytes = Number(row.totalBytes);
   const chunkSize = Number(row.chunkSize);
@@ -274,6 +304,7 @@ export async function commitUpload(
   uploadId: string,
   itemId: string,
   expectedSectionKey?: string,
+  expectedUserId?: string,
 ): Promise<CommittedFile> {
   const session = await client.execute(
     `SELECT sectionKey, projectId, envelopeId, name, type, mime, totalBytes, chunkCount, createdBy
@@ -284,6 +315,11 @@ export async function commitUpload(
   if (!row) throw new Error("Upload session not found — please try again.");
   if (expectedSectionKey && String(row.sectionKey) !== expectedSectionKey) {
     throw new Error("Upload session belongs to a different section");
+  }
+  /* Owner-only, same as saveChunk and abortUpload: completing an upload links
+     the assembled blob into a project, so it must be the session's own author. */
+  if (expectedUserId && String(row.createdBy) !== expectedUserId) {
+    throw new Error("Not your upload");
   }
 
   const chunkCount = Number(row.chunkCount);
@@ -420,10 +456,15 @@ export async function deleteOrphanedFiles(
     .map((r) => String(r.id))
     .filter((id) => !referenced.has(id));
   if (orphaned.length === 0) return 0;
-  const placeholders = orphaned.map(() => "?").join(", ");
-  await client.execute(
-    `DELETE FROM WorkspaceFile WHERE id IN (${placeholders})`,
-    orphaned,
-  );
+  /* Batched for the same bound-variable reason as sweepStaleUploads: a section
+     with many unreferenced blobs would otherwise exceed SQLite's variable cap
+     and the purge would throw, leaving the storage unreclaimed. */
+  for (const batch of batches(orphaned, DELETE_BATCH_SIZE)) {
+    const placeholders = batch.map(() => "?").join(", ");
+    await client.execute(
+      `DELETE FROM WorkspaceFile WHERE id IN (${placeholders})`,
+      batch,
+    );
+  }
   return orphaned.length;
 }

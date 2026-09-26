@@ -11,7 +11,11 @@ import { prisma } from "@/lib/prisma";
 import { getSectionKeys } from "@/lib/sections";
 import { notifyAdmins } from "@/lib/notify";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { accountRateLimitKey, ipRateLimitKey } from "@/lib/rateLimitPolicy";
+import {
+  accountRateLimitKey,
+  ipRateLimitKey,
+  scaleForSharedBucket,
+} from "@/lib/rateLimitPolicy";
 import { asValidPassword } from "@/lib/api-helpers";
 import {
   REGISTRATION_CONFLICT_MESSAGE,
@@ -27,10 +31,14 @@ import bcrypt from "bcryptjs";
 export async function POST(req: Request) {
   try {
     /* Rate limit: 3 registration attempts per 5 minutes, per IP AND per email.
-       The per-email layer is keyed on a hash, so one address can't be spammed
+      The per-email layer uses a secret-keyed HMAC, so one address can't be spammed
        with requests from a rotating set of forged IPs. */
     const ip = getClientIp(req);
-    const ipLimit = await checkRateLimit(ipRateLimitKey("register", ip), 3, 5 * 60_000);
+    const ipLimit = await checkRateLimit(
+      ipRateLimitKey("register", ip),
+      scaleForSharedBucket(3, ip),
+      5 * 60_000,
+    );
     if (ipLimit.limited) {
       return NextResponse.json(
         { error: "Too many registration attempts. Please try again later." },
@@ -53,7 +61,7 @@ export async function POST(req: Request) {
 
     /* Per-email cap, mirroring login: bounded even when the IP is untrusted. */
     const emailLimit = await checkRateLimit(
-      accountRateLimitKey("register", email),
+      accountRateLimitKey("register", email, process.env.JWT_SECRET ?? ""),
       3,
       5 * 60_000,
     );

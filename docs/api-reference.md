@@ -45,7 +45,7 @@ Creates a **pending approval request**. The account is not active until an admin
 
 - Content-Type: `multipart/form-data`
 - Fields: `name`, `email`, `password` (min 8, max 200, and not a commonly-breached password), `section` (uppercase section key), `pfp` (optional File; jpg/png/gif/webp, ≤2 MB)
-- Rate limited: **3 attempts / 5 min / IP** *and* **3 / 5 min per email** (the per-email key is a SHA-256 hash, so rotating forged IPs cannot bypass it)
+- Rate limited: **3 attempts / 5 min / IP** *and* **3 / 5 min per email** (the per-email key is HMAC-SHA-256 keyed with `JWT_SECRET`, so database-only readers cannot precompute email guesses and rotating forged IPs cannot bypass it)
 - Validations: name ≤100 chars, RFC-ish email regex, section must exist via `getSectionKeys()`, password policy via `asValidPassword` (`src/lib/passwordPolicy.ts`).
 - **Create-only.** A `409` with one uniform message is returned if *any* row already exists for that email — a pending request, a rejected request, an earlier approved request, or a registered account. Registration can never overwrite an existing user. An admin can clear a stale request with `DELETE /api/admin/approvals` so that email may try again.
 - Notifies admins (`SIGNUP_REQUEST`).
@@ -53,7 +53,7 @@ Creates a **pending approval request**. The account is not active until an admin
 
 ### `POST /api/auth/login`
 - Body: `{ email, password }`
-- Rate limited on **two independent layers**: **10 attempts / min / IP** and **10 attempts / 15 min per account** (keyed on a SHA-256 hash of the normalized email, so neither a botnet nor a forged-IP rotation gets more than 10 against one account). Either layer being over its limit answers `429`.
+- Rate limited on **two independent layers**: **10 attempts / min / IP** and **10 failed attempts / 15 min per account** (keyed on HMAC-SHA-256 of the normalized email using `JWT_SECRET`). Once ten failures are stored, the next request is refused before bcrypt; either layer being over its limit answers `429`.
 - **Every credential failure returns the same `401` `{ "error": "Invalid email or password" }`** — wrong password, unknown email, rejected signup, and pending signup are indistinguishable. There is no `403` and no per-state message.
 - **Timing-safe by construction:** exactly one bcrypt comparison runs on every attempt whether or not the account exists, so response time cannot be used to enumerate accounts.
 - On success sets the `catarina-token` cookie, mints a per-device refresh token (hashed into the `RefreshToken` table), and returns 200:
@@ -472,7 +472,7 @@ storage. All routes require auth (`src/app/api/drawers/**`, logic in `src/lib/dr
 - **Section-scoping is enforced server-side** against live DB data (`getUserContext`), never the JWT snapshot.
 - **Admins are DB-reverified** on every admin route (`requireAdmin`).
 - **Rate limiting** is a Turso sliding window on the `rate_limit_events` table, shared across Vercel instances. It is **fail-closed**: if Turso errors, the request falls through to a bounded in-memory counter rather than being allowed. In local dev (no `DATABASE_URL`) that in-memory counter is the only store.
-- **Per-account limits are keyed on a SHA-256 hash** of the normalized email, so the shared table never holds a plaintext address. The per-IP layer reads only the header named by `TRUSTED_IP_HEADER`; unset, every caller shares one bucket.
+- **Per-account limits are keyed on HMAC-SHA-256** of the normalized email using `JWT_SECRET`, so the shared table contains no plaintext address and a database-only reader cannot perform offline email guessing. The per-IP layer reads only the header named by `TRUSTED_IP_HEADER`; unset, every caller shares one bucket.
 - **No filesystem uploads**: avatars/signup photos travel as base64 data URIs stored in the `User.pfp` / `Approval.pfp` columns. Drawer files are stored as raw bytes **in the DB** via chunked uploads, and served back as raw bytes.
 - **Tables & drawers are section-scoped server-side** like goals; JSON columns (`cells`, `stickers`, `tree`) must be normalized (string-or-parsed) before use.
 - All route handlers log errors with a `[PREFIX]` tag (e.g. `[GOALS_POST]`, `[REGISTER]`).

@@ -93,6 +93,23 @@ export function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Coerce a value that is about to be interpolated into an HTML attribute to a
+ * finite number inside `[min, max]`, falling back to `fallback`. Keeps a
+ * malformed or hostile stored value from breaking out of the attribute.
+ */
+export function numOr(value: unknown, fallback: number, min: number, max: number): number {
+  /* Only a real number, or a string that parses cleanly to one, is accepted.
+     `Number()` alone is too generous here: it maps null, "" and [] to 0, so a
+     missing value would silently become the minimum instead of the fallback. */
+  let n: number;
+  if (typeof value === "number") n = value;
+  else if (typeof value === "string" && value.trim() !== "") n = Number(value);
+  else return fallback;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 /** CIELAB-ish quick luminance (0..1) of a hex color — for ink choice. */
 export function luminance(hex: string): number {
   const h = hex.replace(/^#/, "");
@@ -168,13 +185,23 @@ export function buildTablePdfHtml({
         ? todayIdx >= 0 && r <= todayIdx && todayIdx < r + cell.rs
         : false;
 
-  /* Stickers: transparent sprites, frozen on their click-chosen pose. */
+  /* Stickers: transparent sprites, frozen on their click-chosen pose.
+     Server-side validation now bounds every sticker field, but this document is
+     written into a SAME-ORIGIN iframe with `document.write`, so anything that
+     reached the database before that validation existed would still execute
+     with the user's session. Escape the text and coerce the numbers here too:
+     the export is the last line of defence, not the first. */
   const stickerHtml =
     includeStickers && table.stickers.length > 0
       ? table.stickers
           .map((s) => {
-            const size = s.w ?? 88;
-            const src = `/rina/${s.sprite}.webp`;
+            const size = numOr(s.w, 88, 40, 240);
+            const left = numOr(s.x, 50, 0, 100);
+            const top = numOr(s.y, 50, 0, 100);
+            /* `sprite` becomes a URL segment. `encodeURIComponent` neutralizes
+               quotes and path separators; the pattern in tablePayload keeps
+               hostile values out of the database in the first place. */
+            const src = `/rina/${encodeURIComponent(String(s.sprite ?? ""))}.webp`;
             const rot =
               s.state === "frame2"
                 ? "rotate(5deg)"
@@ -182,8 +209,8 @@ export function buildTablePdfHtml({
                   ? "rotate(-4deg)"
                   : "";
             const mir = s.mirrored ? "scaleX(-1)" : "";
-            return `<img src="${src}" alt="" width="${size}" height="${size}"
-              style="position:absolute;left:${s.x}%;top:${s.y}%;width:${size}px;height:${size}px;transform:translate(-50%,-50%) ${rot} ${mir};object-fit:contain;pointer-events:none;"/>
+            return `<img src="${esc(src)}" alt="" width="${size}" height="${size}"
+              style="position:absolute;left:${left}%;top:${top}%;width:${size}px;height:${size}px;transform:translate(-50%,-50%) ${rot} ${mir};object-fit:contain;pointer-events:none;"/>
             `;
           })
           .join("")

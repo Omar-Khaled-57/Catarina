@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseDateCell, detectDateAxis, todayIndex } from "@/lib/table/date";
+import { parseDateCell, detectDateAxis, parseDayOfWeek, todayIndex } from "@/lib/table/date";
 
 /* ─── parseDateCell ──────────────────────────────────────────────────────── */
 
@@ -33,9 +33,50 @@ describe("parseDateCell", () => {
   });
 });
 
+/* ─── parseDayOfWeek ──────────────────────────────────────────────────────── */
+
+describe("parseDayOfWeek", () => {
+  test("parses full and abbreviated English names", () => {
+    assert.equal(parseDayOfWeek("sun"), 0);
+    assert.equal(parseDayOfWeek("Sunday"), 0);
+    assert.equal(parseDayOfWeek("MONDAY"), 1);
+    assert.equal(parseDayOfWeek(" wed "), 3);
+    assert.equal(parseDayOfWeek("Sat"), 6);
+  });
+
+  test("returns null for anything that is not exactly a day name", () => {
+    assert.equal(parseDayOfWeek(""), null);
+    assert.equal(parseDayOfWeek("Task"), null);
+    // A substring search would read these as Monday / Tuesday.
+    assert.equal(parseDayOfWeek("Common tasks"), null);
+    assert.equal(parseDayOfWeek("Tuesday notes"), null);
+    assert.equal(parseDayOfWeek("2026-09-01"), null);
+  });
+});
+
 /* ─── detectDateAxis ─────────────────────────────────────────────────────── */
 
 describe("detectDateAxis", () => {
+  test("detects a day-name header as a column axis", () => {
+    const rows = [["Mon", "Tue", "Wed", "Thu", "Fri"]];
+    assert.equal(detectDateAxis(rows, 5), "cols");
+  });
+
+  test("detects a day-name first column as a row axis", () => {
+    const rows = [
+      ["Day", "Owner", "Task"],
+      ["Mon", "Reem", "Prep"],
+      ["Tue", "Ali", "Build"],
+      ["Wed", "Yara", "Ship"],
+    ];
+    assert.equal(detectDateAxis(rows, 3), "rows");
+  });
+
+  test("an ordinary header is still not a date axis", () => {
+    const rows = [["Task", "Owner", "Monday notes", "Due"]];
+    assert.equal(detectDateAxis(rows, 4), null);
+  });
+
   test("detects column dates in header row", () => {
     const rows = [["2026-09-01", "2026-09-02", "2026-09-03"]];
     assert.equal(detectDateAxis(rows, 3), "cols");
@@ -57,6 +98,24 @@ describe("detectDateAxis", () => {
 
   test("returns null on empty grid", () => {
     assert.equal(detectDateAxis([], 0), null);
+  });
+
+  test("a single date-like cell does not declare an axis", () => {
+    // The ratio alone is 1.0 here, which used to flag the axis and highlight
+    // the wrong column as "today".
+    assert.equal(detectDateAxis([["2026-09-01"]], 1), null);
+    assert.equal(detectDateAxis([["2026-09-01", "Owner"]], 2), null);
+    assert.equal(detectDateAxis([["Mon"]], 1), null);
+    assert.equal(
+      detectDateAxis([["Task", "2026-09-01"], ["a", "b"], ["c", "d"]], 2),
+      null,
+      "one date among many non-dates is not an axis",
+    );
+  });
+
+  test("two or more dates still declare an axis", () => {
+    assert.equal(detectDateAxis([["2026-09-01", "2026-09-02"]], 2), "cols");
+    assert.equal(detectDateAxis([["Mon", "Tue"]], 2), "cols");
   });
 
   test("prefers header row over first column when both are dates", () => {

@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GridState } from "@/lib/table/grid";
-import { resetSize, setCell, setSize } from "@/lib/table/grid";
+import { MAX_CELL_SIZE, MIN_CELL_SIZE, resetSize, setCell, setSize } from "@/lib/table/grid";
 import { detectDateAxis, todayIndex } from "@/lib/table/date";
 
 export interface GridSelection {
@@ -277,11 +277,23 @@ export default function TableGrid({
     }
     // Pure pointer tracking vs. the press-time base: the resized edge moves
     // exactly with the cursor (no feedback from the negotiated layout, which
-    // is what made it "jump").
-    pendingPx.current =
-      g.type === "col"
-        ? Math.round(g.base + (e.clientX - g.startX))
-        : Math.round(g.base + (e.clientY - g.startY));
+    // is what made it "jump"). Floors keep a row/column from being dragged
+    // down to an unusable size.
+    /* Clamp with the SAME bounds `setSize` applies on release. The floors used
+       to be hardcoded 36/28 here while the engine's MIN_CELL_SIZE is 48, so a
+       drag that ended between the two values previewed one width and then
+       snapped to another on release — the exact jump this tracking avoids.
+       Sharing the constant keeps the preview and the stored size identical. */
+    pendingPx.current = Math.min(
+      MAX_CELL_SIZE,
+      Math.max(
+        MIN_CELL_SIZE,
+        Math.round(
+          g.base +
+            (g.type === "col" ? e.clientX - g.startX : e.clientY - g.startY),
+        ),
+      ),
+    );
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(flush);
     }

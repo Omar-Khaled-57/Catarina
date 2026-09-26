@@ -41,17 +41,32 @@ export async function getSections(): Promise<SectionData[]> {
       cacheTimestamp = now;
       return dbSections;
     }
-  } catch {
-    // DB might not have the table yet — fall back to defaults
+  } catch (error) {
+    /* Availability over strictness here: this loader feeds every page, so
+       rethrowing would turn a transient DB blip into a 500 app-wide. But the
+       defaults are only a guess about which sections are ACTIVE, so surface the
+       failure loudly — and, critically, do NOT cache a guess derived from an
+       error. Caching it would pin a possibly-stale section registry for the
+       full TTL, turning a momentary read failure into 30s of wrong answers. */
+    console.error(
+      "[SECTIONS] SectionConfig read failed, serving uncached defaults:",
+      (error as Error).message,
+    );
+    return fallbackSections();
   }
 
-  // Fallback to default sections from types (single source of truth)
-  cachedSections = FALLBACK_SECTIONS.map((s) => ({
+  // Genuine empty table (fresh deploy before seeding) — safe to cache.
+  const fallback = fallbackSections();
+  cachedSections = fallback;
+  cacheTimestamp = now;
+  return fallback;
+}
+
+function fallbackSections(): SectionData[] {
+  return FALLBACK_SECTIONS.map((s) => ({
     ...s,
     id: `default-${s.key.toLowerCase()}`,
   }));
-  cacheTimestamp = now;
-  return cachedSections;
 }
 
 /**
@@ -60,6 +75,21 @@ export async function getSections(): Promise<SectionData[]> {
 export async function getSectionKeys(): Promise<string[]> {
   const sections = await getSections();
   return sections.map((s) => s.key);
+}
+
+/**
+ * Whether a caller-supplied section string names a real, active section.
+ *
+ * Section keys are stored uppercase, but anything an admin can type reaches the
+ * write paths, so an unvalidated value like "Foo" or "MARKETING " would persist
+ * a goal/table into a section no membership row can ever match — invisible to
+ * members and uneditable, while still visible to admins. Every create path
+ * funnels through here so the rule is stated once.
+ */
+export async function isKnownSection(value: string): Promise<boolean> {
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return false;
+  return (await getSectionKeys()).includes(normalized);
 }
 
 /**

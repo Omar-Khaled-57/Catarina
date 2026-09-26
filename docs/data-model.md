@@ -172,20 +172,21 @@ AppConfig (standalone key/value — currently unused)
 | `status` | String | `"PENDING"` | `"PENDING"`, `"APPROVED"`, or `"REJECTED"` |
 | `createdAt` / `updatedAt` | DateTime | — | — |
 
-- `POST /api/auth/register` upserts by email: if a previous REJECTED approval exists for the same email, it's updated back to PENDING (allows re-registration).
+- `POST /api/auth/register` is create-only: any existing approval or registered user for the email returns the same conflict response. Rejected or stale requests must be cleared by an admin before another request can be created; duplicate-insert races are rejected rather than overwritten.
 - On approve: a `User` is created (role `MEMBER`), a `UserSection` is added, and the user is assigned a default section avatar via `getDefaultPfp()` (`src/lib/utils.ts:119`) if they didn't upload their own.
 
 ### `RateLimitEvent`
 | Column | Type | Notes |
 |---|---|---|
 | `id` | String (randomUUID) | Primary key |
-| `key` | String | Rate-limit key: `"login:1.2.3.4"`, `"login:acct:<sha256(email)>"`, `"register:1.2.3.4"`, `"upload:1.2.3.4"`, `"profile:password:u_xxx"` |
+| `key` | String | Rate-limit key: `"login:ip:1.2.3.4"`, `"login:acct:<hmac-sha256(email)>"`, `"register:ip:1.2.3.4"`, `"upload:ip:1.2.3.4"`, `"profile:password:u_xxx"` |
 | `ts` | BigInt | Epoch milliseconds |
 
 - Indexed on `[key, ts]`, `[ts]`. Append-only. Rows are **swept** by `src/lib/rateLimit.ts`:
   - Per-key: events older than `now - windowMs` are deleted on every check.
   - Global sweep: events older than `now - 20 min` (the `SWEEP_MARGIN_MS`) are deleted at most once per minute per instance, across all keys.
 - **The 20-minute margin is an invariant, not a preference.** It must exceed the longest window any caller uses *plus* clock skew between serverless instances, or the sweep would delete events belonging to a live window. The longest window today is login's per-account layer at **15 minutes**, so the margin carries 5 minutes of skew headroom. `rateLimit.test.ts` asserts `SWEEP_MARGIN_MS > 15 min` and exercises 12-minute-old in-window events, so lowering the margin below the longest window fails the suite.
+- Per-account email keys use HMAC-SHA-256 keyed with `JWT_SECRET`; a database-only reader cannot test candidate addresses without the server secret. Login blocks the next comparison once 10 failed attempts are recorded in the 15-minute window.
 
 ### `RefreshToken`
 | Column | Type | Default | Notes |
@@ -213,7 +214,7 @@ AppConfig (standalone key/value — currently unused)
 | `name` | String | — | Table title (≤200 chars enforced by API) |
 | `color` | String | `"#00E8A2"` | App accent teal; `SECTION_COLORS` are picker options |
 | `cells` | Json | — | `GridState` — `{ cols: number, rows: GridCell[][] }`; `GridCell = { v, rs, cs } \| null` (merged spans hold content, covered cells are `null`) |
-| `stickers` | Json | `"[]"` | `StickerData[]` — `{ id, sprite, x, y, w?, locked?, mirrored?, state? }` |
+| `stickers` | Json | `"[]"` | `StickerData[]` — `{ id, sprite, x, y, w?, locked?, mirrored?, state? }`; `w` defaults to 88 px and is clamped to 40–240 px; sprite `you` resolves to the current user's profile photo |
 | `isDateBased` | Boolean | false | Date-mode auto-detect today's column/row |
 | `createdById` | String | — | Author user id (plain scalar) |
 | `createdAt` / `updatedAt` | DateTime | now / @updatedAt | — |
@@ -317,6 +318,10 @@ There are **two** ways to seed team tables, and they are not interchangeable:
 | `dev/seed-tables.mjs` (gitignored, dev-only) | `node --env-file=.env dev/seed-tables.mjs` | Idempotent; seeds a few mock tables for local testing |
 
 `prisma/seed.ts` does **not** create tables.
+
+### Additive newest-month demo seed (local helper)
+
+`dev/seed-month.mjs` adds demo goals, steps, comments, and assignments to the newest planning month (or creates the current month if none exists), plus one drawer project per section with envelopes, notes/links/code, and real stored file content. It does not delete existing rows and skips matching content on reruns. Preview the plan with `node dev/seed-month.mjs --dry-run`; run `node dev/seed-month.mjs` only when you intend to write this demo content to the database selected by `.env`. This helper is gitignored and is not part of the deployed application.
 
 ---
 

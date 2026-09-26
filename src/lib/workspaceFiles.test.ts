@@ -337,3 +337,143 @@ test("abortUpload drops a session and its parts, and is owner-checked", async ()
   assert.equal((await db.execute("SELECT COUNT(*) AS c FROM WorkspaceUpload WHERE id = ?", [uploadId])).rows[0]?.c, 0);
   assert.equal((await db.execute("SELECT COUNT(*) AS c FROM WorkspaceUploadChunk WHERE uploadId = ?", [uploadId])).rows[0]?.c, 0);
 });
+/* ── ownership of an in-flight upload ──────────────────────────────────── */
+
+test("saveChunk refuses a teammate's upload, not just another section's", async () => {
+  // Section membership is not ownership: a peer in the SAME section must not be
+  // able to append parts to someone else's in-flight upload.
+  const uploadId = "upload-chunk-owner";
+  await injectSession(uploadId, 8, 4);
+
+  await assert.rejects(
+    () => saveChunk(db, uploadId, 0, new Uint8Array(4), "ART", "someone-else"),
+    /Not your upload/,
+  );
+  const chunks = await db.execute(
+    "SELECT COUNT(*) AS c FROM WorkspaceUploadChunk WHERE uploadId = ?",
+    [uploadId],
+  );
+  assert.equal(chunks.rows[0]?.c, 0, "a rejected chunk must not be stored");
+
+  // The owner is still able to write it.
+  const ok = await saveChunk(db, uploadId, 0, new Uint8Array(4), "ART", "user-1");
+  assert.equal(ok.received, 1);
+});
+
+test("commitUpload refuses a teammate's upload", async () => {
+  // Completing an upload links the assembled blob into a project, so it must be
+  // restricted to the session's author.
+  const uploadId = "upload-complete-owner";
+  await injectSession(uploadId, 8, 4);
+  await saveChunk(db, uploadId, 0, new Uint8Array(4), "ART", "user-1");
+  await saveChunk(db, uploadId, 1, new Uint8Array(4), "ART", "user-1");
+
+  await assert.rejects(
+    () => commitUpload(db, uploadId, "item-1", "ART", "someone-else"),
+    /Not your upload/,
+  );
+  const files = await db.execute(
+    "SELECT COUNT(*) AS c FROM WorkspaceFile WHERE itemId = ?",
+    ["item-1"],
+  );
+  assert.equal(files.rows[0]?.c, 0, "a rejected commit must not create a file");
+
+  const committed = await commitUpload(db, uploadId, "item-1", "ART", "user-1");
+  assert.equal(committed.itemId, "item-1");
+});
+
+test("the owner check is opt-in so existing internal callers keep working", async () => {
+  // Only the HTTP handlers pass a userId; omitting it must not lock anyone out.
+  const uploadId = "upload-no-user";
+  await injectSession(uploadId, 4, 4);
+  const ok = await saveChunk(db, uploadId, 0, new Uint8Array(4), "ART");
+  assert.equal(ok.received, 1);
+});
+
+/* ── bound-variable batching ──────────────────────────────────────────── */
+
+/**
+ * A client that enforces a LOW variable cap, standing in for an older SQLite
+ * build (999 bound variables). Modern libSQL allows 32,766, so simply inserting
+ * "a lot" of rows would NOT exercise the bug — this makes the ceiling real so
+ * the batching is genuinely required.
+ *
+ * It also records the widest statement it saw, so the test can assert the work
+ * really was split rather than merely succeeding.
+ */
+function cappedClient(inner: Client, cap: number) {
+  const seen = { widest: 0 };
+  const check = (args: unknown[]) => {
+    seen.widest = Math.max(seen.widest, Array.isArray(args) ? args.length : 0);
+    if (Array.isArray(args) && args.length > cap) {
+      throw new Error("too many SQL variables");
+    }
+  };
+  const proxy = {
+    execute: (sql: string, args?: unknown) => {
+      check(Array.isArray(args) ? args : []);
+      return inner.execute(sql, (args ?? []) as never);
+    },
+    batch: (stmts: { sql: string; args?: unknown }[], mode?: string) => {
+      for (const st of stmts) check((st.args ?? []) as unknown[]);
+      return inner.batch(stmts as never, mode as never);
+    },
+  } as unknown as Client;
+  return { proxy, seen };
+}
+
+test("sweepStaleUploads batches instead of binding every stale id at once", async () => {
+  // Regression: the sweep built ONE `IN (?, ?, …)` list, so on a build with a
+  // 999-variable ceiling it threw "too many SQL variables" the moment a
+  // thousand sessions piled up — which silently disabled chunked uploads for
+  // everyone. The cap here reproduces that ceiling.
+  const COUNT = 1_200;
+  const createdAt = Date.now() - UPLOAD_SESSION_TTL_MS - 60_000;
+  for (let i = 0; i < COUNT; i++) {
+    await db.execute(
+      `INSERT INTO WorkspaceUpload
+         (id, sectionKey, projectId, envelopeId, name, type, mime,
+          totalBytes, chunkSize, chunkCount, createdBy, createdAt)
+       VALUES (?, 'ART', 'proj-1', NULL, 'f.bin', 'FILE', 'application/octet-stream', 4, 4, 1, 'user-1', ?)`,
+      [`bulk-${i}`, createdAt],
+    );
+  }
+
+  const { proxy, seen } = cappedClient(db, 999);
+  await sweepStaleUploads(proxy);
+
+  assert.ok(seen.widest <= 999, `widest statement bound ${seen.widest} variables`);
+  assert.ok(
+    seen.widest < COUNT,
+    `expected the work to be split, but one statement bound ${seen.widest} ids`,
+  );
+  const left = await db.execute(
+    "SELECT COUNT(*) AS c FROM WorkspaceUpload WHERE id LIKE 'bulk-%'",
+  );
+  assert.equal(Number(left.rows[0]?.c ?? -1), 0, "every stale session must be swept");
+});
+
+test("deleteOrphanedFiles batches instead of binding every orphan at once", async () => {
+  const COUNT = 1_100;
+  for (let i = 0; i < COUNT; i++) {
+    await db.execute(
+      `INSERT INTO WorkspaceFile
+         (id, sectionKey, projectId, envelopeId, itemId, name, mime, size, data, createdBy, createdAt)
+       VALUES (?, 'ART', 'proj-1', NULL, ?, 'f.bin', 'application/octet-stream', 1, x'00', 'user-1', 0)`,
+      [`orphan-${i}`, `item-${i}`],
+    );
+  }
+
+  // None referenced, so all are orphans. Earlier tests in this shared database
+  // may leave their own unreferenced rows behind, so the row check is scoped.
+  const { proxy, seen } = cappedClient(db, 999);
+  const deleted = await deleteOrphanedFiles(proxy, "ART", new Set<string>());
+
+  assert.ok(seen.widest <= 999, `widest statement bound ${seen.widest} variables`);
+  assert.ok(seen.widest < COUNT, "expected the purge to be split into batches");
+  assert.ok(deleted >= COUNT, `expected at least ${COUNT} deletions, got ${deleted}`);
+  const left = await db.execute(
+    "SELECT COUNT(*) AS c FROM WorkspaceFile WHERE id LIKE 'orphan-%'",
+  );
+  assert.equal(Number(left.rows[0]?.c ?? -1), 0);
+});

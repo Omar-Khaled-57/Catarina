@@ -6,8 +6,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUserContext, jsonError, asString, asBoolean } from "@/lib/api-helpers";
 import { ROLE_ADMIN } from "@/lib/constants";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { canWriteTable } from "@/lib/table/table-permissions";
-import { MAX_GRID_SIZE } from "@/lib/table/grid";
+import { validateCells, validateStickers } from "@/lib/table/tablePayload";
 
 /** JSON columns come back either as a JSON-encoded string (Prisma-written) or
     already parsed (raw-libsql-written). Normalize to the parsed value. */
@@ -63,6 +64,18 @@ export async function PATCH(req: Request, { params }: Params) {
   const auth = await requireUserContext();
   if (!auth.ok) return auth.response;
 
+  /* Bound table mutations like the drawers mutate route. PATCH/DELETE were
+     previously unthrottled while POST was limited, so a single ordinary member
+     could loop multi-megabyte writes into the shared database. */
+  const limited = await checkRateLimit(
+    `mutation:tables:${auth.data.id}`,
+    60,
+    60_000,
+  );
+  if (limited.limited) {
+    return jsonError("Too many table updates, try again shortly", 429);
+  }
+
   const { id } = await params;
   const table = await findTable(id);
   if (!table) return jsonError("Table not found", 404);
@@ -97,24 +110,15 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   if (body.cells !== undefined) {
-    if (typeof body.cells !== "object" || body.cells === null) {
-      return jsonError("Invalid cells", 400);
-    }
-    const cells = body.cells as { rows?: unknown[][]; cols?: number };
-    if (!Array.isArray(cells.rows) || typeof cells.cols !== "number") {
-      return jsonError("Invalid cells structure", 400);
-    }
-    if (cells.rows.length > MAX_GRID_SIZE || cells.cols > MAX_GRID_SIZE) {
-      return jsonError(`Grid exceeds maximum size of ${MAX_GRID_SIZE}×${MAX_GRID_SIZE}`, 400);
-    }
-    data.cells = JSON.stringify(cells);
+    const cells = validateCells(body.cells);
+    if (!cells.ok) return jsonError(cells.error, 400);
+    data.cells = cells.value.serialized;
   }
 
   if (body.stickers !== undefined) {
-    if (!Array.isArray(body.stickers)) {
-      return jsonError("Invalid stickers", 400);
-    }
-    data.stickers = JSON.stringify(body.stickers);
+    const stickers = validateStickers(body.stickers);
+    if (!stickers.ok) return jsonError(stickers.error, 400);
+    data.stickers = stickers.value;
   }
 
   if (Object.keys(data).length === 0) {
@@ -180,6 +184,15 @@ function serializeTable(t: NonNullable<Awaited<ReturnType<typeof findTable>>>) {
 export async function DELETE(_req: Request, { params }: Params) {
   const auth = await requireUserContext();
   if (!auth.ok) return auth.response;
+
+  const limited = await checkRateLimit(
+    `mutation:tables:${auth.data.id}`,
+    60,
+    60_000,
+  );
+  if (limited.limited) {
+    return jsonError("Too many table updates, try again shortly", 429);
+  }
 
   const { id } = await params;
   const table = await findTable(id);

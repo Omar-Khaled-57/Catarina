@@ -149,11 +149,17 @@ export async function rotateRefreshToken(raw: string): Promise<RotationResult> {
  * presented row, so a copy taken before rotation cannot outlive the logout.
  * No-op for unknown tokens.
  */
-export async function revokeRefreshToken(raw: string): Promise<void> {
+export async function revokeRefreshToken(raw: string, userId?: string): Promise<void> {
   if (!isValidRefreshTokenShape(raw)) return;
   const record = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(raw) },
-    select: { familyId: true },
+    select: { familyId: true, userId: true },
   });
-  if (record) await revokeFamily(record.familyId);
+  /* When the caller has proved who they are, only ever revoke their OWN token
+     lineage. Revoking a family is a whole-device action, so without the
+     ownership check anyone holding a stolen token could sign the real owner
+     out of every device at will. */
+  if (record && (userId === undefined || record.userId === userId)) {
+    await revokeFamily(record.familyId);
+  }
 }

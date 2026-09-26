@@ -17,6 +17,7 @@ import {
   useState,
 } from "react";
 import type { GridState } from "@/lib/table/grid";
+import { persistTable } from "@/lib/table/persistTable";
 import type { StickerData } from "@/types";
 import { spriteUrl } from "@/components/tools/tables/spriteConfig";
 
@@ -34,6 +35,13 @@ export interface TableDocument {
 }
 
 const SAVE_DEBOUNCE_MS = 600;
+
+/** Starting width for a freshly dropped sticker, scaled to the viewport so it
+ *  reads well on a phone and on a desktop without the user resizing first. */
+function stickerBaseWidth(): number {
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+  return Math.max(56, Math.min(96, Math.round(vw * 0.12)));
+}
 
 export function useTableGrid(tableId: string | null) {
   const [doc, setDoc] = useState<TableDocument | null>(null);
@@ -58,6 +66,11 @@ export function useTableGrid(tableId: string | null) {
       return;
     }
     let cancelled = false;
+    /* Re-arm the shared cancellation flag for this table. The unmount/flush
+       cleanup below sets it, and because the editor does NOT remount when
+       `tableId` changes, leaving it set would permanently disable the conflict
+       rebase and the CAS-token adoption for every table opened afterwards. */
+    cancelledRef.current = false;
     setLoading(true);
     setLoadError(null);
     fetch(`/api/tables/${tableId}`)
@@ -96,59 +109,48 @@ export function useTableGrid(tableId: string | null) {
   }, [tableId]);
 
   /* ── Persist ──────────────────────────────────────────────────────────── */
+  /* The save path itself lives in `lib/table/persistTable` so the CAS contract
+     can be tested without a DOM; this only supplies the state and applies the
+     outcome. It re-reads `docRef.current` before every attempt, so an edit made
+     while a request was in flight is never dropped. */
   const persist = useCallback(async () => {
-    const d = docRef.current;
-    if (!d) return;
+    if (!docRef.current) return;
     setIsSaving(true);
-    setSaveError(null);
     try {
-      const res = await fetch(`/api/tables/${d.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: d.name,
-          color: d.color,
-          isDateBased: d.isDateBased,
-          cells: d.grid,
-          stickers: d.stickers,
-          /* CAS token: the updatedAt of the revision we loaded. Without it the
-             server (which now enforces optimistic concurrency fail-closed)
-             rejects the write; with it we only bump when nobody else wrote in
-             the meantime, so a second editor's live changes are never silently
-             clobbered. */
-          expectedUpdatedAt: d.updatedAt,
-        }),
-      });
-      if (res.status === 409) {
-        /* Someone else saved a newer revision since we loaded. Fetch the
-           freshest row so the next save rebases on it instead of overwriting
-           that editor's work. Surface it as a visible conflict, not a silent
-           last-write-wins. */
-        const latestRes = await fetch(`/api/tables/${d.id}`);
-        const latestData = latestRes.ok ? await latestRes.json() : null;
-        if (!cancelledRef.current && latestData?.table) {
-          const latest = latestData.table;
-          const next: TableDocument = {
-            id: latest.id,
-            section: latest.section,
-            name: latest.name,
-            color: latest.color,
-            isDateBased: latest.isDateBased,
-            grid: latest.grid,
-            stickers: Array.isArray(latest.stickers) ? latest.stickers : [],
-            updatedAt: latest.updatedAt,
+      const outcome = await persistTable({
+        getDoc: () => {
+          const d = docRef.current;
+          if (!d) return null;
+          /* The wire format calls the grid `cells`; the client document calls it
+             `grid`. That rename is why the 409 rebase once read a field the API
+             never sends. It is mapped explicitly here, in one place. */
+          return {
+            id: d.id,
+            name: d.name,
+            color: d.color,
+            isDateBased: d.isDateBased,
+            cells: d.grid,
+            stickers: d.stickers,
+            updatedAt: d.updatedAt,
           };
+        },
+        adoptToken: (updatedAt) => {
+          const current = docRef.current;
+          if (!current) return;
+          /* Only the token moves: `docRef.current` may already be ahead of what
+             the server acknowledged, and that newer local state must stand. */
+          const next: TableDocument = { ...current, updatedAt };
           docRef.current = next;
           setDoc(next);
-          setSaveError("Someone else changed this table — we loaded their latest copy. Your edits weren't lost; please re-apply on top.");
-          return;
-        }
-        throw new Error("save failed");
+        },
+        isCancelled: () => cancelledRef.current,
+      });
+      if (outcome.status === "cancelled") return;
+      if (outcome.status === "saved") {
+        setLastSavedAt(Date.now());
+        return;
       }
-      if (!res.ok) throw new Error("save failed");
-      setLastSavedAt(Date.now());
-    } catch {
-      setSaveError("Your last change didn't save — reconnecting in the background");
+      setSaveError(outcome.message);
     } finally {
       setIsSaving(false);
     }
@@ -159,21 +161,23 @@ export function useTableGrid(tableId: string | null) {
     saveTimer.current = setTimeout(() => void persist(), SAVE_DEBOUNCE_MS);
   }, [persist]);
 
-  /* Flush any pending debounce on unmount so a quick navigation doesn't drop
-     the last cell edit. persist() reads docRef.current, which holds the freshest
-     document, so the final write carries everything up to the unmount. */
+  /* Flush any pending debounce on unmount (or when switching tables) so a quick
+     navigation doesn't drop the last cell edit. Both values are read INSIDE the
+     cleanup: reading them in the effect body captured them at mount, when the
+     load fetch had not resolved yet and both were still null — so the flush
+     could never run and the armed timer leaked into the next table. */
   useEffect(() => {
-    const doc = docRef.current;
-    const timer = saveTimer.current;
     return () => {
       cancelledRef.current = true;
+      const timer = saveTimer.current;
+      const doc = docRef.current;
       saveTimer.current = null;
+      if (timer) clearTimeout(timer);
       if (timer && doc) {
-        clearTimeout(timer);
         void persist();
       }
     };
-  }, [persist]);
+  }, [persist, tableId]);
 
   /* ── Mutate (single path: ref + state stay in lockstep, then debounce) ── */
   const mutate = useCallback(
@@ -225,6 +229,7 @@ export function useTableGrid(tableId: string | null) {
             sprite,
             x: 35 + Math.random() * 30,
             y: 30 + Math.random() * 40,
+            w: stickerBaseWidth(),
             locked: false,
             mirrored: false,
             state: "play",

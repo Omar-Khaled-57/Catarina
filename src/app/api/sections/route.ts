@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { getSections } from "@/lib/sections";
 import { toPublicSections } from "@/lib/publicSection";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { ipRateLimitKey } from "@/lib/rateLimitPolicy";
+import { ipRateLimitKey, scaleForSharedBucket } from "@/lib/rateLimitPolicy";
 
 /* Public and unauthenticated, so it is the cheapest endpoint in the app to
    hammer. The payload is tiny and cached for 30s server-side, but the request
@@ -20,9 +20,10 @@ const PUBLIC_SECTIONS_MAX_PER_WINDOW = 30;
 const PUBLIC_SECTIONS_WINDOW_MS = 60_000;
 
 export async function GET(req: Request) {
+  const ip = getClientIp(req);
   const limited = await checkRateLimit(
-    ipRateLimitKey("sections", getClientIp(req)),
-    PUBLIC_SECTIONS_MAX_PER_WINDOW,
+    ipRateLimitKey("sections", ip),
+    scaleForSharedBucket(PUBLIC_SECTIONS_MAX_PER_WINDOW, ip),
     PUBLIC_SECTIONS_WINDOW_MS,
   );
   if (limited.limited) {

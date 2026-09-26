@@ -188,6 +188,111 @@ export async function checkRateLimit(
   return { limited: false };
 }
 
+/**
+ * Sliding-window PEEK against a libsql/Turso client: report whether a key is
+ * over budget WITHOUT recording an event. Exported for tests.
+ *
+ * Read-only by design. A peek must never extend a window, so there is no
+ * INSERT here — only expired-row cleanup and the COUNT.
+ */
+export async function tursoSlidingWindowPeek(
+  client: Client,
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+  opts: SlidingWindowOptions = {}
+): Promise<{ limited: boolean; retryAfterMs: number }> {
+  const now = opts.now ?? Date.now();
+  const results = await client.batch(
+    [
+      {
+        sql: "DELETE FROM rate_limit_events WHERE key = ? AND ts < ?",
+        args: [key, now - windowMs],
+      },
+      {
+        sql: "SELECT COUNT(*) AS count, MIN(ts) AS oldest FROM rate_limit_events WHERE key = ? AND ts >= ?",
+        args: [key, now - windowMs],
+      },
+    ],
+    "write"
+  );
+  const row = results[results.length - 1].rows[0] as unknown as
+    | { count: number; oldest: number | null }
+    | undefined;
+  const count = Number(row?.count ?? 0);
+  if (count >= maxRequests) {
+    const oldest = row?.oldest == null ? null : Number(row.oldest);
+    return { limited: true, retryAfterMs: oldest == null ? 0 : Math.max(0, oldest + windowMs - now) };
+  }
+  return { limited: false, retryAfterMs: 0 };
+}
+
+/** Delete every event for a key. Exported for tests. */
+export async function tursoSlidingWindowClear(client: Client, key: string): Promise<void> {
+  await client.batch([{ sql: "DELETE FROM rate_limit_events WHERE key = ?", args: [key] }], "write");
+}
+
+/**
+ * Report whether a key is CURRENTLY over its budget, WITHOUT recording an
+ * event.
+ *
+ * This exists for the login account layer, which must be able to refuse a
+ * request *before* spending a bcrypt comparison. Charging the key up front
+ * would penalise a correct password; checking only after a failure means a
+ * correct password is never actually blocked — the attempt sails through while
+ * the counter quietly grows — which is not a brute-force control at all.
+ */
+export async function peekRateLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number
+): Promise<{ limited: false } | { limited: true; retryAfterMs: number }> {
+  const safeKey = key.length > MAX_KEY_LENGTH ? key.slice(0, MAX_KEY_LENGTH) : key;
+  const now = Date.now();
+  const client = getDb();
+
+  if (client) {
+    try {
+      const result = await tursoSlidingWindowPeek(client, safeKey, maxRequests, windowMs);
+      return result.limited
+        ? { limited: true, retryAfterMs: result.retryAfterMs }
+        : { limited: false };
+    } catch {
+      /* Fall through to the in-memory backstop, matching checkRateLimit: a
+         limiter must never fail open. */
+    }
+  }
+
+  pruneMemStore(now);
+  const entry = memStore.get(safeKey);
+  if (!entry || now > entry.resetAt) return { limited: false };
+  if (entry.count >= maxRequests) return { limited: true, retryAfterMs: entry.resetAt - now };
+  return { limited: false };
+}
+
+/**
+ * Drop every recorded event for a key.
+ *
+ * Called after a SUCCESSFUL login so the account's failure history starts clean.
+ * Without it, a user who fat-fingered their password a few times would stay one
+ * or two attempts from a lockout, and a shared machine would carry one user's
+ * failures into the next user's sign-in.
+ */
+export async function clearRateLimit(key: string): Promise<void> {
+  const safeKey = key.length > MAX_KEY_LENGTH ? key.slice(0, MAX_KEY_LENGTH) : key;
+  const client = getDb();
+
+  if (client) {
+    try {
+      await tursoSlidingWindowClear(client, safeKey);
+    } catch {
+      /* Best effort: a stale counter is a lockout risk, not a security hole, so
+         this must never fail the login it is cleaning up after. */
+    }
+  }
+  memStore.delete(safeKey);
+}
+
 /* ── In-memory fallback store (local dev + Turso-outage backstop) ── */
 interface RateLimitEntry {
   count: number;

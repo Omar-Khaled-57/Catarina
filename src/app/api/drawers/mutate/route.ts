@@ -29,6 +29,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { ROLE_ADMIN } from "@/lib/constants";
 import {
   DrawerConflictError,
+  DrawerQuotaError,
   getSectionDef,
   insertItemIntoSection,
   mutateSection,
@@ -133,8 +134,8 @@ export async function POST(request: NextRequest) {
 
   try {
     if (action === "uploadStart") return await handleUploadStart(def.key, body, auth.data.id);
-    if (action === "uploadChunk") return await handleUploadChunk(def.key, body);
-    if (action === "uploadComplete") return await handleUploadComplete(def, body);
+    if (action === "uploadChunk") return await handleUploadChunk(def.key, body, auth.data.id);
+    if (action === "uploadComplete") return await handleUploadComplete(def, body, auth.data.id);
     if (action === "uploadAbort")
       return await handleUploadAbort(body, auth.data.id);
 
@@ -153,6 +154,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof DrawerConflictError) {
       return jsonError(error.message, 409);
+    }
+    if (error instanceof DrawerQuotaError) {
+      return jsonError(error.message, 413);
     }
     return jsonError(
       error instanceof Error ? error.message : "Invalid drawer mutation",
@@ -230,7 +234,11 @@ async function handleUploadStart(
 }
 
 /** Store one arrived part. */
-async function handleUploadChunk(sectionKey: string, body: Record<string, unknown>) {
+async function handleUploadChunk(
+  sectionKey: string,
+  body: Record<string, unknown>,
+  userId: string,
+) {
   const client = getUploadStore();
   if (!client) return jsonError("Drawer storage is unavailable", 503);
 
@@ -250,7 +258,7 @@ async function handleUploadChunk(sectionKey: string, body: Record<string, unknow
   const data = Buffer.from(b64, "base64");
   if (data.length === 0) return jsonError("Empty chunk", 400);
 
-  const result = await saveChunk(client, uploadId, index, data, sectionKey);
+  const result = await saveChunk(client, uploadId, index, data, sectionKey, userId);
   return NextResponse.json(result);
 }
 
@@ -273,6 +281,7 @@ async function handleUploadAbort(
 async function handleUploadComplete(
   def: NonNullable<Awaited<ReturnType<typeof getSectionDef>>>,
   body: Record<string, unknown>,
+  userId: string,
 ) {
   const client = getUploadStore();
   if (!client) return jsonError("Drawer storage is unavailable", 503);
@@ -281,7 +290,7 @@ async function handleUploadComplete(
   if (!uploadId) return jsonError("uploadId is required", 400);
 
   const itemId = crypto.randomUUID();
-  const committed = await commitUpload(client, uploadId, itemId, def.key);
+  const committed = await commitUpload(client, uploadId, itemId, def.key, userId);
 
   const section = await insertItemIntoSection(
     def,

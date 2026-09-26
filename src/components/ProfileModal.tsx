@@ -12,6 +12,7 @@ import { getDefaultPfp } from "@/lib/utils";
 import { User, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { themeSafeTextColor } from "@/lib/themeSafeColor";
 import { PASSWORD_MIN_LEN } from "@/lib/passwordPolicy";
 import PasswordInput from "@/components/ui/PasswordInput";
@@ -40,6 +41,7 @@ export default function ProfileModal({
   refreshUser,
 }: ProfileModalProps) {
   const { isDark } = useTheme();
+  const { logout } = useAuth();
   const [pickedSection, setPickedSection] = useState<string>(user.primarySection || "MANAGEMENT");
   const [saving, setSaving] = useState(false);
   const [pfp, setPfp] = useState(user.pfp);
@@ -170,11 +172,20 @@ export default function ProfileModal({
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        await refreshUser();
+        const data = await res.json().catch(() => ({}));
         setHasChanges(false);
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
+        /* A password change revokes every session, this one included, so the
+           old cookie is already dead. Sign out cleanly instead of leaving the
+           user on a page whose next request 401s. */
+        if (data.passwordChanged) {
+          toast.success("Password changed — sign in again with your new password");
+          await logout();
+          return;
+        }
+        await refreshUser();
         toast.success("Profile saved");
       } else {
         const data = await res.json();

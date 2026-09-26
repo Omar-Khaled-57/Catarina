@@ -191,13 +191,13 @@ Node's built-in test runner with `tsx`:
 npm test
 ```
 
-Current suites (26 files, 194 tests). New security policy modules are unit-tested in isolation:
-`rateLimit.test.ts` + `rateLimitPolicy.test.ts` (sliding window, sweep invariant, IP/account keying),
+Current suite: **290 tests across 39 suites**. Security policy modules are unit-tested in isolation:
+`rateLimit.test.ts` + `rateLimitPolicy.test.ts` (sliding window, sweep invariant, trusted IP and secret-keyed HMAC account keys), `loginAttempt.test.ts` (the ten-failure cutoff and gate-before-bcrypt ordering),
 `loginPolicy.test.ts` (timing-equalized verification), `originGuard.test.ts` (CSRF origin
 classification), `passwordPolicy.test.ts` (length/byte cap + breach blocklist),
 `registrationPolicy.test.ts`, `publicSection.test.ts`, `refreshPolicy.test.ts` (rotation + family
 ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `table/` suites
-(grid merge/split/insert/delete/resize, date detection, write-scoped flags).
+(grid merge/split/insert/delete/resize, date detection, payload bounds, PDF escaping, and CAS persistence).
 
 > **Mock tables for local testing:** `dev/seed-tables.mjs` (gitignored, dev-only) seeds a few
 > sample tables into Turso via direct `@libsql` inserts — run with `node --env-file=.env dev/seed-tables.mjs`.
@@ -206,6 +206,13 @@ ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `
 > ⚠️ The **tracked** `npm run db:seed-tables` (`prisma/seed-tables.ts`) is a *different, destructive*
 > script: it deletes every `TeamTable` row in Turso and writes showcase grids. Don't reach for it
 > when you only want a couple of mock tables.
+
+> **Newest-month demo content (local helper):** `dev/seed-month.mjs` is an additive, idempotent
+> helper that adds goals, checklist steps, comments/assignments, and drawer projects with envelopes
+> and stored files to the newest month. Preview with `node dev/seed-month.mjs --dry-run`; running
+> without the flag writes to the database selected by `.env`. It does not wipe existing rows, but
+> only run it against a database where this demo content is intended. The script is gitignored and
+> is not shipped with the application.
 
 ## Deployment (Vercel)
 
@@ -240,7 +247,9 @@ ceiling), plus `mergeGoals`, `permissions`, `utils`, `workspaceFiles`, and the `
 - **Rate limits are shared across Vercel instances (Turso) and fail CLOSED.** If Turso errors, the
   request falls through to a bounded in-memory counter rather than being allowed — a database
   hiccup must not become an open floodgate. Auth routes are double-keyed: a cheap per-IP layer plus
-  a per-account layer hashed from the email, so rotating forged IPs cannot reset a brute-force budget.
+  a per-account layer keyed by HMAC-SHA-256 of the email using `JWT_SECRET`, so rotating forged IPs
+  cannot reset a brute-force budget or enable offline email guessing from the rate-limit table.
+  Login refuses the next password comparison once 10 failures are recorded in 15 minutes.
 - **The sweep margin is a tested invariant.** `SWEEP_MARGIN_MS` (20 min) must exceed the longest
   window (login's per-account 15 min) plus clock skew; `rateLimit.test.ts` fails if it doesn't.
   Widen a window and the test will tell you.

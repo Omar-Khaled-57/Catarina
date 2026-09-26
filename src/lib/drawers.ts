@@ -12,7 +12,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSections } from "@/lib/sections";
-import { isWorkspaceFileType } from "@/lib/workspaceFiles";
+import {
+  getUploadStore,
+  isWorkspaceFileType,
+  workspaceUsedBytes,
+  MAX_WORKSPACE_BYTES,
+} from "@/lib/workspaceFiles";
 import type {
   DemoProject,
   DemoSection,
@@ -30,6 +35,15 @@ export class DrawerConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "DrawerConflictError";
+  }
+}
+
+/** The shared store is at its byte ceiling, so this write is refused (413)
+ *  rather than filling the database every other section reads from. */
+export class DrawerQuotaError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DrawerQuotaError";
   }
 }
 
@@ -53,24 +67,36 @@ export async function loadTree(sectionKey: string): Promise<DemoProject[]> {
   return (await loadTreeWithVersion(sectionKey)).projects;
 }
 
-/** Projects plus the version the write side must compare-and-swap against. */
+/** Projects plus the version the write side must compare-and-swap against.
+ *  `treeLength` is the stored tree's current size in the same unit the quota
+ *  check uses, so the write side can project the post-write store total
+ *  exactly instead of guessing the delta. */
 export async function loadTreeWithVersion(
   sectionKey: string,
-): Promise<{ projects: DemoProject[]; version: number }> {
+): Promise<{ projects: DemoProject[]; version: number; treeLength: number }> {
   const row = await prisma.drawerSection.findUnique({
     where: { key: normalizeKey(sectionKey) },
     select: { tree: true, version: true },
   });
-  if (!row) return { projects: [], version: 0 };
+  if (!row) return { projects: [], version: 0, treeLength: 0 };
+  const treeLength = storedTreeLength(row.tree);
   try {
     const parsed: unknown = JSON.parse(row.tree);
     return {
       projects: Array.isArray(parsed) ? (parsed as DemoProject[]) : [],
       version: row.version,
+      treeLength,
     };
   } catch {
-    return { projects: [], version: row.version };
+    return { projects: [], version: row.version, treeLength };
   }
+}
+
+/** Measure a tree string the same way SQLite's `LENGTH()` does (UTF-8 code
+ *  points, not UTF-16 units) so the projection matches the stored total that
+ *  `workspaceUsedBytes` reports. */
+function storedTreeLength(tree: string): number {
+  return Array.from(tree).length;
 }
 
 /** Persist a tree only if it still sits on the version we loaded from. A stale
@@ -80,9 +106,27 @@ async function saveTree(
   sectionKey: string,
   projects: DemoProject[],
   version: number,
+  previousTreeLength: number,
 ): Promise<void> {
   const key = normalizeKey(sectionKey);
   const tree = JSON.stringify(projects);
+
+  /* Shared-store byte ceiling, enforced on EVERY tree write — not just
+     chunked uploads. The inline path (createItem / updateItemContent) also
+     stores its payload in this row, so before it was guarded a single member
+     could loop multi-megabyte writes and fill the database the whole app
+     reads from. The projection is exact: the stored total already includes
+     this section's previous tree, so replacing it is total - previous + new. */
+  const client = getUploadStore();
+  if (client) {
+    const used = await workspaceUsedBytes(client);
+    const projected = used - previousTreeLength + storedTreeLength(tree);
+    if (projected > MAX_WORKSPACE_BYTES) {
+      throw new DrawerQuotaError(
+        "The shared workspace is full — delete some drawer files before saving more.",
+      );
+    }
+  }
 
   if (version === 0) {
     /* No row existed when we read — claim it. If someone created it between
@@ -316,9 +360,9 @@ export async function mutateSection(
   action: string,
   payload: Record<string, unknown>,
 ): Promise<DemoSection> {
-  const { projects, version } = await loadTreeWithVersion(def.key);
+  const { projects, version, treeLength } = await loadTreeWithVersion(def.key);
   const next = applyDrawerAction(projects, action, payload);
-  await saveTree(def.key, next, version);
+  await saveTree(def.key, next, version, treeLength);
   return { key: def.key, label: def.label, color: def.color, projects: next };
 }
 
@@ -333,7 +377,7 @@ export async function insertItemIntoSection(
   itemId: string,
   item: DrawerItemInput,
 ): Promise<DemoSection> {
-  const { projects, version } = await loadTreeWithVersion(def.key);
+  const { projects, version, treeLength } = await loadTreeWithVersion(def.key);
   const project = findProject(projects, projectId);
   const fresh: DirItem = {
     id: itemId,
@@ -342,6 +386,6 @@ export async function insertItemIntoSection(
     ...(typeof item.content === "string" && item.content ? { content: item.content } : {}),
   };
   const next = insertItem(projects, projectId, envelopeId, fresh);
-  await saveTree(def.key, next, version);
+  await saveTree(def.key, next, version, treeLength);
   return { key: def.key, label: def.label, color: def.color, projects: next };
 }

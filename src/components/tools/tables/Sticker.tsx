@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import Image from "next/image";
 import { Trash2, Lock, Unlock, FlipHorizontal, Minus, Plus } from "lucide-react";
 import type { StickerData } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 import { spriteName, spriteUrl } from "./spriteConfig";
 
 interface Props {
@@ -46,9 +47,19 @@ export default function Sticker({
   onUpdate,
   onRemove,
 }: Props) {
+  const { user } = useAuth();
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  /* Variable "you" PFP sprite: mirrors the logged-in user's avatar live.
+   * Falls back to a known-good static sprite when the user has no PFP set. */
+  const isYou = sticker.sprite === "you";
+  const imgSrc =
+    isYou && user?.pfp
+      ? user.pfp
+      : (spriteUrl(sticker.sprite) ?? spriteUrl("happy") ?? undefined);
+
   const drag = useRef<{
     moved: boolean;
     startX: number;
@@ -70,7 +81,11 @@ export default function Sticker({
       e.stopPropagation();
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       const factor = e.deltaMode === 1 ? 16 : 1; // line mode → pixels
-      const step = clampW((Math.abs(delta) * factor * 0.6) || 8) * Math.sign(delta);
+      // Damp the raw delta and snap to the 12px grid; only the FINAL width is
+      // clamped. (Running the raw step through clampW — whose 40px floor made
+      // every single notch jump the sticker by 40px+.)
+      const raw = Math.abs(delta) * factor * 0.15 || 4;
+      const step = Math.sign(delta) * Math.max(STEP_W, Math.round(raw / STEP_W) * STEP_W);
       onUpdate({ w: clampW(wide + step) });
       setResizing(true);
       if (resizeTimer.current) clearTimeout(resizeTimer.current);
@@ -167,14 +182,14 @@ export default function Sticker({
         style={{ transform: sticker.mirrored ? "scaleX(-1)" : undefined }}
       >
         <Image
-          src={spriteUrl(sticker.sprite)}
+          src={imgSrc ?? "/rina/happy.webp"}
           alt=""
           width={wide}
           height={wide}
           unoptimized
           draggable={false}
           className="block h-auto w-full"
-          style={{ aspectRatio: "1 / 1", objectFit: "contain" }}
+          style={{ aspectRatio: "1 / 1", objectFit: isYou ? "cover" : "contain" }}
         />
       </div>
 

@@ -13,6 +13,12 @@ export interface JWTPayload {
   email: string;
   role: string;
   section: string;
+  /** The user's `sessionVersion` when this token was minted. A password
+   *  change/reset bumps the stored value, so every token carrying an older
+   *  version is refused — that is what ends a stolen session immediately,
+   *  rather than waiting out the cookie's 7-day lifetime. Optional so tokens
+   *  minted before this claim existed keep working (they compare as 0). */
+  sv?: number;
 }
 
 if (!process.env.JWT_SECRET) {
