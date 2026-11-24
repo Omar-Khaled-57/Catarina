@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/media/banner.png" alt="Catarina Hero Banner" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);" />
+  <img src="public/media/banner-docs.webp" alt="Catarina Hero Banner" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);" />
 </div>
 <br />
 <div>
@@ -31,7 +31,7 @@ Administrators have global visibility across all sections, while members work wi
 <br />
 
 <div align="center">
-  <img src="public/media/work.png" alt="Catarina Workspace" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);" />
+  <img src="public/media/work-docs.webp" alt="Catarina Workspace" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);" />
 </div>
 
 ## Visual identity

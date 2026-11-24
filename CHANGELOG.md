@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and adhe
 <br />
 
 <div align="center">
-  <img src="public/media/work.png" alt="Catarina Workspace Banner" width="100%" style="border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);" />
+  <img src="public/media/work-docs.webp" alt="Catarina Workspace Banner" width="100%" style="border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);" />
 </div>
 
 <br />
@@ -467,7 +467,7 @@ Integrated 13 pixel-art expression stickers across application states:
 
 ---
 
-## <img src="public/rina/backup/sleepy.png" width="100" align="center" /> [0.1.0] — 2026-07-23 · *Initial Release*
+## <img src="public/rina/backup/sleepy-docs.webp" width="100" align="center" /> [0.1.0] — 2026-07-23 · *Initial Release*
 
 > **Release Highlight:** First public release of Catarina — complete private team goal tracking platform backed by Turso DB, Prisma 7, and Next.js 16.
 
