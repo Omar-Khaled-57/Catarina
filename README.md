@@ -34,6 +34,22 @@ Administrators have global visibility across all sections, while members work wi
   <img src="public/media/work.png" alt="Catarina Workspace" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);" />
 </div>
 
+## Visual identity
+
+Catarina's glassy blue-black workspaces use neon mint as their dark-mode accent.
+Light mode moves to cool paper blue and deep green. Coral, violet, blue, and
+amber distinguish team sections.
+
+| Theme | Canvas / surface | Accent |
+|---|---|---|
+| Dark | `#060B14` / `#0D1824` | `#00E8A2` |
+| Light | `#F4F8FF` / `#FFFFFF` | `#008F5A` |
+
+![Catarina accent colors](https://img.shields.io/badge/Sections-coral%20%7C%20violet%20%7C%20blue%20%7C%20amber-FF4D6A?style=flat-square)
+
+See the [visual identity guide](docs/visual-identity.md) and the source theme in
+[`src/app/globals.css`](src/app/globals.css).
+
 ---
 
 ## <img src="public/rina/thumb.webp" width="100" align="center" /> Deploy Your Own Catarina
@@ -192,8 +208,16 @@ Full documentation lives in [`docs/`](docs/README.md):
 | [Data Model](docs/data-model.md) | Developers & AI agents | Prisma schema, tables, relations, invariants, seeding |
 | [Developer Guide](docs/developer-guide.md) | Developers | Local setup, scripts, tests, the two-database workflow, deploy |
 | [AI Agent Guide](docs/ai-agent-guide.md) | AI coding agents | Repo map, commands, conventions, and invariants to preserve |
+| [Product](docs/product.md) | Everyone | What Catarina is for, its feature inventory, and explicit non-goals |
+| [Architecture](docs/architecture.md) | Developers | Stack, entry points, state/data flow, and integration boundaries |
+| [Development](docs/development.md) | Developers new to the repo | Prerequisites, exact npm scripts, conventions, and troubleshooting |
+| [Configuration](docs/configuration.md) | Operators | Env vars, config files, localStorage keys, and secrets hygiene |
+| [Testing](docs/testing.md) | Developers | Test runner, exact commands, coverage of suites, and gaps |
+| [Deployment](docs/deployment.md) | Operators | Vercel config, build commands, and the manual Turso migration step |
+| [Changelog index](docs/changelog.md) | Everyone | Pointer to release history and the in-app update feed |
+| [Visual identity](docs/visual-identity.md) | Designers & developers | Colors, themes, and section accents |
 
-Release history is in [CHANGELOG.md](CHANGELOG.md); the same notes drive the in-app update modal via
+Release history is in [CHANGELOG.md](CHANGELOG.md) (indexed in [docs/changelog.md](docs/changelog.md)); the same notes drive the in-app update modal via
 `src/lib/changelog.json`.
 
 ---
@@ -297,7 +321,7 @@ Sections are fully customizable from the Admin Panel after deployment.
 
 ## License
 
-Private repository — designed for internal team deployment.
+MIT — see [LICENSE](LICENSE). Designed for internal team deployment; change the seeded admin password before exposing an instance.
 
 ---
 

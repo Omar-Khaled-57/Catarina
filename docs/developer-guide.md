@@ -144,8 +144,8 @@ if (!auth.ok) return auth.response;
   `buildAuthUser` in `src/lib/auth-session.ts`.
 - The login page redirects signed-in users: `src/app/page.tsx` checks the cookie server-side and
   `LoginForm` falls back to a client redirect after the silent refresh completes.
-- `src/proxy.ts` is an Edge function (`matcher: ["/dashboard/:path*"]`) that verifies the JWT
-  for page requests; it's the first line of defense, route handlers are the real checks.
+- `src/proxy.ts` is an Edge function (`matcher: ["/dashboard/:path*", "/tools/:path*", "/api/:path*"]`) that verifies the JWT
+  for page requests and applies the same-origin guard to mutating API requests; it's the first line of defense, route handlers are the real checks.
 - Client-side auth state: `AuthContext` (`login`, `register`, `logout`, `refreshUser`, `updateData`, `markWelcomeSeen`, `markUpdateSeen`).
 - Password fields: use the shared `PasswordInput` component (`src/components/ui/PasswordInput.tsx`)
   — sign-in, registration, profile change-password, and admin modals all render through it.
@@ -280,7 +280,8 @@ is set.
 - **Per-IP keying reads only `TRUSTED_IP_HEADER`.** Never trust a client-chosen header, or the
   attacker picks their own bucket.
 - **CSRF**: the session cookie is `SameSite=Lax` + `HttpOnly`, and independently the edge proxy
-  requires a same-origin `Origin` on every mutating `/api` call, failing closed on `Origin: null`.
+  requires a same-origin `Origin` (with `Referer` as fallback) on every mutating `/api` call,
+  failing closed on `Origin: null`.
 - **Refresh tokens rotate and are single-use**, with reuse revoking the whole family and a hard
   30-day ceiling. A stolen token is usable at most once.
 - **Login is timing-equalized**: exactly one bcrypt comparison per attempt, whatever the input.

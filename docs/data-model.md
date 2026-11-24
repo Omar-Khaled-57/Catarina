@@ -49,6 +49,7 @@ AppConfig (standalone key/value — currently unused)
 | `permissions` | String | `"{}"` | JSON `MemberPermissions` (member only; admins always get full set) |
 | `welcomeSeen` | Boolean | false | Whether the onboarding modal has been shown |
 | `lastSeenVersion` | String | `"0.3.2"` | For in-app update notifications |
+| `sessionVersion` | Int | `0` | Bumped on password change/reset; JWT cookies carry it and stale sessions are rejected by `src/lib/api-helpers.ts` |
 | `createdAt` / `updatedAt` | DateTime | now / @updatedAt | — |
 
 - Unique on `email`. Indexed on `role`.

@@ -3,15 +3,27 @@
 Catarina is a private, multi-section team planning and progress tracking application.
 This directory describes the application **as it exists today** (version 0.7.1).
 
+## Start here
+
+New to Catarina? Read [Product](product.md) for what the app does, [User Guide](user-guide.md) for the day-to-day workflow, then [Development](development.md) to run it locally. Operators should start with [Configuration](configuration.md) and [Deployment](deployment.md).
+
 ## Contents
 
 | Document | Audience | Read this to... |
 |---|---|---|
+| [Product](product.md) | Everyone | Understand the problem, audience, feature inventory, and non-goals |
 | [User Guide](user-guide.md) | Team members & admins | Use the app: log in, work in sections, create goals, write comments, run reports |
+| [Architecture](architecture.md) | Developers | See the real stack, entry points, directory map, state/data flow, and storage boundaries |
+| [Developer Guide](developer-guide.md) | Developers setting up or modifying the code | Set up locally, run scripts/tests, work with the Turso DB schema, deploy |
+| [Development](development.md) | Developers new to the repo | Get prerequisites, exact npm scripts, conventions, and evidenced troubleshooting |
+| [Configuration](configuration.md) | Operators | Inventory every env var, config file, flag, localStorage key, and user setting |
 | [API Reference](api-reference.md) | Developers & AI agents | Understand every endpoint, its payloads, responses, and errors |
 | [Data Model](data-model.md) | Developers & AI agents | Understand the Prisma schema, tables, relations, and invariants |
-| [Developer Guide](developer-guide.md) | Developers setting up or modifying the code | Set up locally, run scripts/tests, work with the Turso DB schema, deploy |
+| [Testing](testing.md) | Developers | Run the Node test suite, see what is covered, and read the gaps |
+| [Deployment](deployment.md) | Operators | Build, Vercel config, artifacts, and the manual Turso migration step |
+| [Changelog](changelog.md) | Everyone | Find the release history and the in-app update feed |
 | [AI Agent Guide](ai-agent-guide.md) | AI coding agents (AGENTS-style) | Get a file map, shell commands, conventions, and "read before editing" warnings |
+| [Visual identity](visual-identity.md) | Designers & developers | Read the color system for dark/light themes and section accents |
 
 ## At a glance
 
@@ -33,6 +45,7 @@ This directory describes the application **as it exists today** (version 0.7.1).
 - API route handlers: `src/app/api/**/route.ts`
 - Shared libs/helpers: `src/lib/`
 - Design tokens: `src/app/globals.css` (`@theme`) · report palette: `src/lib/pdf-palette.ts`
+- License: [`LICENSE`](../LICENSE) (MIT)
 
 > Version notes: `package.json` (version), `src/lib/changelog.json` (user-facing changelog). The
 > changelog also drives the in-app update modal — existing entries must keep the same shape.
